@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Install sdlc-ai skills into zrb and/or Claude Code skill directories.
+# install.sh — Install sdlc-skill skills into zrb and/or Claude Code skill directories.
 #
 # Default behaviour (no flags): installs into whichever target directories
 # already exist on this machine. If neither exists, prints a hint and exits.

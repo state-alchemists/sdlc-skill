@@ -72,7 +72,7 @@ In a chat session, activate a skill by name:
   sdlc-quickfix/SKILL.md        # Delta-format lightweight path
   sdlc-document/SKILL.md        # Reverse-engineer specs from code
 
-sdlc-ai/                        # ← Source repo
+sdlc-skill/                     # ← Source repo
   bin/install.sh                #   Portable installer for zrb / Claude Code
   evals/                        #   Golden examples per skill (regression harness skeleton)
 ```
@@ -192,7 +192,7 @@ You can skip `/sdlc-test-plan` for trivial changes — the implement skill still
 
 ### Scenario D: Evolving Specs After Code Changes
 
-Specs are **snapshots, not living documents**. If you change the code later, old specs don't auto-update. This is a known limitation shared by every SDD tool — see [research-result.md](research-result.md) section 7.5.
+Specs are **snapshots, not living documents**. If you change the code later, old specs don't auto-update. This is a known limitation shared by every SDD tool in 2026.
 
 **When specs drift from code**, the recommended approach is:
 
@@ -428,7 +428,7 @@ Each skill reads the artifacts it needs from these deterministic paths. For exam
 
 ## Evals
 
-`evals/` holds golden examples per skill — the foothold for measuring whether prompt changes improve or regress output quality. The runner is not implemented yet; the structure and authoring guide are in [`evals/README.md`](evals/README.md), with one fully-authored case under `evals/golden/sdlc-init/personal-todo-app/` as a model. Contributions of additional cases are the cheapest way to harden the plugin.
+`evals/` holds golden examples per skill — the foothold for measuring whether prompt changes improve or regress output quality. The runner is not implemented yet; the structure and authoring guide are in [`evals/README.md`](evals/README.md), with one case under `evals/golden/sdlc-init/personal-todo-app/` (input + rubric authored; expected outputs not yet committed). Contributions of additional cases are the cheapest way to harden the plugin.
 
 ---
 
@@ -438,6 +438,6 @@ Each skill reads the artifacts it needs from these deterministic paths. For exam
 - **No runtime approval enforcement** — `Write`/`Edit`/`Bash` are not gated by `ToolPolicy`. Approval relies on the LLM following instructions in the skill.
 - **No validation tools** — no EARS syntax validator, no ADR compliance checker, no entity cross-reference tool. Traceability is enforced by `grep` patterns, not a real parser.
 - **No hook integration** — no `SESSION_START`/`SESSION_END` hooks for automated phase validation.
-- **No MCP server** — generic MCP-aware agents outside zrb/Claude Code can't consume these skills directly yet. See [Future Work](#future-work).
+- **No MCP server** — generic MCP-aware agents outside zrb/Claude Code can't consume these skills directly yet.
 - **No eval runner** — `evals/` has structure and one case, but no automated grader. Today's evals are read by humans.
 - **Specs still drift** — `sdlc-document` closes the loop manually, but there is no automated re-sync after every commit. This is a known limitation shared by every SDD tool in 2026.
