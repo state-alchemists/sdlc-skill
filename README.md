@@ -57,6 +57,33 @@ In a chat session, activate a skill by name:
 
 ---
 
+## How This Maps to Scrum
+
+The SDLC phases are **artifact stages**, not time-boxed ceremonies. For teams coming from Scrum, the rough mapping:
+
+| SDLC phase | Scrum parallel |
+|---|---|
+| `sdlc-init` | Project inception / Sprint Zero — vision, tech stack |
+| `sdlc-rules` | Definition of Done (invariants) + team working agreements |
+| `sdlc-requirements` | Product backlog creation — epics and user stories |
+| `sdlc-architect` | Architecture spike / technical design |
+| `sdlc-spec <feature>` | Backlog refinement — moving a story to "Ready" |
+| `sdlc-test-plan <feature>` | Three Amigos / test-case design |
+| `sdlc-implement <feature>` | Sprint development work |
+| `sdlc-review <feature>` | Code review + Definition of Done check |
+| `sdlc-quickfix` | Hotfix / unplanned work lane |
+| `sdlc-document` | Spike / discovery / tech-debt onboarding |
+
+**Mental model:**
+
+- Phases 1–4 run **once per project** (your "sprint zero").
+- Phases 5–8 run **once per feature**, looped multiple times per sprint.
+- Phases 9–10 are **out-of-band lanes** for hotfixes and drift recovery.
+
+**Where the analogy breaks:** the skills don't replace standups, retros, estimation, or timeboxing — those are human ceremonies that still belong to your team. SDD gives you the *artifacts*; Scrum gives you the *cadence*.
+
+---
+
 ## Architecture
 
 ```
@@ -265,6 +292,35 @@ Read by every later skill as a precondition. Invoke once after `sdlc-init`, and 
 ```
 /sdlc-spec user-authentication
 ```
+
+**Choosing the `<feature>` slice.** Features come from the `US-*` user stories in `requirements/problem-brief.md` — there's no automated breakdown, you pick the slice. The string is used verbatim as the directory name under `specs/` (no normalization, no slugification).
+
+Sizing heuristic:
+
+- **Too small** → trivial deltas churn the pipeline; use `/sdlc-quickfix` instead.
+- **Too big** → EARS sprawls and `sdlc-implement`'s single-shot delegation struggles.
+- **Sweet spot** → one user-visible capability, ~3–10 `REQ-*` entries, implementable in one coding session.
+
+Example. Given a problem brief with these stories:
+
+```
+US-001: As a user, I want to sign up with email and password
+US-002: As a user, I want to log in and stay signed in
+US-003: As a user, I want to create todo lists
+US-004: As a user, I want to add items to a list
+US-005: As a user, I want to mark items complete
+US-006: As a user, I want to share a list with another user
+```
+
+A reasonable carve, in dependency order:
+
+```
+/sdlc-spec user-authentication    # US-001, US-002
+/sdlc-spec todo-crud              # US-003, US-004, US-005
+/sdlc-spec list-sharing           # US-006 (depends on auth + crud)
+```
+
+If a brief feels too vague to carve, that's a signal to revisit `/sdlc-requirements` and tighten the stories first.
 
 ### 6. `sdlc-test-plan` — Test Generation
 
