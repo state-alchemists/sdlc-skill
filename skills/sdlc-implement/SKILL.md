@@ -14,9 +14,9 @@ Drives implementation from spec artifacts using a single delegation to a coding 
 
 - **Argument**: the user invoked `/sdlc-implement <free-text>`. Use it verbatim as `{feature}`. If missing, ask.
 - **Approval**: get an affirmative reply ("yes" / "ok" / "approved" / "go ahead") on the delegation prompt **before** running it. Anything else is a change request. After the agent returns, present results to the user — no second approval is needed unless retrying.
-- **Required input missing**: if any of `specs/{feature}/requirements.md`, `specs/{feature}/design.md`, or `tests/{feature}/test-plan.md` is missing, stop and tell the user which earlier skill to run first. Do not invent.
+- **Required input missing**: if `.sdlc/specs/{feature}/spec.md` or `.sdlc/tests/{feature}/test-plan.md` is missing, stop and tell the user to run `/sdlc-spec {feature}` first. Do not invent.
 - **Retry cap**: if the delegated agent returns with failing tests, re-delegate at most **twice**, each time including the specific failure context. After the third total attempt fails, stop and report the blocker to the user. Do not loop indefinitely.
-- **Verification command fallback**: read test/lint commands from `AGENTS.md`, then `docs/test-strategy.md`. If neither names a runnable command, ask the user — never guess at `pytest`, `npm test`, etc.
+- **Verification command fallback**: read test/lint commands from `AGENTS.md`, then `.sdlc/docs/test-strategy.md`. If neither names a runnable command, ask the user — never guess at `pytest`, `npm test`, etc.
 
 ## Workflow
 
@@ -24,12 +24,11 @@ Drives implementation from spec artifacts using a single delegation to a coding 
 
 Read all preceding artifacts:
 - `.sdlc/rules.md` (if present) — invariants the generated code must never violate; include this verbatim in the delegation prompt
-- `docs/product.md`, `docs/tech.md`, `docs/test-strategy.md` — steering
-- `docs/architecture.md`, `docs/adr/*.md` — architecture
-- `requirements/entity-dictionary.md`, `requirements/problem-brief.md` — requirements
-- `specs/{feature}/requirements.md` — EARS specs
-- `specs/{feature}/design.md` — design
-- `tests/{feature}/test-plan.md` — test plan
+- `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md` — steering
+- `.sdlc/docs/architecture.md`, `.sdlc/docs/adr/*.md` — architecture
+- `.sdlc/requirements/entity-dictionary.md`, `.sdlc/requirements/problem-brief.md` — requirements
+- `.sdlc/specs/{feature}/spec.md` — feature spec (EARS requirements + design)
+- `.sdlc/tests/{feature}/test-plan.md` — test plan
 
 ### Phase 2: Single-Shot Delegation
 
@@ -43,26 +42,25 @@ Implement the following feature following spec-driven development.
 PROJECT RULES (.sdlc/rules.md — refuse to violate any):
 [Inline rules verbatim if the file exists, or write "No rules file present."]
 
-PROJECT CONTEXT (from docs/product.md, docs/tech.md):
+PROJECT CONTEXT (from .sdlc/docs/product.md, .sdlc/docs/tech.md):
 [Read and inline real content from these files]
 
-SPECS (specs/{feature}/):
-- requirements.md: [Read and inline EARS requirements]
-- design.md: [Read and inline correctness properties]
+SPEC (.sdlc/specs/{feature}/spec.md):
+[Read and inline the full spec — requirements, API surface, error handling, correctness properties]
 
-TEST PLAN (tests/{feature}/test-plan.md):
+TEST PLAN (.sdlc/tests/{feature}/test-plan.md):
 [Read and inline test plan]
 
 INSTRUCTIONS:
 1. Create all source files under src/
 2. Create all test files under tests/
 3. Follow the test plan — every test must pass
-4. Run the test suite after implementation (use commands from AGENTS.md / docs/test-strategy.md)
+4. Run the test suite after implementation (use commands from AGENTS.md / .sdlc/docs/test-strategy.md)
 5. Report pass/fail per test
 
 TRACEABILITY (REQUIRED):
 - At the top of every generated source file, emit a header comment listing the REQ-* AND NFR-* IDs it implements:
-    // GENERATED FROM SPEC: specs/{feature}/requirements.md
+    // GENERATED FROM SPEC: .sdlc/specs/{feature}/spec.md
     // IMPLEMENTS: REQ-001, REQ-003, REQ-004, NFR-002
   Use the comment syntax of the target language (`//` for JS/Go/Rust, `#` for Python/Ruby, `--` for SQL, etc.).
 - At the top of every generated test file, list the REQ-*, NFR-*, and test-plan IDs it covers:
@@ -71,7 +69,7 @@ TRACEABILITY (REQUIRED):
     # @sdlc REQ-003, REQ-004
     def validate_login(...):
   Tag only the unit that directly fulfils the requirement — don't sprinkle tags on every helper.
-- Every REQ-* and NFR-* in requirements.md must appear in at least one source-file header and one test-file header. If an NFR-* is validated outside code (per the "NFRs Validated Outside Code" section of requirements.md), say so explicitly in the report — do NOT emit a fake `IMPLEMENTS: NFR-*` line for it.
+- Every REQ-* and NFR-* in spec.md must appear in at least one source-file header and one test-file header. If an NFR-* is validated outside code (per the "NFRs Validated Outside Code" section of spec.md), say so explicitly in the report — do NOT emit a fake `IMPLEMENTS: NFR-*` line for it.
 ```
 
 Hand the filled-in prompt to a general-purpose coding agent using whatever sub-agent delegation mechanism your runtime exposes. The exact tool name varies by runtime — use the one available to you. The agent plans its own task breakdown from the EARS requirements and design doc — no separate task file needed.
@@ -79,7 +77,7 @@ Hand the filled-in prompt to a general-purpose coding agent using whatever sub-a
 ### Phase 3: Verification
 
 After delegation returns:
-1. Run the test suite using the command from `AGENTS.md` → `docs/test-strategy.md` → (if neither names one) ask the user.
+1. Run the test suite using the command from `AGENTS.md` → `.sdlc/docs/test-strategy.md` → (if neither names one) ask the user.
 2. Run the linter from the same source.
 3. If failures: identify the issue and re-delegate with the specific failure context. **Retry cap = 2 re-delegations (3 attempts total).** After the third failure, stop and report the blocker — describe what failed, what was tried, and what looks unimplementable from the spec. Do not loop further.
 4. Report results to the user: tests pass/fail per ID, linter pass/fail, files written, retry count consumed.

@@ -1,6 +1,6 @@
 ---
 name: sdlc-document
-description: Reverse-engineer EARS requirements and design from existing code. Use when specs have drifted from implementation, or when adopting SDLC on a brownfield codebase that has no specs at all.
+description: Reverse-engineer specs from existing code. Use when specs have drifted from implementation, or when adopting SDLC on a brownfield codebase that has no specs at all.
 disable-model-invocation: true
 user-invocable: true
 ---
@@ -11,8 +11,9 @@ user-invocable: true
 Closes the drift loop in the opposite direction from the other skills: instead of code-from-spec, this produces **spec-from-code**. Use it for brownfield adoption and for drift recovery when implementation has diverged from existing specs.
 
 **Use this skill when:**
-- The code for a feature exists but has no spec (brownfield onboarding).
-- A `/sdlc-review` flagged drift between code and existing specs, and you want to regenerate the spec to match reality before deciding which side is wrong.
+- The code for a feature exists but has **no spec at all** — including codebases with no `.sdlc/` directory (brownfield onboarding from zero).
+- The code for a feature exists but has **old-format specs** (`requirements.md` and `design.md` from before the spec-document merge) at `.sdlc/specs/{feature}/` — the skill detects these and offers migration.
+- A `/sdlc-review` flagged drift between code and current-format specs (`spec.md`), and you want to regenerate the spec to match reality before deciding which side is wrong.
 - An external contractor delivered code without specs and you need to retrofit them.
 
 **Do NOT use this skill when:**
@@ -45,9 +46,28 @@ Reject vague scopes ("the whole project") — break them into multiple `/sdlc-do
 Read, in order:
 1. All source files in the chosen scope. Use `git ls-files <scope>` to enumerate.
 2. All test files for the same scope (they encode intended behaviour).
-3. `.sdlc/rules.md` if present (so reverse-engineered specs don't reintroduce forbidden patterns).
-4. `requirements/entity-dictionary.md` — to align reverse-engineered domain nouns with existing entities.
-5. Any **existing** `specs/{feature}/requirements.md` and `design.md` — you'll diff against these, not overwrite blindly.
+3. `.sdlc/rules.md` if present — if neither `.sdlc/` directory nor `AGENTS.md` exists, the project has no prior SDLC setup; treat this as a zero-baseline run (skip rules, note the greenfield-on-brownfield situation to the user).
+4. `.sdlc/requirements/entity-dictionary.md` if present — if absent, entities will be inferred from source and tests alone.
+5. Check for existing specs at `.sdlc/specs/{feature}/`:
+   - If `spec.md` exists → current format detected. Use it in Phase 5.
+   - If `requirements.md` and/or `design.md` exist but `spec.md` does not → **old format detected**. Go to Phase 2a.
+   - If neither exists → no prior specs. Skip Phase 5, write fresh in Phase 6.
+
+### Phase 2a: Old Format Detection and Migration
+
+If `.sdlc/specs/{feature}/requirements.md` and/or `design.md` exist but `spec.md` does not, the project was last touched before the spec-document merge. Tell the user:
+
+> Found old-format specs: `requirements.md` and `design.md` (pre-merge format). Would you like me to:
+> - **Use them as the baseline** — I'll read both, treat their combined content as the existing spec for the diff, and write the new `spec.md`.
+> - **Ignore them** — start fresh from code, writing a new `spec.md`. Old files remain on disk untouched.
+> - **Abort** — I'll stop here so you can handle migration manually.
+
+Act on the answer:
+- **Use as baseline**: read `requirements.md` and `design.md`, combine their content into a unified mental model, and use that as the "existing spec" for Phase 5 and Phase 6 diffs. After writing `spec.md`, ask: "Remove the old `requirements.md` and `design.md` files now, or keep them for reference?"
+- **Ignore**: proceed as if no prior specs exist. Note the orphaned files in a one-line warning: "Old-format specs at `requirements.md` and `design.md` were left untouched — remove or archive them when ready."
+- **Abort**: stop. Do not write anything.
+
+If the user picks "use as baseline," the Phase 5 diff is computed against the combined old-format content. The drift report should note: `Baseline: old-format specs (requirements.md + design.md)`.
 
 ### Phase 3: Extract Behaviour
 
@@ -86,7 +106,7 @@ If the code does not address a property, state it explicitly: `Not enforced — 
 
 ### Phase 5: Diff Against Existing Specs
 
-If `specs/{feature}/requirements.md` and `design.md` already exist:
+If `.sdlc/specs/{feature}/spec.md` already exists:
 - Show the user a three-column diff: **Old REQ-* / New REQ-* / Status (UNCHANGED / MODIFIED / ADDED / REMOVED-from-code)**.
 - Status `REMOVED-from-code` means the spec still claims this requirement but the code no longer implements it — flag for user decision (re-implement, or drop from spec).
 - Status `ADDED` means the code behaves this way but the spec never claimed it — flag for user decision (formalize, or remove the undocumented behaviour).
@@ -107,9 +127,8 @@ If no existing specs, skip this phase.
    - **Abort** — leave the existing specs untouched. Still write the drift report so the gaps are recorded.
 
 Files to write (depending on the decision above):
-- `specs/{feature}/requirements.md` — reverse-engineered or merged, with the footer below.
-- `specs/{feature}/design.md` — same treatment.
-- `specs/{feature}/drift-report-{timestamp}.md` — the diff from Phase 5 (always write this when prior specs existed).
+- `.sdlc/specs/{feature}/spec.md` — reverse-engineered or merged, with the footer below.
+- `.sdlc/specs/{feature}/drift-report-{timestamp}.md` — the diff from Phase 5 (always write this when prior specs existed).
 
 Footer to append to overwritten / merged files:
 ```
@@ -119,19 +138,18 @@ Footer to append to overwritten / merged files:
 
 ## Phase Transition
 
-Once the reverse-engineered `requirements.md`, `design.md`, and (if applicable) `drift-report-{timestamp}.md` are written and approved, this skill is done. **Do not invoke any other skill yourself** — only the user can start a fresh chat and trigger one. Tell the user (paraphrase as needed):
+Once the reverse-engineered `spec.md` and (if applicable) `drift-report-{timestamp}.md` are written and approved, this skill is done. **Do not invoke any other skill yourself** — only the user can start a fresh chat and trigger one. Tell the user (paraphrase as needed):
 
-> Documented `{feature}` from code. Specs are now at `specs/{feature}/requirements.md` and `specs/{feature}/design.md`{, drift report at `specs/{feature}/drift-report-{timestamp}.md` if applicable}. Suggested next steps — pick whichever fits:
-> - **Accept the documented spec as authoritative**: exit and start a fresh chat, then run `/sdlc-test-plan {feature}` to generate a test plan against the now-current spec. Missing tests will reveal real coverage gaps.
+> Documented `{feature}` from code. Spec is now at `.sdlc/specs/{feature}/spec.md`{, drift report at `.sdlc/specs/{feature}/drift-report-{timestamp}.md` if applicable}. Suggested next steps — pick whichever fits:
+> - **Accept the documented spec as authoritative**: this skill writes `spec.md` but not the `.sdlc/tests/{feature}/test-plan.md` that `/sdlc-implement` requires. To add it, exit and start a fresh chat, then run `/sdlc-spec {feature}` — it generates the test plan and reconciles `spec.md` against `.sdlc/requirements/problem-brief.md` (preserving existing REQ-* IDs). That reconciliation needs the brief to exist; if you came in from a zero-baseline brownfield run, run `/sdlc-init` and `/sdlc-requirements` first, then `/sdlc-spec`.
 > - **Code drifted in ways you want to undo**: exit and start a fresh chat, then run `/sdlc-quickfix {feature}` to close the gap in the code rather than absorbing it into the spec.
-> - **Both**: do the quickfix first, then the test plan.
 
 After delivering this message, end your turn.
 
 ## Error Recovery
 
 If interrupted mid-phase:
-- List `specs/{feature}/` to see whether the documented files and drift report were written.
+- List `.sdlc/specs/{feature}/` to see whether the documented files and drift report were written.
 - If only the drift report exists, the user may have chosen to NOT overwrite the spec yet — confirm with the user before re-running.
 - Re-running on the same scope is safe; it will regenerate the same artifacts (subject to LLM determinism caveats).
 
@@ -145,6 +163,5 @@ If interrupted mid-phase:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `requirements.md` | `{root}/specs/{feature}/` | Reverse-engineered EARS requirements |
-| `design.md` | `{root}/specs/{feature}/` | Reverse-engineered correctness properties |
-| `drift-report-{timestamp}.md` | `{root}/specs/{feature}/` | Diff vs. prior specs (only if any existed) |
+| `spec.md` | `{root}/.sdlc/specs/{feature}/` | Reverse-engineered spec (EARS requirements + design) |
+| `drift-report-{timestamp}.md` | `{root}/.sdlc/specs/{feature}/` | Diff vs. prior specs (only if any existed) |
