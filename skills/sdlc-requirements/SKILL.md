@@ -13,8 +13,8 @@ Takes raw product vision (from sdlc-init outputs or user input) and produces str
 ## Conventions (read once, apply throughout)
 
 - **Approval**: write only after an explicit affirmative ("yes" / "ok" / "approved"). Silence or vague replies are change requests.
-- **Required input missing**: if `docs/product.md` is missing on what looks like a non-trivial project, stop and ask the user to run `/sdlc-init` first. Don't fabricate product context.
-- **Entity dictionary is project-wide**: `requirements/entity-dictionary.md` is one file shared across all features. On re-run, **merge** — never overwrite. Preserve existing entities and fields not touched by this run; surface conflicts (same entity, different fields) for user decision.
+- **Required input missing**: if `.sdlc/docs/product.md` is missing on what looks like a non-trivial project, stop and ask the user to run `/sdlc-init` first. Don't fabricate product context.
+- **Entity dictionary is project-wide**: `.sdlc/requirements/entity-dictionary.md` is one file shared across all features. On re-run, **merge** — never overwrite. Preserve existing entities and fields not touched by this run; surface conflicts (same entity, different fields) for user decision.
 - **AC IDs are stable**: every Acceptance Criterion gets an `AC-NNN` ID; continue numbering on re-run, never recycle.
 
 ## Workflow
@@ -22,9 +22,9 @@ Takes raw product vision (from sdlc-init outputs or user input) and produces str
 ### Phase 1: Input Gathering
 
 Read steering documents first if they exist:
-- `docs/product.md` — product context, users, success criteria
-- `docs/tech.md` — technology constraints
-- `requirements/entity-dictionary.md` (if it exists) — prior entities, to be merged with new ones from this run
+- `.sdlc/docs/product.md` — product context, users, success criteria
+- `.sdlc/docs/tech.md` — technology constraints
+- `.sdlc/requirements/entity-dictionary.md` (if it exists) — prior entities, to be merged with new ones from this run
 
 If no steering documents exist on a non-trivial project, stop and recommend the user run `/sdlc-init` first. For a deliberate lightweight project, you may proceed by asking the user directly: feature name, users, data entities, existing systems.
 
@@ -32,7 +32,7 @@ If no steering documents exist on a non-trivial project, stop and recommend the 
 
 User stories surface the domain nouns, so write the brief first and let the entity dictionary fall out of it.
 
-#### Template: requirements/problem-brief.md
+#### Template: .sdlc/requirements/problem-brief.md
 
 ```markdown
 # Problem Brief: {{FEATURE_NAME}}
@@ -69,13 +69,13 @@ Extract every domain noun mentioned in the problem brief (users, items, events, 
 - **Constraints**: Required, unique, min/max, regex, FK
 - **Description**: What this represents
 
-**Merge, don't overwrite**: if `requirements/entity-dictionary.md` already exists, load it and merge:
+**Merge, don't overwrite**: if `.sdlc/requirements/entity-dictionary.md` already exists, load it and merge:
 - Entities not touched by this run → keep verbatim.
 - New entities → append.
 - Same entity, new fields → append fields to the existing entity (keep prior fields).
 - Same entity, **conflicting** field definition (different type or constraints) → do not silently change. Surface the conflict to the user and ask which definition wins.
 
-#### Template: requirements/entity-dictionary.md
+#### Template: .sdlc/requirements/entity-dictionary.md
 
 ```markdown
 # Entity Dictionary: {{PROJECT_NAME}}
@@ -110,7 +110,7 @@ Present each document to the user before writing. Do not write without approval.
 
 Once both artifacts are written and approved, this skill is done. **Do not invoke `/sdlc-architect` yourself** — only the user can start a fresh chat and trigger it. Tell the user (paraphrase as needed):
 
-> Requirements are complete: `requirements/problem-brief.md` and `requirements/entity-dictionary.md`. To continue, exit this chat and start a fresh session, then run `/sdlc-architect` to begin architecture work.
+> Requirements are complete: `.sdlc/requirements/problem-brief.md` and `.sdlc/requirements/entity-dictionary.md`. To continue, exit this chat and start a fresh session, then run `/sdlc-architect` to begin architecture work.
 
 After delivering this message, end your turn.
 
@@ -125,5 +125,5 @@ If the session is interrupted mid-phase:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `problem-brief.md` | `{root}/requirements/problem-brief.md` | PRD with user stories |
-| `entity-dictionary.md` | `{root}/requirements/entity-dictionary.md` | Domain entities, fields, constraints |
+| `problem-brief.md` | `{root}/.sdlc/requirements/problem-brief.md` | PRD with user stories |
+| `entity-dictionary.md` | `{root}/.sdlc/requirements/entity-dictionary.md` | Domain entities, fields, constraints |

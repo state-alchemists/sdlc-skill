@@ -24,11 +24,11 @@ For changes that don't justify the full pipeline — bug fixes, copy tweaks, err
 
 - **Argument**: the user invoked `/sdlc-quickfix <free-text>`. Use it verbatim as `{feature}`. If missing, ask.
 - **Approval**: get an explicit affirmative on the delta in Phase 3, and again on the inline-review verdict in Phase 5. Silence or vague replies are change requests.
-- **Required input missing**: if `specs/{feature}/requirements.md` does not exist, this is not a quickfix — stop and recommend `/sdlc-spec {feature}` to plan the feature first.
+- **Required input missing**: if `.sdlc/specs/{feature}/spec.md` does not exist, this is not a quickfix — stop and recommend `/sdlc-spec {feature}` to plan the feature first.
 - **Timestamp**: get the current time via the runtime's shell (e.g. `date -u +%Y-%m-%dT%H-%M-%S`). Never invent a timestamp.
 - **Retry cap**: if the delegated agent fails the inline review (Phase 5), re-delegate at most **twice**. After the third total attempt, stop and report the blocker.
 - **Modification ownership**:
-  - **Phase 4 (delegated agent)**: must NOT touch `specs/{feature}/requirements.md`, `specs/{feature}/design.md`, or `tests/{feature}/test-plan.md`. The agent only writes code and test files.
+  - **Phase 4 (delegated agent)**: must NOT touch `.sdlc/specs/{feature}/spec.md` or `.sdlc/tests/{feature}/test-plan.md`. The agent only writes code and test files.
   - **Phase 6 (you, the orchestrating LLM)**: if and only if the user explicitly opts in to promotion, **you** edit the canonical spec/test-plan files yourself, after the agent has returned and the inline review is clean.
 
 ## Workflow
@@ -37,10 +37,9 @@ For changes that don't justify the full pipeline — bug fixes, copy tweaks, err
 
 Read:
 - `.sdlc/rules.md` (if exists) — non-negotiable invariants
-- `specs/{feature}/requirements.md` — existing EARS to delta against
-- `specs/{feature}/design.md` — existing design (for property impact)
-- `tests/{feature}/test-plan.md` — existing test plan to delta against
-- `requirements/entity-dictionary.md` — if the change touches a domain entity
+- `.sdlc/specs/{feature}/spec.md` — existing spec to delta against (requirements + design in one file)
+- `.sdlc/tests/{feature}/test-plan.md` — existing test plan to delta against
+- `.sdlc/requirements/entity-dictionary.md` — if the change touches a domain entity
 - Source files in `src/` that the change will touch (use `git grep` for the affected symbol)
 
 ### Phase 2: Scope Confirmation
@@ -49,7 +48,7 @@ State to the user, in one or two sentences, exactly what is changing and what is
 
 ### Phase 3: Write the Delta
 
-#### Template: specs/{feature}/quickfix-{YYYY-MM-DDTHH-MM-SS}.md
+#### Template: .sdlc/specs/{feature}/quickfix-{YYYY-MM-DDTHH-MM-SS}.md
 
 ```markdown
 # Quickfix: {{ONE-LINE DESCRIPTION}}
@@ -109,7 +108,7 @@ Present the delta to the user. On approval, delegate the implementation. The del
 ```
 Implement the following quickfix delta against an existing codebase.
 
-QUICKFIX DELTA (specs/{feature}/quickfix-{timestamp}.md):
+QUICKFIX DELTA (.sdlc/specs/{feature}/quickfix-{timestamp}.md):
 [Inline the delta document]
 
 PROJECT RULES (.sdlc/rules.md):
@@ -123,7 +122,7 @@ INSTRUCTIONS:
    - **MODIFIED** tests → update the existing test bodies; keep their names unless the delta renames them; update `COVERS:` headers if the covered IDs changed.
    - **REMOVED** tests → delete the named test function (and the test file if it becomes empty).
 4. Run the full test suite (not just the new tests). Report any non-regression failures.
-5. Do NOT modify `specs/{feature}/requirements.md`, `specs/{feature}/design.md`, or `tests/{feature}/test-plan.md`. The quickfix file IS the change record. The orchestrating skill (not you) may promote later, if the user asks.
+5. Do NOT modify `.sdlc/specs/{feature}/spec.md` or `.sdlc/tests/{feature}/test-plan.md`. The quickfix file IS the change record. The orchestrating skill (not you) may promote later, if the user asks.
 6. Report: files touched, tests added/modified/removed (by name), test suite pass/fail per test, any rule overrides invoked.
 ```
 
@@ -141,23 +140,23 @@ The quickfix path skips `/sdlc-review` because it is too small to warrant a sepa
 
 ### Phase 6: Promote (Optional, opt-in only)
 
-**You (the orchestrating LLM), not the delegated agent, do this step.** Ask the user explicitly: "Promote this delta into `specs/{feature}/requirements.md` and `tests/{feature}/test-plan.md`, or leave the quickfix as a standalone change record?"
+**You (the orchestrating LLM), not the delegated agent, do this step.** Ask the user explicitly: "Promote this delta into `.sdlc/specs/{feature}/spec.md` and `.sdlc/tests/{feature}/test-plan.md`, or leave the quickfix as a standalone change record?"
 
 If the user opts in:
-1. **Update `specs/{feature}/requirements.md`**:
+1. **Update `.sdlc/specs/{feature}/spec.md`**:
    - ADDED requirements → append with their assigned REQ-* IDs (continue numbering, do not recycle).
    - MODIFIED requirements → rewrite the existing REQ-NNN line; mention the change date in a trailing comment if non-trivial.
    - REMOVED requirements → keep the ID line but mark as `REQ-NNN: REMOVED ({YYYY-MM-DD}) — {reason}`. Do not reuse the number.
-2. **Update `tests/{feature}/test-plan.md`** similarly for UT-*, IT-*, E2E-*, PBT-* IDs.
+2. **Update `.sdlc/tests/{feature}/test-plan.md`** similarly for UT-*, IT-*, E2E-*, PBT-* IDs.
 3. **Keep the dated quickfix file** — do not delete it. It remains the chronological record of what changed and when, even after promotion.
 
-If the user declines: the dated quickfix file IS the durable record. Multiple quickfixes accumulate as a chronological log under `specs/{feature}/quickfix-*.md`.
+If the user declines: the dated quickfix file IS the durable record. Multiple quickfixes accumulate as a chronological log under `.sdlc/specs/{feature}/quickfix-*.md`.
 
 ## Phase Transition
 
 This skill terminates the change in-place — there is no next phase. Once the delta is applied, the test suite passes, and the inline review is clean, this skill is done. **Do not invoke any other skill yourself.** Tell the user (paraphrase as needed):
 
-> Quickfix applied for `{feature}`: delta recorded at `specs/{feature}/quickfix-{timestamp}.md`, code and tests updated, test suite passing.
+> Quickfix applied for `{feature}`: delta recorded at `.sdlc/specs/{feature}/quickfix-{timestamp}.md`, code and tests updated, test suite passing.
 > - If the quickfix uncovered a deeper design issue, exit this chat and start a fresh session, then run `/sdlc-spec {feature}` to regenerate the canonical spec.
 > - Otherwise the change is complete and ready for PR.
 
@@ -166,7 +165,7 @@ After delivering this message, end your turn.
 ## Error Recovery
 
 If interrupted mid-phase:
-- List `specs/{feature}/quickfix-*.md` to find the in-progress delta.
+- List `.sdlc/specs/{feature}/quickfix-*.md` to find the in-progress delta.
 - If the delta exists but no code was changed, re-delegate from Phase 4.
 - If code was partially changed, prefer fixing forward over reverting — the delta document is the source of truth.
 
@@ -174,6 +173,6 @@ If interrupted mid-phase:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `quickfix-{timestamp}.md` | `{root}/specs/{feature}/` | Dated delta record (ADDED/MODIFIED/REMOVED) |
+| `quickfix-{timestamp}.md` | `{root}/.sdlc/specs/{feature}/` | Dated delta record (ADDED/MODIFIED/REMOVED) |
 | Source diff | `{root}/src/` | Implementation of the delta with traceability tags |
 | Test diff | `{root}/tests/` | Test changes per the Test Delta |

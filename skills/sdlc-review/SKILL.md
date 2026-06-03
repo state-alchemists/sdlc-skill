@@ -13,9 +13,9 @@ Reviews implemented code against spec artifacts using a fresh-context code-revie
 ## Conventions (read once, apply throughout)
 
 - **Argument**: the user invoked `/sdlc-review <free-text>`. Use it verbatim as `{feature}`. If missing, ask.
-- **Required input missing**: if `specs/{feature}/requirements.md` is missing, stop and tell the user — there's nothing authoritative to review against.
+- **Required input missing**: if `.sdlc/specs/{feature}/spec.md` is missing, stop and tell the user — there's nothing authoritative to review against.
 - **Timestamp**: get the current timestamp via the runtime's shell (e.g. `date -u +%Y-%m-%dT%H-%M-%S`). Never invent a timestamp.
-- **Output path is feature-scoped**: write the report to `review/{feature}/report-{timestamp}.md` — not the unscoped `review/` directory. Multi-feature projects accumulate reports per-feature.
+- **Output path is feature-scoped**: write the report to `.sdlc/reviews/{feature}/report-{timestamp}.md` — not the unscoped `review/` directory. Multi-feature projects accumulate reports per-feature.
 
 ## Workflow
 
@@ -23,11 +23,10 @@ Reviews implemented code against spec artifacts using a fresh-context code-revie
 
 Read:
 - `.sdlc/rules.md` (if present) — every violation must be reported as a FAIL unless the Override Log records an approved exception
-- `specs/{feature}/requirements.md` — EARS requirements (the source of truth)
-- `specs/{feature}/design.md` — correctness properties
-- `tests/{feature}/test-plan.md` — expected test coverage
-- `requirements/entity-dictionary.md` — domain model
-- `docs/architecture.md`, `docs/adr/*.md` — architecture decisions
+- `.sdlc/specs/{feature}/spec.md` — feature spec (EARS requirements + design — the source of truth)
+- `.sdlc/tests/{feature}/test-plan.md` — expected test coverage
+- `.sdlc/requirements/entity-dictionary.md` — domain model
+- `.sdlc/docs/architecture.md`, `.sdlc/docs/adr/*.md` — architecture decisions
 
 ### Phase 2: Identify Changed Files
 
@@ -41,16 +40,16 @@ Delegate to a code-review agent with full spec context. The block below is a **p
 Review the implementation of {feature} against its specification.
 
 EARS REQUIREMENTS:
-[Inline from specs/{feature}/requirements.md]
+[Inline from .sdlc/specs/{feature}/spec.md — the Requirements and Non-Functional Requirements sections]
 
 DESIGN:
-[Inline from specs/{feature}/design.md]
+[Inline from .sdlc/specs/{feature}/spec.md — the API Surface, Error Handling, and Correctness sections]
 
 TEST PLAN:
-[Inline from tests/{feature}/test-plan.md]
+[Inline from .sdlc/tests/{feature}/test-plan.md]
 
 ENTITY DICTIONARY:
-[Inline key entities from requirements/entity-dictionary.md]
+[Inline key entities from .sdlc/requirements/entity-dictionary.md]
 
 PROJECT RULES:
 [Inline .sdlc/rules.md if present, or write "No rules file present."]
@@ -63,19 +62,19 @@ CHANGED FILES:
 
 For each check below, return a status (PASS / FAIL / PARTIAL) with specific file:line evidence:
 - EARS Coverage — every REQ-* and NFR-* has corresponding code + test (or, for NFRs validated outside code, the documented validation mechanism is in place)
-- Correctness — each correctness property from design.md is handled (or marked N/A consistently)
+- Correctness — each correctness property from spec.md is handled (or marked N/A consistently)
 - Entity Fidelity — fields match entity-dictionary (names, types, constraints)
 - ADR Compliance — code follows ADR decisions
 - Rules Compliance — code respects every RULE-* in .sdlc/rules.md (if the file exists); any violation must have a matching entry in the Override Log
 - Test Coverage — test-plan tests are implemented and passing
-- Traceability — every REQ-* and NFR-* (excluding NFRs validated outside code) appears in at least one source-file `IMPLEMENTS:` header AND one test-file `COVERS:` header; every `@sdlc REQ-*`/`@sdlc NFR-*` inline tag references a real ID in requirements.md
+- Traceability — every REQ-* and NFR-* (excluding NFRs validated outside code) appears in at least one source-file `IMPLEMENTS:` header AND one test-file `COVERS:` header; every `@sdlc REQ-*`/`@sdlc NFR-*` inline tag references a real ID in spec.md
 ```
 
 Traceability verification commands:
 - `grep -rnE "IMPLEMENTS: " src/` → enumerate source-file headers
 - `grep -rnE "COVERS: "     tests/` → enumerate test-file headers
 - `grep -rnE "@sdlc (REQ|NFR)-" src/ tests/` → enumerate inline tags
-- Then for **each** REQ-* / NFR-* in `specs/{feature}/requirements.md`, confirm it appears in at least one `IMPLEMENTS:` line and one `COVERS:` line (unless explicitly marked as validated outside code).
+- Then for **each** REQ-* / NFR-* in `.sdlc/specs/{feature}/spec.md`, confirm it appears in at least one `IMPLEMENTS:` line and one `COVERS:` line (unless explicitly marked as validated outside code).
 
 Hand the filled-in prompt to a code-review sub-agent — a fresh-context agent specialized for code review if your runtime exposes one, otherwise a general-purpose agent. The exact delegation tool name varies by runtime; use the one available to you. The point is fresh context: the review must not inherit assumptions from the implementation conversation.
 
@@ -89,9 +88,9 @@ The agent's report is the primary review output. This phase is a sanity audit, n
 
 ### Phase 5: Report
 
-Write the report to `review/{feature}/report-{YYYY-MM-DDTHH-MM-SS}.md` (ISO 8601 timestamp, colons replaced with hyphens for filesystem safety). Multiple reviews on the same day won't collide, and multi-feature projects keep reports separated.
+Write the report to `.sdlc/reviews/{feature}/report-{YYYY-MM-DDTHH-MM-SS}.md` (ISO 8601 timestamp, colons replaced with hyphens for filesystem safety). Multiple reviews on the same day won't collide, and multi-feature projects keep reports separated.
 
-#### Template: review/{feature}/report-{timestamp}.md
+#### Template: .sdlc/reviews/{feature}/report-{timestamp}.md
 
 ```markdown
 # Review Report: {{FEATURE_NAME}}
@@ -123,16 +122,16 @@ Write the report to `review/{feature}/report-{YYYY-MM-DDTHH-MM-SS}.md` (ISO 8601
 
 This is the final phase. Once the report is written and presented, this skill is done. **Do not invoke any other skill yourself.** Tell the user (paraphrase as needed) based on the verdict:
 
-- **APPROVE**: "Review verdict is APPROVE — `{feature}` is ready for PR / human review. Findings: {short summary}. Report saved to `review/{feature}/report-{timestamp}.md`."
-- **REQUEST CHANGES**: "Review verdict is REQUEST CHANGES. The cited findings need to be fixed. Two paths: (1) fix manually using the report at `review/{feature}/report-{timestamp}.md`, then exit this chat, start a fresh session, and run `/sdlc-review {feature}` again; or (2) exit and start a fresh session, then run `/sdlc-implement {feature}` again with the report as input, then re-run `/sdlc-review {feature}`."
-- **COMMENT**: "Review verdict is COMMENT. Findings are non-blocking; `{feature}` can proceed to PR with the noted caveats. Report saved to `review/{feature}/report-{timestamp}.md`."
+- **APPROVE**: "Review verdict is APPROVE — `{feature}` is ready for PR / human review. Findings: {short summary}. Report saved to `.sdlc/reviews/{feature}/report-{timestamp}.md`."
+- **REQUEST CHANGES**: "Review verdict is REQUEST CHANGES. The cited findings need to be fixed. Two paths: (1) fix manually using the report at `.sdlc/reviews/{feature}/report-{timestamp}.md`, then exit this chat, start a fresh session, and run `/sdlc-review {feature}` again; or (2) exit and start a fresh session, then run `/sdlc-implement {feature}` again with the report as input, then re-run `/sdlc-review {feature}`."
+- **COMMENT**: "Review verdict is COMMENT. Findings are non-blocking; `{feature}` can proceed to PR with the noted caveats. Report saved to `.sdlc/reviews/{feature}/report-{timestamp}.md`."
 
 After delivering this message, end your turn.
 
 ## Error Recovery
 
 If the review session is interrupted:
-- List `review/` to check if the report was written
+- List `.sdlc/reviews/` to check if the report was written
 - If not, re-read the spec artifacts and re-delegate
 - Compare with any prior report to track progress
 
@@ -140,4 +139,4 @@ If the review session is interrupted:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `report-*.md` | `{root}/review/{feature}/` | Review report with findings (feature-scoped) |
+| `report-*.md` | `{root}/.sdlc/reviews/{feature}/` | Review report with findings (feature-scoped) |
