@@ -22,40 +22,47 @@ SKILLS_SRC="${REPO_ROOT}/skills"
 
 # ---------------------------------------------------------------------------
 # Tool registry — maps tool IDs to their skills directory under $HOME.
+# Uses a case function rather than associative arrays (bash 3.2 compat).
 # Source: OpenSpec docs/supported-tools.md (skill directory patterns).
 # ---------------------------------------------------------------------------
-declare -A TOOL_SKILLS_DIR
-TOOL_SKILLS_DIR[zrb]="${HOME}/.zrb/skills"
-TOOL_SKILLS_DIR[claude]="${HOME}/.claude/skills"
-TOOL_SKILLS_DIR[codex]="${HOME}/.codex/skills"
-TOOL_SKILLS_DIR[opencode]="${HOME}/.opencode/skills"
-TOOL_SKILLS_DIR[cursor]="${HOME}/.cursor/skills"
-TOOL_SKILLS_DIR[windsurf]="${HOME}/.windsurf/skills"
-TOOL_SKILLS_DIR[github-copilot]="${HOME}/.github/skills"
-TOOL_SKILLS_DIR[gemini]="${HOME}/.gemini/skills"
-TOOL_SKILLS_DIR[amazon-q]="${HOME}/.amazonq/skills"
-TOOL_SKILLS_DIR[cline]="${HOME}/.cline/skills"
-TOOL_SKILLS_DIR[codebuddy]="${HOME}/.codebuddy/skills"
-TOOL_SKILLS_DIR[continue]="${HOME}/.continue/skills"
-TOOL_SKILLS_DIR[crush]="${HOME}/.crush/skills"
-TOOL_SKILLS_DIR[factory]="${HOME}/.factory/skills"
-TOOL_SKILLS_DIR[iflow]="${HOME}/.iflow/skills"
-TOOL_SKILLS_DIR[junie]="${HOME}/.junie/skills"
-TOOL_SKILLS_DIR[kilocode]="${HOME}/.kilocode/skills"
-TOOL_SKILLS_DIR[kiro]="${HOME}/.kiro/skills"
-TOOL_SKILLS_DIR[lingma]="${HOME}/.lingma/skills"
-TOOL_SKILLS_DIR[pi]="${HOME}/.pi/skills"
-TOOL_SKILLS_DIR[qoder]="${HOME}/.qoder/skills"
-TOOL_SKILLS_DIR[qwen]="${HOME}/.qwen/skills"
-TOOL_SKILLS_DIR[roocode]="${HOME}/.roo/skills"
-TOOL_SKILLS_DIR[antigravity]="${HOME}/.agent/skills"
-TOOL_SKILLS_DIR[bob]="${HOME}/.bob/skills"
-TOOL_SKILLS_DIR[costrict]="${HOME}/.cospec/skills"
-TOOL_SKILLS_DIR[forgecode]="${HOME}/.forge/skills"
-TOOL_SKILLS_DIR[kimi]="${HOME}/.kimi/skills"
-TOOL_SKILLS_DIR[trae]="${HOME}/.trae/skills"
-TOOL_SKILLS_DIR[vibe]="${HOME}/.vibe/skills"
-TOOL_SKILLS_DIR[auggie]="${HOME}/.augment/skills"
+tool_dir() {
+    case "$1" in
+        zrb)            echo "${HOME}/.zrb/skills" ;;
+        claude)         echo "${HOME}/.claude/skills" ;;
+        codex)          echo "${HOME}/.codex/skills" ;;
+        opencode)       echo "${HOME}/.opencode/skills" ;;
+        cursor)         echo "${HOME}/.cursor/skills" ;;
+        windsurf)       echo "${HOME}/.windsurf/skills" ;;
+        github-copilot) echo "${HOME}/.github/skills" ;;
+        gemini)         echo "${HOME}/.gemini/skills" ;;
+        amazon-q)       echo "${HOME}/.amazonq/skills" ;;
+        cline)          echo "${HOME}/.cline/skills" ;;
+        codebuddy)      echo "${HOME}/.codebuddy/skills" ;;
+        continue)       echo "${HOME}/.continue/skills" ;;
+        crush)          echo "${HOME}/.crush/skills" ;;
+        factory)        echo "${HOME}/.factory/skills" ;;
+        iflow)          echo "${HOME}/.iflow/skills" ;;
+        junie)          echo "${HOME}/.junie/skills" ;;
+        kilocode)       echo "${HOME}/.kilocode/skills" ;;
+        kiro)           echo "${HOME}/.kiro/skills" ;;
+        lingma)         echo "${HOME}/.lingma/skills" ;;
+        pi)             echo "${HOME}/.pi/skills" ;;
+        qoder)          echo "${HOME}/.qoder/skills" ;;
+        qwen)           echo "${HOME}/.qwen/skills" ;;
+        roocode)        echo "${HOME}/.roo/skills" ;;
+        antigravity)    echo "${HOME}/.agent/skills" ;;
+        bob)            echo "${HOME}/.bob/skills" ;;
+        costrict)       echo "${HOME}/.cospec/skills" ;;
+        forgecode)      echo "${HOME}/.forge/skills" ;;
+        kimi)           echo "${HOME}/.kimi/skills" ;;
+        trae)           echo "${HOME}/.trae/skills" ;;
+        vibe)           echo "${HOME}/.vibe/skills" ;;
+        auggie)         echo "${HOME}/.augment/skills" ;;
+        *)              return 1 ;;
+    esac
+}
+
+known_tool() { tool_dir "$1" > /dev/null 2>&1; }
 
 # Ordered list for usage display and --tools all.
 TOOL_IDS=(
@@ -67,7 +74,16 @@ TOOL_IDS=(
 
 uninstall=0
 dry_run=0
-declare -A want_tool
+want_tool=()
+
+# Check whether a tool ID is in the want_tool set.
+want() {
+    local id="$1" x
+    for x in "${want_tool[@]}"; do
+        [[ "$x" == "$id" ]] && return 0
+    done
+    return 1
+}
 
 usage() {
     cat <<'EOF'
@@ -103,26 +119,26 @@ run() {
 # ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --zrb)       want_tool[zrb]=1 ;;
-        --claude)    want_tool[claude]=1 ;;
-        --all)       for id in "${TOOL_IDS[@]}"; do want_tool["${id}"]=1; done ;;
+        --zrb)       want_tool+=("zrb") ;;
+        --claude)    want_tool+=("claude") ;;
+        --all)       want_tool=("${TOOL_IDS[@]}") ;;
         --tools)
             shift
             if [[ $# -eq 0 ]]; then
                 log "Missing value for --tools"; usage; exit 2
             fi
             if [[ "$1" == "all" ]]; then
-                for id in "${TOOL_IDS[@]}"; do want_tool["${id}"]=1; done
+                want_tool=("${TOOL_IDS[@]}")
             else
                 IFS=',' read -ra ids <<< "$1"
                 for id in "${ids[@]}"; do
                     # trim whitespace
                     id="${id#"${id%%[![:space:]]*}"}"
                     id="${id%"${id##*[![:space:]]}"}"
-                    if [[ -z "${TOOL_SKILLS_DIR[${id}]:-}" ]]; then
+                    if ! known_tool "${id}"; then
                         log "Unknown tool ID: ${id}"; exit 2
                     fi
-                    want_tool["${id}"]=1
+                    want_tool+=("${id}")
                 done
             fi
             ;;
@@ -140,10 +156,10 @@ done
 if [[ "${#want_tool[@]}" -eq 0 ]]; then
     detected=0
     for id in "${TOOL_IDS[@]}"; do
-        local_dir="${TOOL_SKILLS_DIR[${id}]}"
+        local_dir="$(tool_dir "${id}")"
         parent_dir="$(dirname "${local_dir}")"
         if [[ -d "${parent_dir}" ]]; then
-            want_tool["${id}"]=1
+            want_tool+=("${id}")
             detected=1
         fi
     done
@@ -212,8 +228,8 @@ action() {
 # Execute
 # ---------------------------------------------------------------------------
 for id in "${TOOL_IDS[@]}"; do
-    if [[ "${want_tool[${id}]:-0}" -eq 1 ]]; then
-        action "${TOOL_SKILLS_DIR[${id}]}"
+    if want "${id}"; then
+        action "$(tool_dir "${id}")"
     fi
 done
 
