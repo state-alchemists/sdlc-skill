@@ -294,6 +294,8 @@ Write two more artifacts as part of the same Tier-2 batch as the rules file:
 
 #### Template: .sdlc/CONVENTIONS.md
 
+<!-- SYNC:BEGIN conventions.md -->
+<!-- Generated from scripts/templates/conventions.md — edit there, then run `python3 scripts/sync_skills.py` (or `zrb skill sync`). -->
 ~~~markdown
 # SDLC Conventions
 
@@ -336,6 +338,7 @@ This is canonical EARS (Mavin et al.). Deprecated dialect found in old specs mig
 - Test header: `COVERS: <KEY>:REQ-002, <KEY>:UT-005, <KEY>:IT-001`
 - Inline tag: `@sdlc <KEY>:REQ-003, <KEY>:REQ-004`
 - IDs are immutable: never renumber or recycle. A removed requirement keeps its ID with a `REMOVED ({date}) — {reason}` note.
+- An NFR validated outside application code is listed once in the NFR table **and** repeated under "NFRs Validated Outside Code"; the validator treats the repeat as the same NFR (not a duplicate) and exempts it from `IMPLEMENTS:`/`COVERS:`.
 - Validate with `python3 .sdlc/tools/sdlc-validate.py [--feature <slug>] [--strict]` — exit 0 clean, 1 warnings (with `--strict`), 2 errors.
 
 ## Approval tiers
@@ -344,6 +347,7 @@ This is canonical EARS (Mavin et al.). Deprecated dialect found in old specs mig
 - **Tier 3 — no approval**: read-only analysis, validator runs, and review reports (the report is the deliverable, not a source mutation).
 Anything other than an affirmative is a change request, at any tier.
 ~~~
+<!-- SYNC:END conventions.md -->
 
 ### Phase 6: Approval
 

@@ -8,7 +8,7 @@ user-invocable: true
 
 > **Execution model**: You (the LLM) execute the **Workflow** sections below — reading files, interviewing the user, generating artifacts, and obtaining approval before writing. Lines that say "run `/sdlc-<other>`" are **instructions to the user**, not to you. Only the user can start a fresh chat session and trigger another skill. When this skill ends, deliver the Phase Transition message and stop — do not invoke or simulate the next skill.
 
-Produces a feature specification (EARS requirements + design in one file) and a structured test plan. Formerly three separate skills (`sdlc-spec` + `sdlc-test-plan`), now one session — the test plan is a structural derivative of the spec and requires no new domain knowledge.
+Produces a feature specification (EARS requirements + design in one file) and a structured test plan. Formerly two separate skills (`sdlc-spec` + `sdlc-test-plan`), now one session — the test plan is a structural derivative of the spec and requires no new domain knowledge.
 
 ## Conventions (read once, apply throughout)
 

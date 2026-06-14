@@ -18,7 +18,7 @@ bin/install.sh --uninstall --tools all        # remove sdlc-* skills from all ta
 bin/install.sh --dry-run --tools cursor       # preview without changing anything
 ```
 
-The installer is portable bash (works on macOS's bash 3.2), supports all major AI coding assistants (zrb, Claude Code, Codex, OpenCode, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Cline, and 20+ more), replaces any prior copy of each skill, and never touches non-`sdlc-*` skills in your target directories. The validator (`sdlc-validate.py`) is bundled inside the `sdlc-init` and `sdlc-migrate` skill directories and travels with them.
+The installer is portable bash (works on macOS's bash 3.2), supports all major AI coding assistants (zrb, Claude Code, Codex, OpenCode, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Cline, and 20+ more), replaces any prior copy of each skill, and never touches non-`sdlc-*` skills in your target directories. The validator (`sdlc-validate.py`) is bundled inside the `sdlc-init` and `sdlc-migrate` skill directories and travels with them — see [Contributing](#contributing) for how those copies stay in sync with their single source under `scripts/`.
 
 ### Manual (if you prefer)
 
@@ -312,6 +312,26 @@ python3 evals/run.py --actual /path/to/output # grade against produced output
 ## Runtime Compatibility
 
 Skills are runtime-neutral: they describe **what** the LLM should do (read a file, delegate to a sub-agent, run a worktree), not **which tool** to use. The delegation blocks in `sdlc-implement`, `sdlc-review`, and `sdlc-quickfix` are **prompt templates** — they prefer progressive disclosure (pass file paths, let the sub-agent read on demand) and fall back to inlining for runtimes without file access. The validator and eval runner are stdlib-only Python 3.8+, so any environment with `python3` can run them.
+
+---
+
+## Contributing
+
+A few files must live *inside* a skill directory (the installer copies skill dirs verbatim and never runs this repo's tooling), yet several skills need the *same* file. To avoid hand-maintained copies drifting, the canonical source lives once under `scripts/` and is synced into the skills that need it:
+
+| Canonical source | Bundled into | How |
+|------------------|--------------|-----|
+| `scripts/sdlc-validate.py` | `skills/sdlc-init/`, `skills/sdlc-migrate/` | verbatim file copy |
+| `scripts/templates/conventions.md` | `sdlc-init` & `sdlc-migrate` `SKILL.md` | spliced into the `<!-- SYNC:BEGIN conventions.md -->` region |
+
+**Edit the source under `scripts/`, never the bundled copies.** Then resync:
+
+```bash
+python3 scripts/sync_skills.py          # regenerate bundled copies
+python3 scripts/sync_skills.py --check  # CI/pre-push guard: exit 1 if drifted
+```
+
+For the [zrb](https://github.com/state-alchemists/zrb) runtime, `zrb_init.py` wires these into tasks — `zrb skill sync`, `zrb skill check`, `zrb skill test` — and chains `sync → check → test` so drifted copies can't ship. Adding another shared file is one entry in the `SCRIPT_COPIES` / `TEMPLATE_INJECTS` manifest in `scripts/sync_skills.py`.
 
 ---
 
