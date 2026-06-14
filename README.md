@@ -25,8 +25,19 @@ The installer is portable bash (works on macOS's bash 3.2), supports all major A
 ```bash
 # zrb
 mkdir -p ~/.zrb/skills && cp -R skills/sdlc-* ~/.zrb/skills/
+
+# Codex
+mkdir -p ~/.codex/skills && cp -R skills/sdlc-* ~/.codex/skills/
+
+# OpenCode
+mkdir -p ~/.opencode/skills && cp -R skills/sdlc-* ~/.opencode/skills/
+
+# Cursor
+mkdir -p ~/.cursor/skills && cp -R skills/sdlc-* ~/.cursor/skills/
+
 # Claude Code
 mkdir -p ~/.claude/skills && cp -R skills/sdlc-* ~/.claude/skills/
+
 # Any other tool — same pattern: <dotdir>/skills/
 ```
 

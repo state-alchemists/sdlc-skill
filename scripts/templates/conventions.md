@@ -11,7 +11,7 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 | Requirements | `.sdlc/requirements/` |
 | Specs | `.sdlc/specs/<slug>/spec.md` |
 | Test plans | `.sdlc/tests/<slug>/test-plan.md` |
-| Reviews | `.sdlc/reviews/<slug>/report-<ts>.md` |
+| Reviews | `.sdlc/reviews/<slug>/report-{YYYY-MM-DDTHH-MM-SS}.md` |
 | Rules | `.sdlc/rules.md` |
 | Validator | `.sdlc/tools/sdlc-validate.py` |
 

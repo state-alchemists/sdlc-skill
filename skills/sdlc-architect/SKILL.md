@@ -110,7 +110,7 @@ Present the ADRs and the architecture document as one Tier-2 batch. A supersessi
 
 Once the ADRs and `.sdlc/docs/architecture.md` are written and approved, this skill is done. **Do not invoke `/sdlc-spec` yourself.** Tell the user (paraphrase as needed):
 
-> Architecture is complete: `.sdlc/docs/adr/ADR-*.md` and `.sdlc/docs/architecture.md`. To continue, exit this chat and start a fresh session, then run `/sdlc-spec <feature-name>` to specify your first feature.
+> Architecture is complete: `.sdlc/docs/adr/ADR-*.md` and `.sdlc/docs/architecture.md`. To continue, exit this chat and start a fresh session, then run `/sdlc-spec <feature>` (e.g., `User Auth` → slug `user-auth`) to specify your first feature.
 
 After delivering this message, end your turn.
 

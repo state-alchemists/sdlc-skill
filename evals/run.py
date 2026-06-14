@@ -82,7 +82,8 @@ def lint_case(cdir):
     checks_path = os.path.join(cdir, "checks.json")
     if os.path.exists(checks_path):
         try:
-            data = json.load(open(checks_path, encoding="utf-8"))
+            with open(checks_path, encoding="utf-8") as f:
+                data = json.load(f)
         except (ValueError, OSError) as exc:
             problems.append("checks.json not valid JSON: %s" % exc)
             return problems
@@ -111,13 +112,15 @@ def grade_check(chk, actual_dir):
     if ctype == "absent_regex":
         if not os.path.exists(target):
             return (True, "file absent (vacuously absent)")
-        text = open(target, encoding="utf-8", errors="replace").read()
+        with open(target, encoding="utf-8", errors="replace") as f:
+            text = f.read()
         hit = re.search(chk["pattern"], text)
         return (hit is None, "pattern absent" if hit is None else "found forbidden %r" % chk["pattern"])
     # remaining types require the file to exist
     if not os.path.exists(target):
         return (False, "file missing")
-    text = open(target, encoding="utf-8", errors="replace").read()
+    with open(target, encoding="utf-8", errors="replace") as f:
+        text = f.read()
     if ctype == "contains_regex":
         hit = re.search(chk["pattern"], text)
         return (hit is not None, "found" if hit else "pattern %r not found" % chk["pattern"])
@@ -133,7 +136,8 @@ def grade_case(cdir, actual_dir):
     checks_path = os.path.join(cdir, "checks.json")
     if not os.path.exists(checks_path):
         return ("SKIP", [("—", True, "no checks.json (rubric is human-graded)")])
-    data = json.load(open(checks_path, encoding="utf-8"))
+    with open(checks_path, encoding="utf-8") as f:
+        data = json.load(f)
     results = []
     hard_fail = soft_fail = False
     for chk in data.get("checks", []):

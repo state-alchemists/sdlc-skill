@@ -153,10 +153,10 @@ SDLC_TAG_RE = re.compile(r"@sdlc\s+(.+)")
 
 DEPRECATED_EARS = [
     (re.compile(r"\bALWAYS\s+SHALL\b", re.I), "ALWAYS SHALL -> ubiquitous (drop ALWAYS): 'The <system> SHALL ...'"),
+    (re.compile(r"\bWHERE\b.+\bTHEN\b", re.I), "WHERE ... THEN (state-driven) -> 'WHILE ..., the <system> SHALL ...'"),
     (re.compile(r"\bAS\b.+\bTHEN\b", re.I), "AS ... THEN -> 'IF ..., THEN ... SHALL ...'"),
     (re.compile(r"\bUNLESS\b", re.I), "UNLESS -> 'IF NOT ..., THEN ... SHALL ...' (or WHERE)"),
 ]
-CANONICAL_KW = re.compile(r"\b(WHEN|WHILE|WHERE|IF)\b", re.I)
 OUTSIDE_CODE_VALIDATORS = re.compile(r"\b(infra|ci|cd|manual|process|sla|slo|terraform|waf|dashboard)\b", re.I)
 
 
