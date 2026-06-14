@@ -12,15 +12,16 @@ Transforms requirements and tech constraints into architectural decisions (ADRs)
 
 ## Conventions (read once, apply throughout)
 
-- **Approval**: write only after an explicit affirmative ("yes" / "ok" / "approved"). Silence or vague replies are change requests.
-- **Required input missing**: if `.sdlc/docs/tech.md` and `.sdlc/requirements/problem-brief.md` are both missing, stop and ask the user to run `/sdlc-init` and `/sdlc-requirements` first. Do not invent product or tech context.
-- **ADR IDs are immutable**: never renumber or overwrite an existing ADR. To change a decision, write a new ADR (with the next available number) whose Status is `Accepted` and which marks the prior ADR as `Superseded`.
+- **Artifact paths (migration-aware)**: read SDLC artifacts from `.sdlc/` (canonical). If missing there, check the legacy root (`docs/`, `docs/adr/`, `requirements/`, `rules.md`) — older projects keep them there. If you find legacy-only artifacts, read them in place, do NOT create a parallel `.sdlc/` copy, and tell the user to run `/sdlc-migrate`. See `.sdlc/CONVENTIONS.md` if present.
+- **Approval**: first-time ADRs + architecture doc are one **Tier-2** batch (present together, write on a single affirmative). **Superseding** an existing ADR is **Tier-1** — present the new ADR and the supersession explicitly and get an affirmative before writing. Silence or vague replies are change requests.
+- **Required input missing**: if `.sdlc/docs/tech.md` and `.sdlc/requirements/problem-brief.md` are both missing (canonical or legacy), stop and ask the user to run `/sdlc-init` and `/sdlc-requirements` first. Do not invent product or tech context.
+- **ADR IDs are immutable**: never renumber or overwrite an existing ADR. To change a decision, write a new ADR (next available number) whose Status is `Accepted` and which marks the prior ADR as `Superseded`.
 
 ## Workflow
 
 ### Phase 1: Input Discovery
 
-Read:
+Read (canonical path, then legacy fallback):
 - `.sdlc/rules.md` (if present) — ADRs must cite each `RULE-*` they implement under their **Implements Rules** section, and must never propose a decision that violates a rule.
 - `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`
 - `.sdlc/requirements/entity-dictionary.md`, `.sdlc/requirements/problem-brief.md`
@@ -38,7 +39,7 @@ For each major decision, write an ADR. Suggested topics (skip any that don't app
 # ADR-{{NUMBER}}: {{TITLE}}
 
 ## Status
-{{Proposed / Accepted / Deprecated / Superseded}}
+{{Proposed / Accepted / Deprecated / Superseded by ADR-{{M}}}}
 
 ## Context
 {{Why this decision is needed}}
@@ -94,20 +95,20 @@ For each major decision, write an ADR. Suggested topics (skip any that don't app
 {{How data moves between components}}
 
 ## Deployment
+*Include only the environments that actually exist (per `.sdlc/docs/test-strategy.md`). Do not invent Staging / Canary if the project doesn't have them.*
+
 | Environment | Infrastructure | Strategy |
 |-------------|---------------|----------|
-| Dev | {{Infra}} | {{Strategy}} |
-| Staging | {{Infra}} | {{Strategy}} |
-| Production | {{Infra}} | {{Strategy}} |
+| {{EnvName}} | {{Infra}} | {{Strategy}} |
 ```
 
 ### Phase 4: Review
 
-Present each ADR and the architecture document to the user. Each requires explicit approval.
+Present the ADRs and the architecture document as one Tier-2 batch. A supersession of an existing ADR is Tier-1 — call it out and approve it separately.
 
 ## Phase Transition
 
-Once the ADRs and `.sdlc/docs/architecture.md` are written and approved, this skill is done. **Do not invoke `/sdlc-spec` yourself** — only the user can start a fresh chat and trigger it. Tell the user (paraphrase as needed):
+Once the ADRs and `.sdlc/docs/architecture.md` are written and approved, this skill is done. **Do not invoke `/sdlc-spec` yourself.** Tell the user (paraphrase as needed):
 
 > Architecture is complete: `.sdlc/docs/adr/ADR-*.md` and `.sdlc/docs/architecture.md`. To continue, exit this chat and start a fresh session, then run `/sdlc-spec <feature-name>` to specify your first feature.
 
