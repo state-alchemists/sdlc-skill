@@ -240,9 +240,9 @@ NFRs validated **outside code** (WAF rules, SLO dashboards, infra) are listed un
 The bundled validator enforces all of this deterministically:
 
 ```bash
-python3 .sdlc/tools/sdlc-validate.py                 # whole project
-python3 .sdlc/tools/sdlc-validate.py --feature user-authentication
-python3 .sdlc/tools/sdlc-validate.py --strict --json # CI gate, machine-readable
+python .sdlc/tools/sdlc-validate.py                 # whole project
+python .sdlc/tools/sdlc-validate.py --feature user-authentication
+python .sdlc/tools/sdlc-validate.py --strict --json # CI gate, machine-readable
 ```
 
 It reports `ERROR` (missing IMPLEMENTS/COVERS for a REQ, dangling tags, duplicate/recycled IDs, key collisions), `WARNING` (unkeyed legacy tags, deprecated EARS dialect, test-plan gaps), and `INFO` (legacy layout, outside-code NFRs). Exit codes: `0` clean, `1` warnings (`--strict`), `2` errors. Wire it into CI via the gate row in `test-strategy.md`.
@@ -302,9 +302,9 @@ The only variable is the `<slug>` (or `<scope>` for `sdlc-document`).
 `evals/` holds golden examples per skill plus a **rule-based runner** (`evals/run.py`) that grades deterministic `checks.json` assertions — runnable in CI with no LLM. Fuzzy rubric items stay human-graded; an LLM-as-judge extension is stubbed for later. Three cases ship today (`sdlc-init`, `sdlc-spec`, `sdlc-quickfix`); the authoring guide and `checks.json` schema are in [`evals/README.md`](evals/README.md). More cases are the cheapest way to harden the plugin.
 
 ```bash
-python3 evals/run.py --list                  # list cases
-python3 evals/run.py                          # lint case structure
-python3 evals/run.py --actual /path/to/output # grade against produced output
+python evals/run.py --list                  # list cases
+python evals/run.py                          # lint case structure
+python evals/run.py --actual /path/to/output # grade against produced output
 ```
 
 ---
