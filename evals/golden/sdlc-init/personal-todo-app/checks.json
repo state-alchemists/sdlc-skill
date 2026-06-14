@@ -1,0 +1,18 @@
+{
+  "case": "sdlc-init/personal-todo-app",
+  "checks": [
+    {"id": "INIT-1", "description": "product.md exists under .sdlc/docs/", "type": "file_exists", "target_file": ".sdlc/docs/product.md", "severity": "error"},
+    {"id": "INIT-2", "description": "tech.md exists under .sdlc/docs/", "type": "file_exists", "target_file": ".sdlc/docs/tech.md", "severity": "error"},
+    {"id": "INIT-3", "description": "test-strategy.md exists under .sdlc/docs/", "type": "file_exists", "target_file": ".sdlc/docs/test-strategy.md", "severity": "error"},
+    {"id": "INIT-4", "description": "AGENTS.md exists at repo root", "type": "file_exists", "target_file": "AGENTS.md", "severity": "error"},
+    {"id": "INIT-5", "description": "rules.md exists under .sdlc/", "type": "file_exists", "target_file": ".sdlc/rules.md", "severity": "error"},
+    {"id": "INIT-6", "description": "CONVENTIONS.md exists under .sdlc/", "type": "file_exists", "target_file": ".sdlc/CONVENTIONS.md", "severity": "error"},
+    {"id": "INIT-7", "description": "validator installed under .sdlc/tools/", "type": "file_exists", "target_file": ".sdlc/tools/sdlc-validate.py", "severity": "error"},
+    {"id": "INIT-8", "description": "rules.md declares the RULE-999 Override sentinel", "type": "contains_regex", "target_file": ".sdlc/rules.md", "pattern": "RULE-999", "severity": "error"},
+    {"id": "INIT-9", "description": "rules use ALWAYS/NEVER phrasing", "type": "contains_regex", "target_file": ".sdlc/rules.md", "pattern": "ALWAYS|NEVER", "severity": "warning"},
+    {"id": "INIT-10", "description": "product.md captures the 5s sync target", "type": "contains_regex", "target_file": ".sdlc/docs/product.md", "pattern": "5\\s*s", "severity": "warning"},
+    {"id": "INIT-11", "description": "no staging environment leaked into test-strategy.md", "type": "absent_regex", "target_file": ".sdlc/docs/test-strategy.md", "pattern": "(?i)staging", "severity": "error"},
+    {"id": "INIT-12", "description": "CONVENTIONS.md documents the Feature Key scheme", "type": "contains_regex", "target_file": ".sdlc/CONVENTIONS.md", "pattern": "Feature Key", "severity": "warning"},
+    {"id": "INIT-13", "description": "AGENTS.md references the validator command", "type": "contains_regex", "target_file": "AGENTS.md", "pattern": "sdlc-validate\\.py", "severity": "warning"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "case": "sdlc-quickfix/login-error-message",
+  "checks": [
+    {"id": "QF-1", "description": "spec.md still exists for the feature", "type": "file_exists", "target_file": ".sdlc/specs/user-authentication/spec.md", "severity": "error"},
+    {"id": "QF-2", "description": "promoted spec no longer documents leaking a stack trace in the 500 body", "type": "absent_regex", "target_file": ".sdlc/specs/user-authentication/spec.md", "pattern": "(?i)stack trace", "severity": "error"},
+    {"id": "QF-3", "description": "promoted spec mentions a friendly error message", "type": "contains_regex", "target_file": ".sdlc/specs/user-authentication/spec.md", "pattern": "(?i)something went wrong|try again|friendly", "severity": "warning"},
+    {"id": "QF-4", "description": "REQ-014 still present (ID preserved, not renumbered)", "type": "contains_regex", "target_file": ".sdlc/specs/user-authentication/spec.md", "pattern": "REQ-014", "severity": "error"},
+    {"id": "QF-5", "description": "no deprecated EARS dialect leaked into spec", "type": "absent_regex", "target_file": ".sdlc/specs/user-authentication/spec.md", "pattern": "ALWAYS\\s+SHALL|\\bUNLESS\\b", "severity": "warning"}
+  ]
+}
