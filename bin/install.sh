@@ -187,14 +187,48 @@ fi
 
 # ---------------------------------------------------------------------------
 # Install / uninstall functions
+#
+# Both operate on the sdlc-* NAMESPACE inside the target directory, not on the
+# names this repo happens to ship today. A skill that was merged or renamed
+# between versions (sdlc-requirements, sdlc-architect, sdlc-document,
+# sdlc-migrate) must be removed on upgrade, or it lingers and keeps answering
+# its old slash command against paths that no longer exist.
 # ---------------------------------------------------------------------------
+
+# Print every sdlc-* skill directory currently installed in a target.
+installed_skills_in() {
+    local target="$1"
+    [[ -d "${target}" ]] || return 0
+    find "${target}" -maxdepth 1 -mindepth 1 -type d -name 'sdlc-*' | sort
+}
+
+# True when this repo still ships a skill by that name.
+is_shipped() {
+    local name="$1" skill
+    for skill in "${skills[@]}"; do
+        [[ "$(basename "${skill}")" == "${name}" ]] && return 0
+    done
+    return 1
+}
+
 install_to() {
     local target="$1"
     log "Target: ${target}"
     run mkdir -p "${target}"
+
+    local dest name
+    while IFS= read -r dest; do
+        [[ -n "${dest}" ]] || continue
+        name="$(basename "${dest}")"
+        if ! is_shipped "${name}"; then
+            run rm -rf "${dest}"
+            log "  removed ${name} (no longer shipped)"
+        fi
+    done < <(installed_skills_in "${target}")
+
     for skill in "${skills[@]}"; do
-        local name; name="$(basename "${skill}")"
-        local dest="${target}/${name}"
+        name="$(basename "${skill}")"
+        dest="${target}/${name}"
         if [[ -e "${dest}" ]]; then run rm -rf "${dest}"; fi
         run cp -R "${skill}" "${dest}"
         log "  installed ${name}"
@@ -207,14 +241,16 @@ uninstall_from() {
     if [[ ! -d "${target}" ]]; then
         log "  nothing to remove — directory does not exist"; return
     fi
-    for skill in "${skills[@]}"; do
-        local name; name="$(basename "${skill}")"
-        local dest="${target}/${name}"
-        if [[ -e "${dest}" ]]; then
-            run rm -rf "${dest}"
-            log "  removed ${name}"
-        fi
-    done
+
+    local dest name removed=0
+    while IFS= read -r dest; do
+        [[ -n "${dest}" ]] || continue
+        name="$(basename "${dest}")"
+        run rm -rf "${dest}"
+        log "  removed ${name}"
+        removed=1
+    done < <(installed_skills_in "${target}")
+    [[ "${removed}" -eq 1 ]] || log "  nothing to remove"
 }
 
 action() {

@@ -47,4 +47,4 @@ Statement: NEVER write a verification token value to any log sink.
 ```
 
 ## Expected behaviour
-The skill declares a Feature Key (e.g. `EMAILVERIFY`), writes `.sdlc/specs/email-verification/spec.md` (canonical EARS, REQs citing AC-021..AC-024, NFR-009/010 cited from the brief), and `.sdlc/tests/email-verification/test-plan.md` mapping every REQ to tests. Because `hypothesis` is configured, a Property-Based Tests section is populated (e.g. token single-use / round-trip). NFR-010 is listed under "NFRs Validated Outside Code" (deliverability dashboard).
+The skill declares a Feature Key (e.g. `EMAILVERIFY`), writes `.sdlc/specs/email-verification/spec.md` (canonical EARS, REQs citing AC-021..AC-024, NFR-009/010 cited from the brief), whose `## Test Plan` section maps every REQ to tests. Because `hypothesis` is configured, a Property-Based Tests section is populated (e.g. token single-use / round-trip). NFR-010 is listed under "NFRs Validated Outside Code" (deliverability dashboard).

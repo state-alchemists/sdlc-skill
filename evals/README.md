@@ -6,7 +6,7 @@ Anthropic's skill-authoring guidance recommends **≥3 evaluation scenarios per 
 
 ## Status
 
-**Runner: implemented (rule-based).** `run.py` grades the deterministic `checks.json` assertions in each case — enough to run in CI with no LLM. Fuzzy, semantic rubric items (tone, completeness, "no hallucinated stakeholders") remain human-graded against `rubric.md`; an LLM-as-judge extension is stubbed in `run.py` as `grade_with_llm()` (a future hook, not yet wired up).
+**Runner: implemented (rule-based).** `run.py` grades the deterministic `checks.json` assertions in each case — enough to run in CI with no LLM. Fuzzy, semantic rubric items (tone, completeness, "no hallucinated stakeholders") remain human-graded against `rubric.md`. LLM-as-judge grading is not implemented.
 
 ## Layout
 
@@ -22,14 +22,14 @@ evals/
         checks.json         # machine-checkable assertions (optional)
         expected/           # reference output tree (optional)
     sdlc-spec/
-      email-verification/   # happy path (canonical EARS, PBT, outside-code NFR)
+      email-verification/   # happy path (canonical EARS, folded test plan, PBT, outside-code NFR)
     sdlc-quickfix/
       login-error-message/  # edge case (small delta, promote-by-default)
 ```
 
 Each case is **self-contained**: `input.md` (what was said to / read by the skill), `rubric.md` (the full criteria a grader checks), an optional `checks.json` (the deterministic subset the runner grades), and an optional `expected/` tree.
 
-All graded paths use the canonical layout: artifacts under `.sdlc/` (steering docs `.sdlc/docs/`, requirements `.sdlc/requirements/`, specs `.sdlc/specs/<slug>/spec.md`, test plans `.sdlc/tests/<slug>/test-plan.md`, rules `.sdlc/rules.md`, validator `.sdlc/tools/sdlc-validate.py`), with `AGENTS.md` at the repo root.
+All graded paths use the canonical layout: artifacts under `.sdlc/` (steering docs `.sdlc/docs/`, requirements `.sdlc/requirements/`, specs `.sdlc/specs/<slug>/spec.md` (test plan included as its `## Test Plan` section), rules `.sdlc/rules.md`, templates `.sdlc/templates/`, validator `.sdlc/tools/sdlc-validate.py`), with `AGENTS.md` at the repo root.
 
 ## checks.json schema
 

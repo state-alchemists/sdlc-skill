@@ -1,49 +1,48 @@
 ---
 name: sdlc-implement
-description: Generate code and tests from specification artifacts. Uses single delegation to a coding sub-agent with spec context loaded on demand.
+description: Generate code and tests from a feature spec. Delegates the whole feature to a coding sub-agent that reads the spec from disk, then verifies tests, lint, and traceability.
 disable-model-invocation: true
 user-invocable: true
 ---
 # Skill: sdlc-implement
 
-> **Execution model**: You (the LLM) execute the **Workflow** sections below — reading files, delegating to a coding agent, verifying the test suite, and reporting results to the user. Lines that say "run `/sdlc-<other>`" are **instructions to the user**, not to you. Only the user can start a fresh chat session and trigger another skill. When this skill ends, deliver the Phase Transition message and stop — do not invoke or simulate the next skill.
+> **Execution model**: you execute the Workflow below — reading files, delegating to a coding agent, verifying the suite, reporting results. Lines that say "run `/sdlc-<other>`" are instructions **for the user**; only the user starts the next skill. Deliver the Phase Transition message, then stop.
 
-Drives implementation from spec artifacts using a single delegation to a coding sub-agent. The sub-agent reads spec artifacts **on demand from disk** (progressive disclosure) rather than receiving every artifact inlined — only the project rules are inlined verbatim, because they are small and must never be missed.
+Drives implementation from `spec.md` with a **single delegation**. The sub-agent reads spec artifacts on demand from disk (progressive disclosure); only the project rules are inlined, because they are small and must never be missed.
 
-## Conventions (read once, apply throughout)
+## Before you start
 
-- **Argument → slug**: the user invoked `/sdlc-implement <free-text>`. Slugify it the same way `sdlc-spec` did to locate `.sdlc/specs/<slug>/`. If missing, ask.
-- **Feature Key**: read the `**Feature Key:**` from `.sdlc/specs/<slug>/spec.md`. All traceability tags the agent emits are key-namespaced (`@sdlc KEY:REQ-003`). See `.sdlc/CONVENTIONS.md`.
-- **Artifact paths (migration-aware)**: read from `.sdlc/` (canonical); fall back to legacy roots if missing. Found legacy-only? Read in place and tell the user to run `/sdlc-migrate` (the validator and keyed-tag checks assume the current layout).
-- **Approval**: get an affirmative ("yes" / "ok" / "approved" / "go ahead") on the delegation **before** running it (Tier-2 — one approval covers the whole feature). After the agent returns, present results — no second approval unless retrying.
-- **Required input missing**: if `.sdlc/specs/<slug>/spec.md` or `.sdlc/tests/<slug>/test-plan.md` is missing, stop and tell the user to run `/sdlc-spec <slug>` first.
-- **Retry cap**: if the agent returns failing tests, re-delegate at most **twice** (3 attempts total), each time including the specific failure context. After the third failure, stop and report the blocker. Do not loop.
-- **Verification command fallback**: read test/lint commands from `AGENTS.md`, then `.sdlc/docs/test-strategy.md`. If neither names a runnable command, ask the user — never guess.
+- **Conventions**: read `.sdlc/CONVENTIONS.md` — paths, ID scheme, approval tiers.
+- **Argument → slug**: slugify the user's free text the same way `sdlc-spec` did, to locate `.sdlc/specs/<slug>/`. If it is missing, ask.
+- **Feature Key**: read `**Feature Key:**` from the spec. Every tag the agent emits is key-namespaced (`@sdlc KEY:REQ-003`).
+- **Required input**: no `.sdlc/specs/<slug>/spec.md`, or a spec with no `## Test Plan` section? Stop and tell the user to run `/sdlc-spec <slug>`.
+- **Approval**: get an affirmative on the delegation **before** running it (Tier-2 — one approval covers the feature). No second approval unless retrying.
+- **Retry cap**: at most **2 re-delegations** (3 attempts total), each with the specific failure context. After the third failure, stop and report the blocker. Do not loop.
+- **Verification commands**: read test and lint commands from `AGENTS.md`, then `.sdlc/docs/test-strategy.md`. If neither names a runnable command, ask — never guess.
+- **Legacy layout**: a separate `.sdlc/tests/<slug>/test-plan.md` still works as an input; tell the user to run `/sdlc-adopt` to fold it into the spec.
 
 ## Workflow
 
 ### Phase 1: Input Discovery
 
-Read enough to write a correct delegation prompt and to inline the rules:
-- `.sdlc/rules.md` (if present) — **inline verbatim** in the delegation (small, load-bearing)
-- `.sdlc/specs/<slug>/spec.md` — confirm it exists and read the Feature Key + requirements
-- `.sdlc/tests/<slug>/test-plan.md` — confirm it exists
-- `AGENTS.md`, `.sdlc/docs/test-strategy.md` — test/lint commands
+Read only enough to write a correct delegation and to inline the rules:
+- `.sdlc/rules.md` — **inline verbatim** in the delegation (small, load-bearing)
+- `.sdlc/specs/<slug>/spec.md` — confirm it exists; read the Feature Key, requirements, and test plan
+- `AGENTS.md`, `.sdlc/docs/test-strategy.md` — test and lint commands
 
-You do not need to inline the full spec, architecture, or entity dictionary — the sub-agent reads those from disk. You only read enough to validate preconditions and fill the rules block.
+The sub-agent reads the architecture, ADRs, and entity dictionary itself. You do not need to inline them.
 
-### Phase 2: Single Delegation (progressive disclosure)
+### Phase 2: Single Delegation
 
-Show the user the task you're starting. Once approved, delegate the **entire feature** to a single coding agent. The block below is a **prompt template** (not a tool call) — fill the placeholders.
+Show the user the task. Once approved, delegate the **entire feature** to one coding agent. The block below is a prompt template — fill the placeholders.
 
 ```
 Implement the feature "{slug}" (Feature Key: {KEY}) following spec-driven development.
 
 READ THESE FILES FIRST — they are your source of truth (read on demand; do not assume their contents):
-- .sdlc/specs/{slug}/spec.md         ← requirements (canonical EARS), API surface, error handling, correctness, entities
-- .sdlc/tests/{slug}/test-plan.md    ← the tests you must make pass
-- .sdlc/docs/tech.md                 ← stack and constraints
-- .sdlc/docs/architecture.md and .sdlc/docs/adr/*.md  ← architecture decisions to honor
+- .sdlc/specs/{slug}/spec.md               ← requirements (canonical EARS), design, and the test plan you must satisfy
+- .sdlc/docs/tech.md                       ← stack and constraints
+- .sdlc/docs/architecture.md and .sdlc/docs/adr/*.md   ← architecture decisions to honor
 - .sdlc/requirements/entity-dictionary.md  ← field names, types, constraints
 (If your runtime cannot read files, tell the orchestrator and it will inline them.)
 
@@ -52,58 +51,53 @@ PROJECT RULES (.sdlc/rules.md — refuse to violate any; inlined because they ar
 
 INSTRUCTIONS:
 1. Create all source files under src/ and all test files under tests/.
-2. Follow the test plan — every test must pass.
+2. Follow the spec's "## Test Plan" section — every test in it must exist and pass.
 3. Run the test suite after implementation (commands from AGENTS.md / .sdlc/docs/test-strategy.md).
 4. Report pass/fail per test.
 
-TRACEABILITY (REQUIRED — all IDs are namespaced by the Feature Key "{KEY}"):
-- Top of every generated SOURCE file — header listing the REQ-* AND NFR-* IDs it implements, key-prefixed:
+TRACEABILITY (REQUIRED — every ID is namespaced by the Feature Key "{KEY}"):
+- Top of every generated SOURCE file — the REQ-* and NFR-* IDs it implements:
     // GENERATED FROM SPEC: .sdlc/specs/{slug}/spec.md
     // IMPLEMENTS: {KEY}:REQ-001, {KEY}:REQ-003, {KEY}:NFR-002
-  Use the target language's comment syntax (// for JS/Go/Rust, # for Python/Ruby, -- for SQL, etc.).
-- Top of every generated TEST file — IDs it covers, key-prefixed:
+  Use the target language's comment syntax (// for JS/Go/Rust, # for Python/Ruby, -- for SQL).
+- Top of every generated TEST file — the IDs it covers:
     # COVERS: {KEY}:REQ-002, {KEY}:NFR-001, {KEY}:UT-005, {KEY}:IT-001
-- Inline tag each public function/class/handler with the IDs it directly fulfils, comma-separated on one line:
+- Inline-tag each public function/class/handler with the IDs it directly fulfils:
     # @sdlc {KEY}:REQ-003, {KEY}:REQ-004
-  Tag only the unit that directly fulfils the requirement — don't sprinkle tags on helpers.
-- Every REQ-* and NFR-* in spec.md must appear in at least one source header and one test header. For an NFR listed under "NFRs Validated Outside Code", do NOT emit a fake IMPLEMENTS line — note it in the report instead.
+  Tag only the unit that directly fulfils the requirement — do not sprinkle tags on helpers.
+- Every REQ-* and NFR-* must appear in at least one source header and one test header. For an NFR listed under "NFRs Validated Outside Code", do NOT emit a fake IMPLEMENTS line — note it in the report instead.
 ```
 
-Hand the filled-in prompt to a general-purpose coding agent via whatever sub-agent delegation mechanism your runtime exposes. The agent plans its own task breakdown from the spec.
+Hand the filled prompt to a general-purpose coding agent via whatever delegation mechanism your runtime exposes; the agent plans its own task breakdown.
 
-**Fallback for runtimes without file access**: if the sub-agent cannot read files, inline the spec, test plan, and relevant architecture into the prompt as well — the progressive-disclosure form is preferred (it scales to large projects) but inlining is the correct degradation.
+**Fallback for runtimes without file access**: inline the spec and relevant architecture as well. Progressive disclosure is preferred — it scales to large projects — but inlining is the correct degradation.
 
 ### Phase 3: Verification
 
-After delegation returns:
-1. Run the test suite (command from `AGENTS.md` → `.sdlc/docs/test-strategy.md` → ask the user).
-2. Run the linter from the same source.
-3. **Run the traceability validator** if present: `python3 .sdlc/tools/sdlc-validate.py --feature <slug>`. Treat ERROR findings (missing IMPLEMENTS/COVERS for a REQ, dangling or unkeyed tags) as failures to fix.
-4. If failures (tests, lint, or validator ERRORs): identify the issue and re-delegate with the specific context. **Retry cap = 2 re-delegations (3 attempts total).** After the third failure, stop and report the blocker — what failed, what was tried, what looks unimplementable from the spec.
-5. Report to the user: tests pass/fail per ID, linter pass/fail, validator summary, files written, retry count consumed.
+1. Run the test suite.
+2. Run the linter.
+3. Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug>`. Treat ERROR findings (missing `IMPLEMENTS`/`COVERS`, dangling or unkeyed tags) as failures to fix.
+4. On any failure, re-delegate with the specific context — **retry cap 2**. After the third failure, stop and report what failed, what was tried, and what looks unimplementable from the spec.
+5. Report: tests pass/fail per ID, lint result, validator summary, files written, retries consumed.
 
 ## Worktree Isolation
 
-For parallel feature work, run the delegation inside an isolated git worktree on a feature branch (e.g. `feature/<slug>`) so multiple features can be implemented concurrently without conflicting. Use whatever worktree mechanism your runtime provides; if none, the user manages the worktree manually. The user merges via normal git flow when complete.
-
-## Error Recovery
-
-If the session is interrupted:
-- List `src/` and `tests/` to see what was written
-- If no files exist, re-delegate
-- If partial files exist, fix manually or re-delegate with corrections
+For parallel feature work, run the delegation inside an isolated git worktree on a `feature/<slug>` branch. Use whatever worktree mechanism your runtime provides; otherwise the user manages it and merges via normal git flow.
 
 ## Phase Transition
 
-Once source and test files are written and the suite passes (report delivered), this skill is done. **Do not invoke `/sdlc-review` yourself.** Tell the user (paraphrase as needed):
-
-> Implementation is complete for `<slug>`. Source in `src/` and tests in `tests/` carry key-namespaced `IMPLEMENTS:`/`COVERS:` headers and `@sdlc {KEY}:REQ-*` tags. The test suite passes ({N} tests); validator: {summary}. To continue, exit this chat and start a fresh session, then run `/sdlc-review <slug>`.
+> Implementation complete for `<slug>`. Source in `src/` and tests in `tests/` carry key-namespaced `IMPLEMENTS:`/`COVERS:` headers and `@sdlc {KEY}:REQ-*` tags. Suite passes ({N} tests); validator: {summary}.
+> To continue: exit this chat, start a fresh session, and run `/sdlc-review <slug>`.
 
 After delivering this message, end your turn.
+
+## Error Recovery
+
+Interrupted: list `src/` and `tests/`. Nothing written → re-delegate. Partial files → fix forward or re-delegate with corrections.
 
 ## Artefact Trail
 
 | Artifact | Location | Purpose |
 |----------|----------|---------|
-| Source code | `{root}/src/` | Implementation per specification, key-namespaced traceability headers |
-| Tests | `{root}/tests/` | Tests per test plan |
+| Source code | `src/` | Implementation, key-namespaced traceability headers |
+| Tests | `tests/` | Tests per the spec's Test Plan |

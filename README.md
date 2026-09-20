@@ -1,201 +1,98 @@
 # SDLC AI Plugin
 
-**Skills, not CLI commands.** This plugin provides 9 chat skills (`/sdlc-init`, `/sdlc-requirements`, etc.) that guide an LLM through Spec-Driven Development, plus a bundled deterministic validator and a rule-based eval runner.
+**Skills, not CLI commands.** Seven chat skills (`/sdlc-init`, `/sdlc-plan`, ...) that guide an LLM through Spec-Driven Development, plus a deterministic validator and a rule-based eval runner.
 
-**Primary target: zrb.** Also runs under Claude Code — skills are runtime-neutral, so the LLM picks the right tool either way (see [Runtime Compatibility](#runtime-compatibility)).
+**Primary target: zrb.** Also runs under Claude Code and 30+ other tools — skills are runtime-neutral, so the LLM picks the right mechanism either way (see [Runtime Compatibility](#runtime-compatibility)).
+
+Everything the skills generate comes from **templates installed into your project** at `.sdlc/templates/`. Edit those files and every later run follows your shape — no forking the plugin.
 
 ---
 
 ## Installation
 
-### One-liner (recommended)
-
 ```bash
 bin/install.sh --tools all                    # install to all 30+ known AI coding tools
-bin/install.sh --tools codex,opencode,cursor  # install to specific tools (comma-separated)
-bin/install.sh                                # auto-detect — install only to tools already on this machine
+bin/install.sh --tools codex,opencode,cursor  # specific tools (comma-separated)
+bin/install.sh                                # auto-detect — only tools already on this machine
 bin/install.sh --uninstall --tools all        # remove sdlc-* skills from all targets
 bin/install.sh --dry-run --tools cursor       # preview without changing anything
 ```
 
-The installer is portable bash (works on macOS's bash 3.2), supports all major AI coding assistants (zrb, Claude Code, Codex, OpenCode, Cursor, Windsurf, GitHub Copilot, Gemini CLI, Cline, and 20+ more), replaces any prior copy of each skill, and never touches non-`sdlc-*` skills in your target directories. The validator (`sdlc-validate.py`) is bundled inside the `sdlc-init` and `sdlc-migrate` skill directories and travels with them — see [Contributing](#contributing) for how those copies stay in sync with their single source under `scripts/`.
+Portable bash (works on macOS's bash 3.2), replaces any prior copy of each skill, and never touches non-`sdlc-*` skills in your target directories.
 
-### Manual (if you prefer)
+### Upgrading from an earlier version
+
+The installer works on the `sdlc-*` namespace in each target directory, so an upgrade removes skills that were merged away (`sdlc-requirements`, `sdlc-architect`, `sdlc-document`, `sdlc-migrate`) as well as refreshing the ones that remain. Non-`sdlc-*` skills are never touched.
 
 ```bash
-# zrb
-mkdir -p ~/.zrb/skills && cp -R skills/sdlc-* ~/.zrb/skills/
-
-# Codex
-mkdir -p ~/.codex/skills && cp -R skills/sdlc-* ~/.codex/skills/
-
-# OpenCode
-mkdir -p ~/.opencode/skills && cp -R skills/sdlc-* ~/.opencode/skills/
-
-# Cursor
-mkdir -p ~/.cursor/skills && cp -R skills/sdlc-* ~/.cursor/skills/
-
-# Claude Code
-mkdir -p ~/.claude/skills && cp -R skills/sdlc-* ~/.claude/skills/
-
-# Any other tool — same pattern: <dotdir>/skills/
+git pull
+bin/install.sh                 # same command as a fresh install
 ```
 
-All runtimes scan their skills directory on startup; skills become available as `/sdlc-init`, `/sdlc-requirements`, etc. Claude Code ignores the `disable-model-invocation`/`user-invocable` frontmatter (zrb-specific) but otherwise loads the skills as-is.
+Then, **per project** that was set up by an older version:
+
+```
+/sdlc-init     # refreshes the validator, installs .sdlc/templates/, keeps your documents
+/sdlc-adopt    # folds .sdlc/tests/<slug>/test-plan.md into each spec.md, re-keys tags
+```
+
+`/sdlc-init` never overwrites a template you have edited, always refreshes `.sdlc/tools/sdlc-validate.py` (an old copy carries fixed bugs), and shows a diff before replacing `.sdlc/CONVENTIONS.md`.
+
+Manual install is the same pattern for any tool — copy the skill directories into `<dotdir>/skills/`:
+
+```bash
+mkdir -p ~/.zrb/skills && cp -R skills/sdlc-* ~/.zrb/skills/       # zrb
+mkdir -p ~/.claude/skills && cp -R skills/sdlc-* ~/.claude/skills/ # Claude Code
+```
+
+Copy the directories whole — `skills/sdlc-init/assets/` carries the templates, conventions, and validator that `/sdlc-init` installs into your project.
 
 ---
 
 ## Quick Start
 
-In a chat session, activate a skill by name:
-
 ```
-# Main pipeline (in order)
-/sdlc-init                # 1. Steering docs + constitution + conventions + validator
-/sdlc-requirements        # 2. PRD + entity dictionary
-/sdlc-architect           # 3. ADRs + architecture
-/sdlc-spec <feature>      # 4. Spec (canonical EARS, Feature Key) + test plan
-/sdlc-implement <feature> # 5. Code + tests with KEY:REQ-* traceability tags
-/sdlc-review <feature>    # 6. Validator + spec-compliance review
+# Once per project
+/sdlc-init                 # 1. scaffolding (templates, conventions, validator) + steering docs + rules
+/sdlc-plan                 # 2. problem brief + entity dictionary + ADRs + architecture
 
-# Lightweight & maintenance skills (invoke as needed)
-/sdlc-quickfix <feature>  # Delta-format path for bug fixes / small changes (promotes to spec by default)
-/sdlc-document <scope>    # Reverse-engineer specs from existing code (drift recovery)
-/sdlc-migrate             # Upgrade an old-layout project to the current .sdlc/ layout + conventions
+# Once per feature
+/sdlc-spec <feature>       # 3. spec.md — EARS requirements, design, and test plan in one file
+/sdlc-implement <feature>  # 4. code + tests with KEY:REQ-* traceability tags
+/sdlc-review <feature>     # 5. validator + fresh-context spec-compliance review
+
+# As needed
+/sdlc-quickfix <feature>   # delta path for bug fixes and small changes (promotes into the spec)
+/sdlc-adopt                # brownfield: migrate legacy layout, reverse-engineer specs from code
 ```
 
 `<feature>` is slugified into the directory name (`User Auth` → `.sdlc/specs/user-auth/`).
 
 ---
 
-## Upgrading an Existing Project — `/sdlc-migrate`
-
-Projects created with an earlier version of these skills keep artifacts at the repo root (`docs/`, `docs/adr/`, `requirements/`, `rules.md`) instead of under `.sdlc/`. The current skills expect the consolidated `.sdlc/` layout. If you run a skill on an old-layout project, it detects the legacy paths, reads them in place (no split-brain), and tells you to migrate.
-
-`/sdlc-migrate` does the upgrade in one session, **preserving git history** (`git mv`):
-
-- Moves steering docs, ADRs, requirements, specs, and reviews under `.sdlc/`.
-- Installs `.sdlc/tools/sdlc-validate.py` and `.sdlc/CONVENTIONS.md`.
-- Repoints cross-references in `AGENTS.md` and `README.md`.
-- Detects content migrations it won't do blindly and routes them: old-format specs (`requirements.md` + `design.md` → `spec.md`) → `/sdlc-document`; deprecated EARS dialect → `/sdlc-document` or `/sdlc-quickfix`; unkeyed traceability tags → mechanical re-key.
-- Runs the validator to confirm.
-
-It is idempotent — safe to re-run; a project already on the current layout reports "nothing to migrate."
-
----
-
-## How This Maps to Scrum
-
-The SDLC phases are **artifact stages**, not time-boxed ceremonies. Rough mapping for teams coming from Scrum:
-
-| SDLC phase | Scrum parallel |
-|---|---|
-| `sdlc-init` | Sprint Zero — vision, tech stack, Definition of Done (invariants) |
-| `sdlc-requirements` | Product backlog creation — epics and user stories |
-| `sdlc-architect` | Architecture spike / technical design |
-| `sdlc-spec <feature>` | Backlog refinement + test-case design — moving a story to "Ready" |
-| `sdlc-implement <feature>` | Sprint development work |
-| `sdlc-review <feature>` | Code review + Definition of Done check |
-| `sdlc-quickfix` | Hotfix / unplanned work lane |
-| `sdlc-document` | Spike / discovery / tech-debt onboarding |
-| `sdlc-migrate` | Tooling upgrade / repo housekeeping |
-
-**Mental model:**
-- Phases 1–3 run **once per project** (your "sprint zero").
-- Phases 4–6 run **once per feature**, looped multiple times per sprint.
-- `quickfix`, `document`, and `migrate` are **out-of-band lanes** for hotfixes, drift recovery, and upgrades.
-
-**Where the analogy breaks:** the skills don't replace standups, retros, estimation, or timeboxing. SDD gives you the *artifacts*; Scrum gives you the *cadence*.
-
----
-
-## Real-World Scenarios
-
-### Scenario A: Greenfield Project
-
-Each phase runs in its own fresh chat session — exit and start a new one between phases so context doesn't accumulate.
-
-```
-/sdlc-init                        # steering docs, rules, CONVENTIONS.md, validator
-/sdlc-requirements                # problem brief (US/AC/NFR ids) + entity dictionary
-/sdlc-architect                   # ADRs + architecture
-/sdlc-spec user-authentication    # spec.md (Feature Key AUTH) + test-plan.md
-/sdlc-implement user-authentication  # src/ + tests/ with AUTH:REQ-* tags; runs validator
-/sdlc-review user-authentication  # validator + fresh-context review → APPROVE / REQUEST CHANGES / COMMENT
-```
-
-After auth is done, add the next feature starting from `/sdlc-spec todo-crud` — steering docs, requirements, and architecture already exist.
-
-### Scenario B: Adding a Feature to an Existing Project
-
-Steering docs, requirements, and architecture already exist (under `.sdlc/`). You only need phases 4–6: `/sdlc-spec <feature>` → `/sdlc-implement <feature>` → `/sdlc-review <feature>`.
-
-**Multiple features in parallel**: run `/sdlc-spec payment-processing` and `/sdlc-spec notifications` in separate sessions — each writes to its own `.sdlc/specs/<slug>/`, and Feature Keys keep their `REQ-*` IDs from colliding even in shared source files. For parallel *implementation*, use git worktrees (see `sdlc-implement`).
-
-### Scenario C: Bug Fix (Lightweight Path)
-
-Not every change needs the full pipeline. For a small bug fix in an already-specified feature, use the delta path — **not** a new spec:
-
-```
-/sdlc-quickfix user-authentication
-# Describe the change in one sentence. Approve the 1–3-requirement delta.
-# Code + tests updated, validator run, delta promoted into spec.md by default.
-```
-
-This keeps the fix inside the feature's own spec instead of fragmenting it into a separate `fix-login-*` spec directory. Use `/sdlc-spec` only for genuinely new capabilities.
-
-### Scenario D: Spec Drift After Code Changes
-
-Specs are **snapshots, not living documents** — if code changes outside the pipeline, specs lag. To re-sync:
-
-1. `/sdlc-document <feature>` reverse-engineers a current spec from code; if a prior spec exists it also writes a `drift-report-<ts>.md` (UNCHANGED / MODIFIED / ADDED / REMOVED-from-code).
-2. Per finding, decide: absorb into the spec (keep `sdlc-document`'s output) or close the gap in code (`/sdlc-quickfix <feature>`).
-3. `/sdlc-review <feature>` for a fresh compliance check once spec and code agree.
-
-The `quickfix` promote-by-default behavior keeps everyday drift from accumulating in the first place.
-
-### Scenario E: Brownfield With No SDLC Setup
-
-```
-/sdlc-document src/auth/   # zero-baseline run → writes .sdlc/specs/auth/spec.md from code, warns no entity dictionary
-/sdlc-init                 # brownfield path: extracts what it can, interviews the rest
-/sdlc-requirements         # extracts entities from code + the new spec
-# Project is now bootstrapped; future features follow the normal pipeline.
-```
-
-### Scenario F: Old-Layout / Old-Format Project
-
-Your project predates the `.sdlc/` consolidation (artifacts at `docs/`, `requirements/`) and/or the spec merge (`requirements.md` + `design.md` per feature). Run `/sdlc-migrate` first to consolidate paths and install tooling, then `/sdlc-document <feature>` to merge any old-format specs into `spec.md`. See [Upgrading an Existing Project](#upgrading-an-existing-project--sdlc-migrate).
-
----
-
 ## The Skills
 
-### 1. `sdlc-init` — Kickoff + Constitution + Conventions
+### 1. `sdlc-init` — Scaffolding + Steering Docs + Constitution
+
+Installs `.sdlc/templates/`, `.sdlc/CONVENTIONS.md`, and `.sdlc/tools/sdlc-validate.py` (never overwriting a file you have edited), then writes:
 
 | Artifact | Content |
 |----------|---------|
 | `.sdlc/docs/product.md` | Problem, users, success criteria, scope, stakeholders |
-| `.sdlc/docs/tech.md` | Languages, frameworks, DB, infra, principles, PBT tooling |
+| `.sdlc/docs/tech.md` | Languages, frameworks, DB, infra, principles, property-testing tooling |
 | `.sdlc/docs/test-strategy.md` | Testing levels, naming convention, CI gates, environments |
 | `AGENTS.md` | AI assistant guide (repo root) |
 | `.sdlc/rules.md` | `RULE-*` invariants + Override Log |
-| `.sdlc/CONVENTIONS.md` | Paths, canonical EARS dialect, ID/traceability scheme, approval tiers |
-| `.sdlc/tools/sdlc-validate.py` | Bundled deterministic validator |
 
-### 2. `sdlc-requirements` — Requirements Elicitation
+Greenfield projects get interviewed; brownfield projects get a draft derived from manifests, README, CI config, and source layout, then confirmed.
 
-`problem-brief.md` (US-*/AC-*/NFR-* ids — the upstream source for spec NFRs) and `entity-dictionary.md`. Both are project-wide, single-file, and **merge** on re-run.
+### 2. `sdlc-plan` — Requirements + Architecture
 
-### 3. `sdlc-architect` — Architecture Decisions
+`problem-brief.md` (`US-*`/`AC-*`/`NFR-*` — the upstream source every spec cites), `entity-dictionary.md`, `adr/ADR-*.md` (immutable; supersede, never overwrite), and `architecture.md`. All merge on re-run rather than overwrite.
 
-`adr/ADR-*.md` (immutable; supersede, never overwrite) and `architecture.md`.
+### 3. `sdlc-spec` — Feature Spec
 
-### 4. `sdlc-spec` — Feature Spec + Test Plan
-
-`spec.md` (canonical EARS, declared `**Feature Key:**`, API surface, error handling, correctness) and `test-plan.md`. Feature directory is the slugified `<feature>` argument.
-
-**Canonical EARS** (replaces the old homemade dialect):
+**One file per feature**: `.sdlc/specs/<slug>/spec.md` — canonical EARS requirements, a declared `**Feature Key:**`, API surface, error handling, correctness properties, entities, and the test plan.
 
 | Pattern | Template |
 |---------|----------|
@@ -205,76 +102,139 @@ Your project predates the `.sdlc/` consolidation (artifacts at `docs/`, `require
 | Optional feature | WHERE `<feature is included>`, the `<system>` SHALL `<response>`. |
 | Unwanted behaviour | IF `<condition>`, THEN the `<system>` SHALL `<response>`. |
 
-### 5. `sdlc-implement` — Code Generation
+EARS keywords are uppercase — that is what makes them keywords, and the validator only treats uppercase occurrences as such.
 
-Single delegation to a coding agent. The agent reads spec artifacts **on demand from disk** (progressive disclosure); only `.sdlc/rules.md` is inlined verbatim. Emits key-namespaced traceability tags and runs the validator.
+### 4. `sdlc-implement` — Code Generation
 
-### 6. `sdlc-review` — Spec Compliance Review
+Single delegation to a coding agent that reads spec artifacts **on demand from disk** (progressive disclosure); only `.sdlc/rules.md` is inlined verbatim. Emits key-namespaced traceability tags, then verifies tests, lint, and the validator with a hard retry cap.
 
-Two layers: the **validator** handles traceability, EARS, and ID hygiene deterministically; a **fresh-context sub-agent** handles correctness, entity fidelity, ADR and rule compliance. Verdict mapping is deterministic (any validator ERROR / FAIL / unrecorded rule violation → REQUEST CHANGES). Reports at `.sdlc/reviews/<slug>/report-<ts>.md`.
+### 5. `sdlc-review` — Spec Compliance Review
 
-### 7. `sdlc-quickfix` — Delta-Format Lightweight Path
+Two layers: the **validator** covers traceability, EARS, and ID hygiene deterministically; a **fresh-context sub-agent** covers correctness, entity fidelity, ADR and rule compliance. Verdict mapping is deterministic — any validator ERROR, FAIL, or unrecorded rule violation means REQUEST CHANGES. Reports at `.sdlc/reviews/<slug>/report-<ts>.md`.
 
-`ADDED/MODIFIED/REMOVED` delta against an existing spec, implemented in one shot with inline review, **promoted into `spec.md` by default** so the canonical spec stays current.
+### 6. `sdlc-quickfix` — Delta Path
 
-### 8. `sdlc-document` — Reverse-Engineer Specs From Code
+`ADDED/MODIFIED/REMOVED` delta against an existing spec, implemented in one shot with an inline review, **promoted into `spec.md` by default** so the spec never drifts behind the code. Use it instead of fragmenting a one-line fix into a new spec directory.
 
-Spec-from-code for brownfield onboarding and drift recovery. Detects old-format specs (`requirements.md` + `design.md`) and offers format migration; writes a drift report when prior specs existed.
+### 7. `sdlc-adopt` — Brownfield Adoption
 
-### 9. `sdlc-migrate` — Layout & Convention Upgrade
+Two modes, and it decides which your project needs:
+- **Layout migration** — relocate legacy artifacts under `.sdlc/` with `git mv`, fold separate `test-plan.md` files into their specs, re-key unkeyed traceability tags. Idempotent.
+- **Document from code** — reverse-engineer a spec for code that has none, or that has drifted, with a drift report (`UNCHANGED` / `MODIFIED` / `ADDED` / `REMOVED-from-code`).
 
-Consolidates legacy root-level artifacts under `.sdlc/`, installs the validator and conventions file, re-keys tags, and routes content migrations. History-preserving and idempotent. See [Upgrading an Existing Project](#upgrading-an-existing-project--sdlc-migrate).
+---
+
+## Templates
+
+`/sdlc-init` installs one template per document into `.sdlc/templates/`. Skills read them at generation time, so editing a template changes what every later run produces — and an edited template is never overwritten by a re-run.
+
+| Template | Produces |
+|----------|----------|
+| `product.md`, `tech.md`, `test-strategy.md`, `agents.md`, `rules.md` | `/sdlc-init` output |
+| `problem-brief.md`, `entity-dictionary.md`, `adr.md`, `architecture.md` | `/sdlc-plan` output |
+| `spec.md` | `/sdlc-spec` and `/sdlc-adopt` output |
+| `quickfix.md`, `review-report.md`, `drift-report.md` | `/sdlc-quickfix`, `/sdlc-review`, `/sdlc-adopt` output |
+
+---
+
+## Real-World Scenarios
+
+Each phase runs in its own fresh chat session — exit and start a new one between phases so context doesn't accumulate.
+
+### A: Greenfield
+
+```
+/sdlc-init
+/sdlc-plan
+/sdlc-spec user-authentication       # spec.md, Feature Key AUTH
+/sdlc-implement user-authentication  # src/ + tests/ with AUTH:REQ-* tags
+/sdlc-review user-authentication     # APPROVE / REQUEST CHANGES / COMMENT
+```
+
+The next feature starts at `/sdlc-spec todo-crud` — steering docs, requirements, and architecture already exist.
+
+### B: Adding a Feature
+
+Only `/sdlc-spec` → `/sdlc-implement` → `/sdlc-review`. Run several features in parallel sessions: each writes to its own `.sdlc/specs/<slug>/`, and Feature Keys keep `REQ-*` IDs from colliding even in shared source files. For parallel *implementation*, use git worktrees.
+
+### C: Bug Fix
+
+```
+/sdlc-quickfix user-authentication
+```
+Describe the change in one sentence, approve a 1–3 requirement delta; code, tests, and the spec are updated together.
+
+### D: Spec Drift
+
+Specs are snapshots. When code changes outside the pipeline: `/sdlc-adopt` (document mode) reverse-engineers the current behaviour and writes a drift report; decide per finding whether to absorb it into the spec or close the gap in code with `/sdlc-quickfix`; then `/sdlc-review`.
+
+### E: Brownfield With No SDLC Setup
+
+```
+/sdlc-adopt        # document mode on src/auth/ — writes a spec from code
+/sdlc-init         # brownfield path: extracts what it can, interviews the rest
+/sdlc-plan         # entities extracted from code and the new spec
+```
+
+### F: Project From an Earlier Version of These Skills
+
+`/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, and re-keys tags — preserving git history. Then `/sdlc-init` installs the templates and validator without touching your documents.
+
+---
+
+## How This Maps to Scrum
+
+The SDLC phases are **artifact stages**, not time-boxed ceremonies.
+
+| SDLC phase | Scrum parallel |
+|---|---|
+| `sdlc-init` | Sprint Zero — vision, tech stack, Definition of Done (invariants) |
+| `sdlc-plan` | Backlog creation + architecture spike |
+| `sdlc-spec` | Backlog refinement + test-case design — moving a story to "Ready" |
+| `sdlc-implement` | Sprint development work |
+| `sdlc-review` | Code review + Definition of Done check |
+| `sdlc-quickfix` | Hotfix / unplanned work lane |
+| `sdlc-adopt` | Discovery / tech-debt onboarding |
+
+Phases 1–2 run once per project; 3–5 loop per feature. **Where the analogy breaks:** the skills give you *artifacts*, not *cadence* — standups, retros, estimation, and timeboxing are still yours.
 
 ---
 
 ## Traceability
 
-Source and test files carry **key-namespaced** tags so IDs never collide across features and the spec → code link survives refactors. Each `spec.md` declares a globally-unique `**Feature Key:**` (e.g. `AUTH`); IDs are written `KEY:REQ-NNN`.
+Each `spec.md` declares a globally-unique `**Feature Key:**` (e.g. `AUTH`), and IDs are written `KEY:REQ-NNN` so they never collide across features.
 
-**Source file header:**
 ```python
 # GENERATED FROM SPEC: .sdlc/specs/user-authentication/spec.md
 # IMPLEMENTS: AUTH:REQ-001, AUTH:REQ-003, AUTH:NFR-002
 ```
-**Test file header:**
 ```python
 # COVERS: AUTH:REQ-002, AUTH:NFR-001, AUTH:UT-005, AUTH:IT-001
 ```
-**Inline tag** on the unit that fulfils requirements:
 ```python
 # @sdlc AUTH:REQ-003, AUTH:REQ-004
 def validate_login(...): ...
 ```
 
-NFRs validated **outside code** (WAF rules, SLO dashboards, infra) are listed under "NFRs Validated Outside Code" in `spec.md` — the validator exempts them rather than expecting a fake `IMPLEMENTS:` line.
-
-The bundled validator enforces all of this deterministically:
+NFRs validated **outside code** (WAF rules, SLO dashboards, infra) are listed under "NFRs Validated Outside Code" in the spec; the validator exempts them rather than expecting a fake `IMPLEMENTS:` line. Naming CI in an NFR's "Validated By" cell exempts nothing — CI is where validation runs, not what performs it.
 
 ```bash
-python .sdlc/tools/sdlc-validate.py                 # whole project
-python .sdlc/tools/sdlc-validate.py --feature user-authentication
-python .sdlc/tools/sdlc-validate.py --strict --json # CI gate, machine-readable
+python3 .sdlc/tools/sdlc-validate.py                 # whole project
+python3 .sdlc/tools/sdlc-validate.py --feature user-authentication
+python3 .sdlc/tools/sdlc-validate.py --strict --json # CI gate, machine-readable
 ```
 
-It reports `ERROR` (missing IMPLEMENTS/COVERS for a REQ, dangling tags, duplicate/recycled IDs, key collisions), `WARNING` (unkeyed legacy tags, deprecated EARS dialect, test-plan gaps), and `INFO` (legacy layout, outside-code NFRs). Exit codes: `0` clean, `1` warnings (`--strict`), `2` errors. Wire it into CI via the gate row in `test-strategy.md`.
-
----
-
-## Context Management
-
-Each phase runs in a **fresh chat session** to prevent context accumulation: finish a phase and approve its artifacts → exit → start a new chat → run the next phase (it reads artifacts from disk, not chat history). Artifacts on disk (`.sdlc/`, `src/`, `tests/`) are the durable state.
-
-> If your runtime offers conversation persistence (e.g. zrb's `/save` and `/load`), use it freely between phases — the skills don't depend on it.
+`ERROR` (missing `IMPLEMENTS`/`COVERS`, dangling tags, duplicate or recycled IDs, key collisions), `WARNING` (unkeyed legacy tags, deprecated EARS, test-plan gaps), `INFO` (legacy layout, outside-code NFRs). Exit `0` clean, `1` warnings with `--strict`, `2` errors.
 
 ---
 
 ## Approval Tiers
 
-To avoid approval fatigue, writes are tiered (defined in `.sdlc/CONVENTIONS.md`):
+Writes are tiered to avoid approval fatigue (defined in `.sdlc/CONVENTIONS.md`):
 
-- **Tier 1 — explicit per-item approval**: global / hard-to-reverse writes (rule modifications, ADR supersessions, entity-dictionary conflict resolutions, spec overwrites, file moves).
-- **Tier 2 — one batched approval**: routine first-time generation (the four steering docs together; spec + test plan together).
-- **Tier 3 — no approval**: read-only analysis, validator runs, review reports.
+- **Tier 1 — per-item approval**: rule modifications, ADR supersessions, entity conflicts, spec overwrites, file moves.
+- **Tier 2 — one batched approval**: routine first-time generation.
+- **Tier 3 — none**: read-only analysis, validator runs, review reports.
 
 ---
 
@@ -283,10 +243,10 @@ To avoid approval fatigue, writes are tiered (defined in `.sdlc/CONVENTIONS.md`)
 ```
 <project-root>/
 ├── .sdlc/
-│   ├── rules.md                       # Project invariants (sdlc-init)
-│   ├── CONVENTIONS.md                 # Paths, EARS dialect, ID scheme, approval tiers (sdlc-init)
-│   ├── tools/
-│   │   └── sdlc-validate.py           # Deterministic validator (sdlc-init / sdlc-migrate)
+│   ├── CONVENTIONS.md                 # Paths, EARS dialect, ID scheme, approval tiers
+│   ├── rules.md                       # Project invariants
+│   ├── templates/*.md                 # Project-owned templates every skill generates from
+│   ├── tools/sdlc-validate.py         # Deterministic validator
 │   ├── docs/
 │   │   ├── product.md  tech.md  test-strategy.md  architecture.md
 │   │   └── adr/ADR-*.md
@@ -294,73 +254,92 @@ To avoid approval fatigue, writes are tiered (defined in `.sdlc/CONVENTIONS.md`)
 │   │   ├── problem-brief.md           # US-*/AC-*/NFR-* ids
 │   │   └── entity-dictionary.md
 │   ├── specs/<slug>/
-│   │   ├── spec.md                    # Canonical EARS + design; declares Feature Key
-│   │   ├── quickfix-<ts>.md           # (optional) deltas from sdlc-quickfix
-│   │   └── drift-report-<ts>.md       # (optional) drift diff from sdlc-document
-│   ├── tests/<slug>/test-plan.md
+│   │   ├── spec.md                    # EARS requirements + design + test plan
+│   │   ├── quickfix-<ts>.md           # (optional) deltas
+│   │   └── drift-report-<ts>.md       # (optional) drift diff
 │   └── reviews/<slug>/report-<ts>.md
 ├── src/                               # Source code (key-namespaced traceability headers)
 ├── tests/                             # Test code
 └── AGENTS.md                          # AI assistant guide (repo root)
 ```
 
-The only variable is the `<slug>` (or `<scope>` for `sdlc-document`).
+---
+
+## Context Management
+
+Each phase runs in a **fresh chat session**: finish a phase, approve its artifacts, exit, start a new chat, run the next phase — it reads artifacts from disk, not chat history. Artifacts (`.sdlc/`, `src/`, `tests/`) are the durable state.
+
+> If your runtime offers conversation persistence (zrb's `/save` and `/load`), use it freely between phases — the skills don't depend on it.
 
 ---
 
 ## Evals
 
-`evals/` holds golden examples per skill plus a **rule-based runner** (`evals/run.py`) that grades deterministic `checks.json` assertions — runnable in CI with no LLM. Fuzzy rubric items stay human-graded; an LLM-as-judge extension is stubbed for later. Three cases ship today (`sdlc-init`, `sdlc-spec`, `sdlc-quickfix`); the authoring guide and `checks.json` schema are in [`evals/README.md`](evals/README.md). More cases are the cheapest way to harden the plugin.
+`evals/` holds golden examples per skill plus a **rule-based runner** that grades deterministic `checks.json` assertions — runnable in CI with no LLM. Fuzzy rubric items stay human-graded.
 
 ```bash
-python evals/run.py --list                  # list cases
-python evals/run.py                          # lint case structure
-python evals/run.py --actual /path/to/output # grade against produced output
+python3 evals/run.py --list                  # list cases
+python3 evals/run.py                         # lint case structure
+python3 evals/run.py --actual /path/to/output # grade against produced output
 ```
+
+Three cases ship today (`sdlc-init`, `sdlc-spec`, `sdlc-quickfix`); the authoring guide and schema are in [`evals/README.md`](evals/README.md). More cases are the cheapest way to harden the plugin.
 
 ---
 
 ## Runtime Compatibility
 
-Skills are runtime-neutral: they describe **what** the LLM should do (read a file, delegate to a sub-agent, run a worktree), not **which tool** to use. The delegation blocks in `sdlc-implement`, `sdlc-review`, and `sdlc-quickfix` are **prompt templates** — they prefer progressive disclosure (pass file paths, let the sub-agent read on demand) and fall back to inlining for runtimes without file access. The validator and eval runner are stdlib-only Python 3.8+, so any environment with `python3` can run them.
+Skills are runtime-neutral: they describe **what** the LLM should do (read a file, delegate to a sub-agent, use a worktree), not **which tool** to use. The delegation blocks in `sdlc-implement`, `sdlc-review`, and `sdlc-quickfix` are prompt templates — they prefer progressive disclosure and fall back to inlining for runtimes without file access. The validator and eval runner are stdlib-only Python 3.8+.
+
+Claude Code ignores the `disable-model-invocation` / `user-invocable` frontmatter (zrb-specific) but otherwise loads the skills as-is.
 
 ---
 
 ## Contributing
 
-A few files must live *inside* a skill directory (the installer copies skill dirs verbatim and never runs this repo's tooling), yet several skills need the *same* file. To avoid hand-maintained copies drifting, the canonical source lives once under `scripts/` and is synced into the skills that need it:
+The repository has one copy of everything:
 
-| Canonical source | Bundled into | How |
-|------------------|--------------|-----|
-| `scripts/sdlc-validate.py` | `skills/sdlc-init/`, `skills/sdlc-migrate/` | verbatim file copy |
-| `scripts/templates/conventions.md` | `sdlc-init` & `sdlc-migrate` `SKILL.md` | spliced into the `<!-- SYNC:BEGIN conventions.md -->` region |
+| File | Role |
+|------|------|
+| `skills/<name>/SKILL.md` | The skill itself — workflow only, no embedded templates |
+| `skills/sdlc-init/assets/templates/*.md` | Canonical templates, installed into `.sdlc/templates/` |
+| `skills/sdlc-init/assets/CONVENTIONS.md` | Canonical conventions, installed into `.sdlc/` |
+| `skills/sdlc-init/assets/tools/sdlc-validate.py` | Canonical validator, installed into `.sdlc/tools/` |
+| `evals/run.py` | Eval runner |
+| `tests/test_sdlc_validate.py` | Validator regression tests — one case per bug it has shipped |
 
-**Edit the source under `scripts/`, never the bundled copies.** Then resync:
+Only `sdlc-init` carries assets, so there are no bundled copies to keep in sync — edit the file and you are done. `/sdlc-adopt` deliberately does not install tooling; it routes the user to `/sdlc-init` instead.
+
+Scripts follow [kettanaito/naming-cheatsheet](https://github.com/kettanaito/naming-cheatsheet): snake_case throughout, no contractions, `get_`/`is_`/`has_` prefixes, plurals for collections, and functions ordered caller-before-callee so a file reads top-down.
+
+Every change is checked by `.github/workflows/ci.yml` — compile, validator regression tests, eval-case lint, installer dry-run — on Python 3.8, the floor the validator promises. Run the same locally:
 
 ```bash
-python3 scripts/sync_skills.py          # regenerate bundled copies
-python3 scripts/sync_skills.py --check  # CI/pre-push guard: exit 1 if drifted
+python3 tests/test_sdlc_validate.py   # validator regression tests
+python3 evals/run.py                  # lint the eval cases
 ```
 
-For the [zrb](https://github.com/state-alchemists/zrb) runtime, `zrb_init.py` wires these into tasks — `zrb skill sync`, `zrb skill check`, `zrb skill test` — and chains `sync → check → test` so drifted copies can't ship. Adding another shared file is one entry in the `SCRIPT_COPIES` / `TEMPLATE_INJECTS` manifest in `scripts/sync_skills.py`.
+A change to the validator's parsing or check logic needs a case in `tests/test_sdlc_validate.py`. Verify a new case can actually fail: reintroduce the bug, confirm the case goes red, then restore.
+
+For [zrb](https://github.com/state-alchemists/zrb), `zrb_init.py` exposes `zrb skill test` (all of the above) and `zrb skill install`.
 
 ---
 
 ## Key Design Notes & Limitations
 
-**Now addressed:**
-- **Traceability is validated, not just grepped** — `sdlc-validate.py` parses IDs and tags and fails on gaps; wire it into CI.
-- **Canonical EARS** — the homemade `AS`/`ALWAYS`/state-`WHERE` dialect is replaced by standard EARS; the validator flags the old dialect with a migration hint.
-- **IDs don't collide across features** — per-feature `REQ-*` are namespaced by a globally-unique Feature Key (`AUTH:REQ-003`).
-- **Eval runner exists** — `evals/run.py` grades deterministic checks; ≥3 scenarios shipped.
-- **Feature names are slugified** — no spaces or unsafe characters in directory names.
-- **Migration is first-class** — `/sdlc-migrate` upgrades old-layout projects, history-preserving and idempotent.
-- **Spec drift is reduced** — `quickfix` promotes to the canonical spec by default; `sdlc-document` closes the loop the other way.
+**Addressed:**
+- **Traceability is validated, not grepped** — the validator parses IDs and tags and fails on gaps; wire it into CI.
+- **Canonical EARS** — standard EARS (Mavin et al.), uppercase keywords, with migration hints for the old homemade dialect.
+- **IDs don't collide across features** — per-feature IDs namespaced by a globally-unique Feature Key.
+- **Templates are project-owned** — edit `.sdlc/templates/`; re-running a skill never clobbers your edits.
+- **One file per feature** — requirements, design, and test plan live together in `spec.md`.
+- **Migration is first-class** — `/sdlc-adopt` upgrades old-layout projects, history-preserving and idempotent.
+- **The validator is tested** — `tests/test_sdlc_validate.py` pins every bug it has shipped, and CI runs it on every push.
+- **Drift is reduced** — `quickfix` promotes into the spec by default; `/sdlc-adopt` closes the loop the other way.
 
 **Still true:**
-- **No CLI commands** — only chat skills + the bundled Python validator/eval runner. The installer is the only shell entry point for setup.
-- **No runtime approval enforcement** — approval relies on the LLM following the tiered-approval instructions; `Write`/`Edit`/`Bash` are not gated by policy.
-- **Validator is structural, not semantic** — it checks IDs, tags, and EARS keywords, not whether a requirement is *correctly* implemented (that's the review sub-agent's job, which remains LLM judgement).
-- **LLM-as-judge evals are a stub** — today's `run.py` grades deterministic checks only.
-- **Specs are snapshots** — re-sync is manual (`sdlc-document`); there is no automatic re-sync on every commit. Shared by every SDD tool.
-```
+- **No CLI commands** — chat skills plus the bundled Python validator and eval runner. The installer is the only shell entry point.
+- **No runtime approval enforcement** — approval relies on the LLM following the tiered instructions; `Write`/`Edit`/`Bash` are not policy-gated.
+- **The validator is structural, not semantic** — it checks IDs, tags, and EARS keywords, not whether a requirement is *correctly* implemented. That is the review sub-agent's job.
+- **Evals grade deterministic checks only** — no LLM-as-judge, and grading still needs a human to produce the `--actual` output. Only the validator tests and case linting run unattended.
+- **Specs are snapshots** — re-sync is manual. Shared by every SDD tool.

@@ -1,17 +1,102 @@
 {
   "case": "sdlc-spec/email-verification",
   "checks": [
-    {"id": "SPEC-1", "description": "spec.md at slugified path", "type": "file_exists", "target_file": ".sdlc/specs/email-verification/spec.md", "severity": "error"},
-    {"id": "SPEC-2", "description": "test-plan.md at slugified path", "type": "file_exists", "target_file": ".sdlc/tests/email-verification/test-plan.md", "severity": "error"},
-    {"id": "SPEC-3", "description": "Feature Key declared in spec", "type": "contains_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "\\*\\*Feature Key:\\*\\*\\s*[A-Z][A-Z0-9_-]*", "severity": "error"},
-    {"id": "SPEC-4", "description": "no deprecated EARS 'ALWAYS SHALL'", "type": "absent_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "ALWAYS\\s+SHALL", "severity": "error"},
-    {"id": "SPEC-5", "description": "no deprecated EARS 'UNLESS'", "type": "absent_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "\\bUNLESS\\b", "severity": "error"},
-    {"id": "SPEC-6", "description": "no deprecated EARS 'AS ... THEN'", "type": "absent_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "\\bAS\\b.+\\bTHEN\\b", "severity": "error"},
-    {"id": "SPEC-7", "description": "at least 3 REQ IDs", "type": "min_matches", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "REQ-\\d+", "min_count": 3, "severity": "error"},
-    {"id": "SPEC-8", "description": "requirements use a canonical EARS keyword or SHALL", "type": "contains_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "\\b(WHEN|WHILE|WHERE|IF)\\b|SHALL", "severity": "error"},
-    {"id": "SPEC-9", "description": "cites AC IDs from the brief", "type": "contains_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "AC-02[1-4]", "severity": "warning"},
-    {"id": "SPEC-10", "description": "outside-code NFR section present", "type": "contains_regex", "target_file": ".sdlc/specs/email-verification/spec.md", "pattern": "Validated Outside Code", "severity": "warning"},
-    {"id": "SPEC-11", "description": "PBT section populated (hypothesis configured) — not N/A", "type": "absent_regex", "target_file": ".sdlc/tests/email-verification/test-plan.md", "pattern": "no property-testing framework configured", "severity": "warning"},
-    {"id": "SPEC-12", "description": "test plan references REQ IDs", "type": "min_matches", "target_file": ".sdlc/tests/email-verification/test-plan.md", "pattern": "REQ-\\d+", "min_count": 3, "severity": "error"}
+    {
+      "id": "SPEC-1",
+      "description": "spec.md at slugified path",
+      "type": "file_exists",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-2",
+      "description": "test plan folded into spec.md",
+      "type": "contains_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "severity": "error",
+      "pattern": "^#{2,3}\\s+Test Plan\\b"
+    },
+    {
+      "id": "SPEC-3",
+      "description": "Feature Key declared in spec",
+      "type": "contains_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "\\*\\*Feature Key:\\*\\*\\s*[A-Z][A-Z0-9_-]*",
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-4",
+      "description": "no deprecated EARS 'ALWAYS SHALL'",
+      "type": "absent_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "ALWAYS\\s+SHALL",
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-5",
+      "description": "no deprecated EARS 'UNLESS'",
+      "type": "absent_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "\\bUNLESS\\b",
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-6",
+      "description": "no deprecated EARS 'AS ... THEN'",
+      "type": "absent_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "\\bAS\\b.+\\bTHEN\\b",
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-7",
+      "description": "at least 3 REQ IDs",
+      "type": "min_matches",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "REQ-\\d+",
+      "min_count": 3,
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-8",
+      "description": "requirements use a canonical EARS keyword or SHALL",
+      "type": "contains_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "\\b(WHEN|WHILE|WHERE|IF)\\b|SHALL",
+      "severity": "error"
+    },
+    {
+      "id": "SPEC-9",
+      "description": "cites AC IDs from the brief",
+      "type": "contains_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "AC-02[1-4]",
+      "severity": "warning"
+    },
+    {
+      "id": "SPEC-10",
+      "description": "outside-code NFR section present",
+      "type": "contains_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "Validated Outside Code",
+      "severity": "warning"
+    },
+    {
+      "id": "SPEC-11",
+      "description": "PBT section populated (hypothesis configured) \u2014 not N/A",
+      "type": "absent_regex",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "no property-testing framework configured",
+      "severity": "warning"
+    },
+    {
+      "id": "SPEC-12",
+      "description": "test plan defines unit-test IDs",
+      "type": "min_matches",
+      "target_file": ".sdlc/specs/email-verification/spec.md",
+      "pattern": "UT-\\d+",
+      "min_count": 3,
+      "severity": "error"
+    }
   ]
 }
