@@ -29,12 +29,16 @@ jobs:
       - name: Installer dry-run
         run: bin/install.sh --dry-run --tools claude
 
+      - name: Installer project-scoped target
+        run: bin/install.sh --dry-run --dir .claude/skills
+
       - name: Installer upgrades over a previous version
         run: |
           set -euo pipefail
           export HOME="$(mktemp -d)"
           mkdir -p "$HOME/.claude/skills/sdlc-requirements" \
-                   "$HOME/.claude/skills/unrelated-skill"
+                   "$HOME/.claude/skills/unrelated-skill" \
+                   "$HOME/.claude/skills/sdlc-deploy"
           bin/install.sh --tools claude > /dev/null
           test ! -d "$HOME/.claude/skills/sdlc-requirements" \
             || { echo "merged-away skill was left behind"; exit 1; }
@@ -42,6 +46,10 @@ jobs:
           test -f "$HOME/.claude/skills/sdlc-init/assets/tools/sdlc-validate.py"
           test -d "$HOME/.claude/skills/unrelated-skill" \
             || { echo "a non-sdlc skill was removed"; exit 1; }
+          test -d "$HOME/.claude/skills/sdlc-deploy" \
+            || { echo "a user's own sdlc-* skill was removed"; exit 1; }
           bin/install.sh --uninstall --tools claude > /dev/null
-          test -z "$(find "$HOME/.claude/skills" -maxdepth 1 -name 'sdlc-*')"
+          test -z "$(find "$HOME/.claude/skills" -maxdepth 1 -name 'sdlc-plan')"
           test -d "$HOME/.claude/skills/unrelated-skill"
+          test -d "$HOME/.claude/skills/sdlc-deploy" \
+            || { echo "uninstall removed a skill that is not ours"; exit 1; }

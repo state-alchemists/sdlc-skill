@@ -76,7 +76,7 @@ Hand the filled prompt to a general-purpose coding agent via whatever delegation
 
 1. Run the test suite.
 2. Run the linter.
-3. Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug>`. Treat ERROR findings (missing `IMPLEMENTS`/`COVERS`, dangling or unkeyed tags) as failures to fix.
+3. Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug>`. Treat ERROR findings (missing `IMPLEMENTS`/`COVERS`, dangling tags) as failures to fix. `--feature` narrows the findings to this feature; other features' tags still resolve, so anything reported here is really yours. An unkeyed tag is a WARNING *and* leaves its requirement untraced — re-key it rather than adding a second tag.
 4. On any failure, re-delegate with the specific context — **retry cap 2**. After the third failure, stop and report what failed, what was tried, and what looks unimplementable from the spec.
 5. Report: tests pass/fail per ID, lint result, validator summary, files written, retries consumed.
 

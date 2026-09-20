@@ -14,11 +14,12 @@ Everything the skills generate comes from **templates installed into your projec
 bin/install.sh --tools all                    # install to all 30+ known AI coding tools
 bin/install.sh --tools codex,opencode,cursor  # specific tools (comma-separated)
 bin/install.sh                                # auto-detect — only tools already on this machine
+bin/install.sh --dir .claude/skills           # a project-scoped directory, checked into the repo
 bin/install.sh --uninstall --tools all        # remove sdlc-* skills from all targets
 bin/install.sh --dry-run --tools cursor       # preview without changing anything
 ```
 
-Portable bash (works on macOS's bash 3.2), replaces any prior copy of each skill, and never touches non-`sdlc-*` skills in your target directories.
+Portable bash (works on macOS's bash 3.2) and replaces any prior copy of each skill. It only ever removes the skills this repo ships plus the ones it used to ship (`sdlc-requirements`, `sdlc-architect`, `sdlc-document`, `sdlc-migrate`) — your own skill in the same directory is left alone and reported as kept, whether it is called `my-skill` or `sdlc-deploy`.
 
 ### Upgrading from an earlier version
 
@@ -29,7 +30,7 @@ git pull
 bin/install.sh                 # same command as a fresh install
 ```
 
-Then, **per project** that was set up by an older version:
+Then, **per project** that was set up by an older version — always `/sdlc-init` first, then `/sdlc-adopt`:
 
 ```
 /sdlc-init     # refreshes the validator, installs .sdlc/templates/, keeps your documents
@@ -37,6 +38,8 @@ Then, **per project** that was set up by an older version:
 ```
 
 `/sdlc-init` never overwrites a template you have edited, always refreshes `.sdlc/tools/sdlc-validate.py` (an old copy carries fixed bugs), and shows a diff before replacing `.sdlc/CONVENTIONS.md`.
+
+**The order is always `/sdlc-init` → `/sdlc-adopt`**, on every kind of project. `/sdlc-adopt` fills a structure rather than creating one, so it needs the templates and validator that `/sdlc-init` installs. On a project still using the legacy layout, `/sdlc-init` installs that scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`. Re-run `/sdlc-init` afterwards to fill the gaps.
 
 Manual install is the same pattern for any tool — copy the skill directories into `<dotdir>/skills/`:
 
@@ -114,7 +117,7 @@ Two layers: the **validator** covers traceability, EARS, and ID hygiene determin
 
 ### 6. `sdlc-quickfix` — Delta Path
 
-`ADDED/MODIFIED/REMOVED` delta against an existing spec, implemented in one shot with an inline review, **promoted into `spec.md` by default** so the spec never drifts behind the code. Use it instead of fragmenting a one-line fix into a new spec directory.
+`ADDED/MODIFIED/REMOVED` delta against an existing spec, implemented in one shot with an inline review, then **promoted into `spec.md`** so the spec never drifts behind the code. Promotion is the recommendation, not a default that happens on silence — editing an existing spec is Tier-1 and it asks. Use this skill instead of fragmenting a one-line fix into a new spec directory.
 
 ### 7. `sdlc-adopt` — Brownfield Adoption
 
@@ -171,14 +174,16 @@ Specs are snapshots. When code changes outside the pipeline: `/sdlc-adopt` (docu
 ### E: Brownfield With No SDLC Setup
 
 ```
+/sdlc-init         # brownfield path: scaffolding, then extracts what it can and interviews the rest
 /sdlc-adopt        # document mode on src/auth/ — writes a spec from code
-/sdlc-init         # brownfield path: extracts what it can, interviews the rest
 /sdlc-plan         # entities extracted from code and the new spec
 ```
 
+`/sdlc-init` comes first everywhere: `/sdlc-adopt` generates from `.sdlc/templates/`, which `/sdlc-init` installs.
+
 ### F: Project From an Earlier Version of These Skills
 
-`/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, and re-keys tags — preserving git history. Then `/sdlc-init` installs the templates and validator without touching your documents.
+`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, and re-keys tags, preserving git history. Re-run `/sdlc-init` to fill any remaining gaps.
 
 ---
 
@@ -216,15 +221,20 @@ Each `spec.md` declares a globally-unique `**Feature Key:**` (e.g. `AUTH`), and 
 def validate_login(...): ...
 ```
 
-NFRs validated **outside code** (WAF rules, SLO dashboards, infra) are listed under "NFRs Validated Outside Code" in the spec; the validator exempts them rather than expecting a fake `IMPLEMENTS:` line. Naming CI in an NFR's "Validated By" cell exempts nothing — CI is where validation runs, not what performs it.
+NFRs validated **outside code** (WAF rules, SLO dashboards, infra) are listed under "NFRs Validated Outside Code" in the spec; the validator exempts them rather than expecting a fake `IMPLEMENTS:` line. That heading is the only thing that exempts an NFR — what the "Validated By" cell *says* exempts nothing, and neither does naming CI, because CI is where validation runs, not what performs it.
+
+A requirement's `(AC-NNN)` citation is checked against `problem-brief.md` when one exists, so an AC renumbered upstream surfaces as an error instead of rotting. Unkeyed legacy tags (`@sdlc REQ-003`) warn **and** leave their requirement untraced — they do not satisfy coverage until re-keyed.
 
 ```bash
 python3 .sdlc/tools/sdlc-validate.py                 # whole project
 python3 .sdlc/tools/sdlc-validate.py --feature user-authentication
 python3 .sdlc/tools/sdlc-validate.py --strict --json # CI gate, machine-readable
+python3 .sdlc/tools/sdlc-validate.py --exclude 'docs/*.md'
 ```
 
-`ERROR` (missing `IMPLEMENTS`/`COVERS`, dangling tags, duplicate or recycled IDs, key collisions), `WARNING` (unkeyed legacy tags, deprecated EARS, test-plan gaps), `INFO` (legacy layout, outside-code NFRs). Exit `0` clean, `1` warnings with `--strict`, `2` errors.
+`ERROR` (missing `IMPLEMENTS`/`COVERS`, dangling tags, duplicate or recycled IDs, key collisions, unknown `AC-*` citations, an unusable Feature Key), `WARNING` (unkeyed legacy tags, deprecated or lowercase EARS, test-plan gaps in either direction), `INFO` (legacy layout, outside-code NFRs). Exit `0` clean, `1` warnings with `--strict`, `2` errors.
+
+`--feature` narrows the **findings**, not the parse: every spec is still read, so other features' tags resolve instead of reporting as dangling. Fenced code blocks in Markdown are never read as tags, so a README can document the tag format freely; `--exclude GLOB` covers anything outside a fence.
 
 ---
 
@@ -328,18 +338,19 @@ For [zrb](https://github.com/state-alchemists/zrb), `zrb_init.py` exposes `zrb s
 ## Key Design Notes & Limitations
 
 **Addressed:**
-- **Traceability is validated, not grepped** — the validator parses IDs and tags and fails on gaps; wire it into CI.
+- **Traceability is validated, not grepped** — the validator parses IDs and tags and fails on gaps; wire it into CI (`/sdlc-init` offers the snippet). Both ends are checked: `REQ-* → code` downstream, and `REQ-* → AC-*` against the problem brief upstream.
 - **Canonical EARS** — standard EARS (Mavin et al.), uppercase keywords, with migration hints for the old homemade dialect.
 - **IDs don't collide across features** — per-feature IDs namespaced by a globally-unique Feature Key.
 - **Templates are project-owned** — edit `.sdlc/templates/`; re-running a skill never clobbers your edits.
 - **One file per feature** — requirements, design, and test plan live together in `spec.md`.
 - **Migration is first-class** — `/sdlc-adopt` upgrades old-layout projects, history-preserving and idempotent.
 - **The validator is tested** — `tests/test_sdlc_validate.py` pins every bug it has shipped, and CI runs it on every push.
-- **Drift is reduced** — `quickfix` promotes into the spec by default; `/sdlc-adopt` closes the loop the other way.
+- **Drift is reduced** — `quickfix` promotes into the spec on approval, every time, rather than leaving deltas to pile up; `/sdlc-adopt` closes the loop the other way.
 
 **Still true:**
 - **No CLI commands** — chat skills plus the bundled Python validator and eval runner. The installer is the only shell entry point.
 - **No runtime approval enforcement** — approval relies on the LLM following the tiered instructions; `Write`/`Edit`/`Bash` are not policy-gated.
 - **The validator is structural, not semantic** — it checks IDs, tags, and EARS keywords, not whether a requirement is *correctly* implemented. That is the review sub-agent's job.
+- **Tags are unversioned** — reword a requirement and every tag pointing at it still validates. Drift of that kind is caught by `/sdlc-adopt`'s drift report, per feature and on demand, not per link and automatically.
 - **Evals grade deterministic checks only** — no LLM-as-judge, and grading still needs a human to produce the `--actual` output. Only the validator tests and case linting run unattended.
 - **Specs are snapshots** — re-sync is manual. Shared by every SDD tool.

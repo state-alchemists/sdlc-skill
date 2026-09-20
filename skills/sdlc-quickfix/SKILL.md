@@ -18,14 +18,16 @@ For changes that do not justify the full pipeline. Uses an `ADDED/MODIFIED/REMOV
 - **Template**: fill `.sdlc/templates/quickfix.md`.
 - **Argument → slug**: slugify to locate `.sdlc/specs/<slug>/`. If missing, ask.
 - **Required input**: no existing `spec.md` for the feature? There is nothing to delta against — tell the user to run `/sdlc-spec <feature>` (new feature) or `/sdlc-adopt` (existing code, no spec).
-- **ID rules**: continue numbering from the highest existing ID; never renumber or recycle. A removed requirement keeps its ID and its text **begins** `REMOVED ({date}) — {reason}`.
+- **ID rules**: continue numbering from the highest existing ID; never renumber or recycle. A removed requirement keeps its ID and its text **begins** `REMOVED ({date}) — {reason}`, directly after the `(AC-NNN)` citation if it has one — anything else between the ID and `REMOVED` leaves it active.
 - **Retry cap**: 2 re-delegations.
 
 ## Workflow
 
 ### Phase 1: Input Discovery
 
-Read `.sdlc/rules.md`, `.sdlc/specs/<slug>/spec.md` (the Feature Key, the requirements to delta against, and the `## Test Plan` section), any existing `.sdlc/specs/<slug>/quickfix-*.md` (to compute the next free IDs), `.sdlc/requirements/entity-dictionary.md` if an entity is touched, and the source files the change will touch (`git grep` the affected symbol).
+Read `.sdlc/rules.md`, `.sdlc/specs/<slug>/spec.md` (the Feature Key, the requirements to delta against, and the `## Test Plan` section), `.sdlc/requirements/entity-dictionary.md` if an entity is touched, and the source files the change will touch (`git grep` the affected symbol).
+
+**Next free ID**: `spec.md` holds it, because a promoted delta writes its IDs there. Also read any `.sdlc/specs/<slug>/quickfix-*.md` whose header says `**Promoted**: no` — those IDs exist nowhere else. Files under `.sdlc/specs/<slug>/archive/` are promoted history; skip them.
 
 ### Phase 2: Scope Confirmation
 
@@ -55,9 +57,10 @@ INSTRUCTIONS:
    - ADDED → new tests with key-namespaced COVERS: headers.
    - MODIFIED → update bodies; keep names unless renamed; update COVERS if the covered IDs changed.
    - REMOVED → delete the named test (and the file if it becomes empty).
-4. Run the FULL test suite, not just the new tests. Report non-regression failures.
-5. Do NOT modify .sdlc/specs/{slug}/spec.md — the orchestrator promotes after review.
-6. Report: files touched, tests added/modified/removed by name, suite pass/fail per test, any rule overrides invoked.
+4. For a REMOVED requirement, also strip its traceability from the source: drop its ID from every `IMPLEMENTS:` header and delete its `@sdlc` inline tags. A tag pointing at a retired ID is a dangling-tag ERROR.
+5. Run the FULL test suite, not just the new tests. Report non-regression failures.
+6. Do NOT modify .sdlc/specs/{slug}/spec.md — the orchestrator promotes after review.
+7. Report: files touched, tests added/modified/removed by name, suite pass/fail per test, any rule overrides invoked.
 ```
 
 ### Phase 5: Inline Review
@@ -71,14 +74,14 @@ The quickfix path skips `/sdlc-review` — too small for a separate pass. Audit 
 
 ### Phase 6: Promote
 
-**You do this, not the delegated agent.** Promotion is the default — keeping the spec current is the point. Say: *"Promoting this delta into `spec.md` so the spec stays current. Say 'keep standalone' if you'd rather leave it as a delta-only record."*
+**You do this, not the delegated agent.** Promotion is the recommended default — keeping the spec current is the point — but `spec.md` is an existing spec, and editing one is **Tier-1**: ask, and wait for an affirmative. Silence is not consent (see `.sdlc/CONVENTIONS.md`). Say: *"I recommend promoting this delta into `spec.md` so the spec stays current — approve? Or say 'keep standalone' to leave it as a delta-only record."*
 
-Unless the user opts out, update `.sdlc/specs/<slug>/spec.md`:
+On approval, update `.sdlc/specs/<slug>/spec.md`:
 - **ADDED** → append with the assigned `REQ-*` IDs; add the matching rows to the `## Test Plan` section.
 - **MODIFIED** → rewrite the existing `REQ-NNN` line; update its test-plan rows.
 - **REMOVED** → keep the ID line, its text beginning `REMOVED ({YYYY-MM-DD}) — {reason}`; remove its test-plan rows.
 
-**Keep the dated quickfix file** either way — it is the chronological record of what changed and when, and the next-ID scan reads it.
+**Keep the dated quickfix file** either way — it is the chronological record of what changed and when. Set its `**Promoted**:` header to match what happened. A promoted delta's IDs now live in `spec.md`, so it may be moved to `.sdlc/specs/<slug>/archive/` to keep the feature directory readable; a standalone one stays put, because it is the only record of its IDs.
 
 ## Phase Transition
 

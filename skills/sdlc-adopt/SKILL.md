@@ -26,7 +26,7 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 
 ## Before you start
 
-- **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates.
+- **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
 - **Conventions**: read `.sdlc/CONVENTIONS.md` if present.
 - **Preserve history**: `git mv` in a git repo; `mkdir -p` + `mv` outside one. Never copy-and-leave-the-original.
 - **Never rewrite meaning in Mode A**: it relocates files and mechanically re-keys tags. Restating requirements is Mode B's job.
@@ -132,7 +132,7 @@ Accept a partial approval and run only the approved modes. If the user declines,
 3. Remove now-empty legacy directories.
 4. **Fold test plans**: append each `test-plan.md` to its feature's `spec.md` under `## Test Plan`, demoting its headings one level (`## Unit Tests` → `### Unit Tests`). Keep every `UT-*`/`IT-*`/`E2E-*`/`PBT-*` ID verbatim — `COVERS:` headers reference them. Then `git rm` the old file.
 5. **Repoint every reference**, including the non-markdown ones from the risk register. Re-grep after the move to prove none remain.
-6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one (default: uppercased slug) as a Tier-1 spec edit presented first. Then across `src/` and `tests/`: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
+6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first. Default to the uppercased slug, but only when that is a valid key (`[A-Z][A-Z0-9_-]*`) — a slug starting with a digit (`2fa` → `2FA`) is not one, and a tag built from it cannot be parsed, so choose a real key (`TWOFA`) and say why. Then across `src/` and `tests/`: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
 
 Every scripted edit asserts its anchor before writing — a blind `str.replace` that matches nothing fails silently and reports success.
 
@@ -169,6 +169,8 @@ For each public function, class, handler or endpoint: the **trigger**, **inputs*
 | Error, guard, invalid input | IF `<condition>`, THEN the `<system>` SHALL `<response>`. |
 
 Continue numbering from existing IDs. Never recycle — a requirement that vanished from code is marked in the drift report and its number retired.
+
+**Citations**: requirements documented from code have no `AC-*` to cite until a problem brief exists, so write them without a citation rather than inventing one. The validator checks citations only against a brief that exists, so an uncited requirement is clean; a fabricated `AC-042` is an ERROR.
 
 **Record the source of each requirement** (`file:line`). Mode C needs it to place tags, and a reviewer needs it to check your reading.
 

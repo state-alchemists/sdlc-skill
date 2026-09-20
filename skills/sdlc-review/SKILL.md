@@ -26,7 +26,7 @@ Read `.sdlc/rules.md` (every violation is a FAIL unless the Override Log records
 
 ### Phase 2: Deterministic Pass
 
-Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug> --strict` and capture the full output. This authoritatively covers **traceability**, **EARS syntax**, and **ID hygiene** — record its findings in the report rather than re-deriving them. If the validator is absent, note that, tell the user to run `/sdlc-init`, and fall back to:
+Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug> --strict` and capture the full output. This authoritatively covers **traceability**, **EARS syntax**, and **ID hygiene** — record its findings in the report rather than re-deriving them. Findings are scoped to this feature while every spec stays parsed, so a finding about another feature's key is a real defect, not scoping noise. If the validator is absent, note that, tell the user to run `/sdlc-init`, and fall back to:
 - `grep -rnE "IMPLEMENTS: " src/`
 - `grep -rnE "COVERS: " tests/`
 - `grep -rnE "@sdlc [A-Z0-9_-]+:(REQ|NFR)-" src/ tests/`

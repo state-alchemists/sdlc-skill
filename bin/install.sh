@@ -11,6 +11,7 @@
 #   bin/install.sh --tools codex,opencode       # specific tools (creates dirs)
 #   bin/install.sh --tools all                  # all known tools
 #   bin/install.sh --all                        # alias for --tools all
+#   bin/install.sh --dir .claude/skills         # a project-scoped directory
 #   bin/install.sh --uninstall --tools all      # remove sdlc-* from all tools
 #   bin/install.sh --dry-run --tools cursor     # preview without changing anything
 
@@ -72,13 +73,22 @@ TOOL_IDS=(
     antigravity bob costrict forgecode kimi trae vibe auggie
 )
 
+# Skills this repo used to ship. They are removed on upgrade because they still
+# answer their old slash command against paths that no longer exist. Every other
+# sdlc-* directory is left alone: the namespace is shared with whatever the user
+# wrote themselves, and deleting someone's own sdlc-deploy is not an upgrade.
+RETIRED_SKILLS=(sdlc-requirements sdlc-architect sdlc-document sdlc-migrate)
+
 uninstall=0
 dry_run=0
 want_tool=()
+want_dir=()
 
 # Check whether a tool ID is in the want_tool set.
 want() {
     local id="$1" x
+    # `${a[@]}` on an empty array is an unbound-variable error under bash 3.2.
+    [[ "${#want_tool[@]}" -gt 0 ]] || return 1
     for x in "${want_tool[@]}"; do
         [[ "$x" == "$id" ]] && return 0
     done
@@ -95,12 +105,17 @@ Options:
   --tools <id,...>    Target specific tools by ID (comma-separated).
                       Use "all" for every known tool.
   --all               Alias for --tools all
-  --uninstall         Remove sdlc-* skills from selected targets
+  --dir <path>        Target an arbitrary skills directory, e.g. a
+                      project-scoped .claude/skills/ (repeatable)
+  --uninstall         Remove this repo's sdlc-* skills from selected targets
   --dry-run           Print what would happen without changing anything
   -h, --help          This message
 
 With no target flags, install.sh installs to whichever tool directories
 already exist on this machine. If none exist, it exits with a hint.
+
+Only the skills this repo ships, plus ones it used to ship, are ever
+removed. An sdlc-* skill of your own in the same directory is left alone.
 EOF
 }
 
@@ -142,6 +157,13 @@ while [[ $# -gt 0 ]]; do
                 done
             fi
             ;;
+        --dir)
+            shift
+            if [[ $# -eq 0 ]]; then
+                log "Missing value for --dir"; usage; exit 2
+            fi
+            want_dir+=("$1")
+            ;;
         --uninstall) uninstall=1 ;;
         --dry-run)   dry_run=1 ;;
         -h|--help)   usage; exit 0 ;;
@@ -153,7 +175,7 @@ done
 # ---------------------------------------------------------------------------
 # Auto-detect: if no tool flags given, target tools whose home dir exists.
 # ---------------------------------------------------------------------------
-if [[ "${#want_tool[@]}" -eq 0 ]]; then
+if [[ "${#want_tool[@]}" -eq 0 && "${#want_dir[@]}" -eq 0 ]]; then
     detected=0
     for id in "${TOOL_IDS[@]}"; do
         local_dir="$(tool_dir "${id}")"
@@ -211,6 +233,15 @@ is_shipped() {
     return 1
 }
 
+# True when this repo used to ship a skill by that name.
+is_retired() {
+    local name="$1" retired
+    for retired in "${RETIRED_SKILLS[@]}"; do
+        [[ "${retired}" == "${name}" ]] && return 0
+    done
+    return 1
+}
+
 install_to() {
     local target="$1"
     log "Target: ${target}"
@@ -220,9 +251,13 @@ install_to() {
     while IFS= read -r dest; do
         [[ -n "${dest}" ]] || continue
         name="$(basename "${dest}")"
-        if ! is_shipped "${name}"; then
+        if is_shipped "${name}"; then
+            continue
+        elif is_retired "${name}"; then
             run rm -rf "${dest}"
             log "  removed ${name} (no longer shipped)"
+        else
+            log "  kept ${name} (not ours — left untouched)"
         fi
     done < <(installed_skills_in "${target}")
 
@@ -246,6 +281,10 @@ uninstall_from() {
     while IFS= read -r dest; do
         [[ -n "${dest}" ]] || continue
         name="$(basename "${dest}")"
+        if ! is_shipped "${name}" && ! is_retired "${name}"; then
+            log "  kept ${name} (not ours — left untouched)"
+            continue
+        fi
         run rm -rf "${dest}"
         log "  removed ${name}"
         removed=1
@@ -267,6 +306,10 @@ for id in "${TOOL_IDS[@]}"; do
     if want "${id}"; then
         action "$(tool_dir "${id}")"
     fi
+done
+
+for dir in "${want_dir[@]+"${want_dir[@]}"}"; do
+    action "${dir}"
 done
 
 log "Done."
