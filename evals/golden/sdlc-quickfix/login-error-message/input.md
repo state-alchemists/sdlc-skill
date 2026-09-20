@@ -7,7 +7,7 @@
 > "When login hits an unexpected 500, show a friendly 'Something went wrong, please try again' message instead of leaking the stack trace. Just that."
 
 This is the canonical small change: a single behaviour tweak that the full
-spec→test-plan→implement→review pipeline would bloat into a multi-story spec.
+spec→implement→review pipeline would bloat into a multi-story spec.
 
 ## Files the skill reads
 

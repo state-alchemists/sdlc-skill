@@ -1,6 +1,6 @@
 # Rubric: sdlc-spec / email-verification
 
-Grader evaluates `.sdlc/specs/email-verification/spec.md` and `.sdlc/tests/email-verification/test-plan.md`. Deterministic subset in `checks.json`.
+Grader evaluates `.sdlc/specs/email-verification/spec.md`, including its `## Test Plan` section. Deterministic subset in `checks.json`.
 
 ## spec.md
 
@@ -16,7 +16,7 @@ Grader evaluates `.sdlc/specs/email-verification/spec.md` and `.sdlc/tests/email
 | Correctness: no N/A rows | Correctness section lists only applicable properties (expect Uniqueness + Validation + Idempotency for token reuse), no `N/A` rows |
 | Rule compliance encoded | A requirement or note reflects RULE-004 (never log raw tokens) |
 
-## test-plan.md
+## spec.md — Test Plan section
 
 | Check | Pass criteria |
 |-------|---------------|

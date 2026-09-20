@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'   # the floor the validator promises
+
+      - name: Compile bundled scripts
+        run: >
+          python3 -m py_compile
+          skills/sdlc-init/assets/tools/sdlc-validate.py
+          evals/run.py tests/test_sdlc_validate.py zrb_init.py
+
+      - name: Validator regression tests
+        run: python3 tests/test_sdlc_validate.py
+
+      - name: Lint eval cases
+        run: python3 evals/run.py
+
+      - name: Installer dry-run
+        run: bin/install.sh --dry-run --tools claude
+
+      - name: Installer upgrades over a previous version
+        run: |
+          set -euo pipefail
+          export HOME="$(mktemp -d)"
+          mkdir -p "$HOME/.claude/skills/sdlc-requirements" \
+                   "$HOME/.claude/skills/unrelated-skill"
+          bin/install.sh --tools claude > /dev/null
+          test ! -d "$HOME/.claude/skills/sdlc-requirements" \
+            || { echo "merged-away skill was left behind"; exit 1; }
+          test -d "$HOME/.claude/skills/sdlc-plan"
+          test -f "$HOME/.claude/skills/sdlc-init/assets/tools/sdlc-validate.py"
+          test -d "$HOME/.claude/skills/unrelated-skill" \
+            || { echo "a non-sdlc skill was removed"; exit 1; }
+          bin/install.sh --uninstall --tools claude > /dev/null
+          test -z "$(find "$HOME/.claude/skills" -maxdepth 1 -name 'sdlc-*')"
+          test -d "$HOME/.claude/skills/unrelated-skill"

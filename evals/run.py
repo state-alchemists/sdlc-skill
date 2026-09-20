@@ -1,53 +1,49 @@
 #!/usr/bin/env python3
 """run.py — eval runner for the sdlc-* skills.
 
-Rule-based, deterministic, stdlib-only. Each golden case under evals/golden/
+Rule-based, deterministic, stdlib only. Each golden case under evals/golden/
 may carry a `checks.json` of machine-checkable assertions. Point the runner at
 a directory of actual skill output and it grades each check PASS/FAIL.
 
 USAGE
     python3 evals/run.py --list                       # list all cases
-    python3 evals/run.py                               # lint: validate case structure
-    python3 evals/run.py --actual DIR                  # grade all cases against DIR
+    python3 evals/run.py                              # lint: validate case structure
+    python3 evals/run.py --actual DIR                 # grade all cases against DIR
     python3 evals/run.py --skill sdlc-spec --actual DIR
-    python3 evals/run.py --case sdlc-init/personal-todo-app --actual DIR
+    python3 evals/run.py --case sdlc-spec/email-verification --actual DIR
 
 A case directory contains:
-    input.md     — transcript of inputs the skill receives (interview answers, files it reads)
-    rubric.md    — human-readable PASS/FAIL/PARTIAL criteria
-    checks.json  — (optional) deterministic checks the runner can grade
-    expected/    — (optional) reference output tree
+    input.md     — the inputs the skill receives (interview answers, files it reads)
+    rubric.md    — human-readable PASS / FAIL / PARTIAL criteria
+    checks.json  — optional deterministic checks this runner grades
+    expected/    — optional reference output tree
 
 checks.json schema:
     {
-      "case": "sdlc-init/personal-todo-app",
+      "case": "sdlc-spec/email-verification",
       "checks": [
-        {"id": "C1", "description": "...", "type": "file_exists",
-         "target_file": ".sdlc/docs/product.md", "severity": "error"},
-        {"id": "C2", "description": "...", "type": "contains_regex",
-         "target_file": ".sdlc/rules.md", "pattern": "RULE-999", "severity": "error"},
-        {"id": "C3", "description": "...", "type": "absent_regex",
-         "target_file": ".sdlc/specs/email-verification/spec.md",
-         "pattern": "\\bALWAYS SHALL\\b", "severity": "error"},
-        {"id": "C4", "description": "...", "type": "min_matches",
-         "target_file": ".sdlc/specs/email-verification/spec.md",
-         "pattern": "REQ-\\d+", "min_count": 3, "severity": "error"}
+        {"id": "SPEC-1", "description": "...", "type": "file_exists",
+         "target_file": ".sdlc/specs/email-verification/spec.md", "severity": "error"},
+        {"id": "SPEC-4", "description": "...", "type": "absent_regex",
+         "target_file": "...", "pattern": "ALWAYS\\s+SHALL", "severity": "error"},
+        {"id": "SPEC-7", "description": "...", "type": "min_matches",
+         "target_file": "...", "pattern": "REQ-\\d+", "min_count": 3, "severity": "error"}
       ]
     }
 
 check types:
-    file_exists   — target_file exists under --actual.
-    contains_regex— target_file exists AND `pattern` is found.
-    absent_regex  — target_file (if present) does NOT contain `pattern`.
-    min_matches   — target_file contains >= `min_count` matches of `pattern`.
+    file_exists    — target_file exists under --actual.
+    contains_regex — target_file exists AND `pattern` is found.
+    absent_regex   — target_file (if present) does NOT contain `pattern`.
+    min_matches    — target_file contains >= `min_count` matches of `pattern`.
 
 severity:
-    error (default) — a FAIL makes the case FAIL.
-    warning         — a FAIL makes the case PARTIAL (not a hard fail).
+    error (default) — a failed check makes the case FAIL.
+    warning         — a failed check makes the case PARTIAL.
 
 EXIT CODES
     0  all graded cases PASS (or lint clean)
-    1  one or more cases FAIL, or a structural/lint error
+    1  one or more cases FAIL, or a structural problem
 """
 
 import argparse
@@ -56,164 +52,209 @@ import os
 import re
 import sys
 
-GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
+EXIT_PASS, EXIT_FAIL = 0, 1
 
+GOLDEN_DIRECTORY = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "golden")
 
-def discover_cases():
-    """Yield (skill, case_name, case_dir) for every golden case."""
-    if not os.path.isdir(GOLDEN):
-        return
-    for skill in sorted(os.listdir(GOLDEN)):
-        sdir = os.path.join(GOLDEN, skill)
-        if not os.path.isdir(sdir):
-            continue
-        for case in sorted(os.listdir(sdir)):
-            cdir = os.path.join(sdir, case)
-            if os.path.isdir(cdir):
-                yield skill, case, cdir
-
-
-def lint_case(cdir):
-    """Return a list of structural problems for a case (empty == clean)."""
-    problems = []
-    for required in ("input.md", "rubric.md"):
-        if not os.path.exists(os.path.join(cdir, required)):
-            problems.append("missing %s" % required)
-    checks_path = os.path.join(cdir, "checks.json")
-    if os.path.exists(checks_path):
-        try:
-            with open(checks_path, encoding="utf-8") as f:
-                data = json.load(f)
-        except (ValueError, OSError) as exc:
-            problems.append("checks.json not valid JSON: %s" % exc)
-            return problems
-        if not isinstance(data.get("checks"), list):
-            problems.append("checks.json has no 'checks' list")
-        else:
-            valid_types = {"file_exists", "contains_regex", "absent_regex", "min_matches"}
-            for i, chk in enumerate(data["checks"]):
-                if chk.get("type") not in valid_types:
-                    problems.append("check #%d: bad type %r" % (i, chk.get("type")))
-                if not chk.get("target_file"):
-                    problems.append("check #%d: missing target_file" % i)
-                if chk.get("type") in ("contains_regex", "absent_regex", "min_matches") and not chk.get("pattern"):
-                    problems.append("check #%d: missing pattern" % i)
-                if chk.get("type") == "min_matches" and not isinstance(chk.get("min_count"), int):
-                    problems.append("check #%d: min_matches needs integer min_count" % i)
-    return problems
-
-
-def grade_check(chk, actual_dir):
-    """Return (passed: bool, detail: str)."""
-    target = os.path.join(actual_dir, chk["target_file"])
-    ctype = chk["type"]
-    if ctype == "file_exists":
-        return (os.path.exists(target), "exists" if os.path.exists(target) else "missing")
-    if ctype == "absent_regex":
-        if not os.path.exists(target):
-            return (True, "file absent (vacuously absent)")
-        with open(target, encoding="utf-8", errors="replace") as f:
-            text = f.read()
-        hit = re.search(chk["pattern"], text)
-        return (hit is None, "pattern absent" if hit is None else "found forbidden %r" % chk["pattern"])
-    # remaining types require the file to exist
-    if not os.path.exists(target):
-        return (False, "file missing")
-    with open(target, encoding="utf-8", errors="replace") as f:
-        text = f.read()
-    if ctype == "contains_regex":
-        hit = re.search(chk["pattern"], text)
-        return (hit is not None, "found" if hit else "pattern %r not found" % chk["pattern"])
-    if ctype == "min_matches":
-        n = len(re.findall(chk["pattern"], text))
-        need = chk["min_count"]
-        return (n >= need, "%d matches (need %d)" % (n, need))
-    return (False, "unknown check type")
-
-
-def grade_case(cdir, actual_dir):
-    """Return (verdict, results) where verdict in PASS/FAIL/PARTIAL."""
-    checks_path = os.path.join(cdir, "checks.json")
-    if not os.path.exists(checks_path):
-        return ("SKIP", [("—", True, "no checks.json (rubric is human-graded)")])
-    with open(checks_path, encoding="utf-8") as f:
-        data = json.load(f)
-    results = []
-    hard_fail = soft_fail = False
-    for chk in data.get("checks", []):
-        ok, detail = grade_check(chk, actual_dir)
-        sev = chk.get("severity", "error")
-        if not ok:
-            if sev == "warning":
-                soft_fail = True
-            else:
-                hard_fail = True
-        results.append((chk.get("id", "?"), ok, "%s — %s" % (chk.get("description", chk["type"]), detail)))
-    verdict = "FAIL" if hard_fail else ("PARTIAL" if soft_fail else "PASS")
-    return (verdict, results)
-
-
-def grade_with_llm(case_dir, actual_dir):
-    """TODO (future hook): grade fuzzy rubric.md items an LLM-as-judge can assess.
-
-    This would read rubric.md, feed each non-deterministic criterion plus the
-    actual output to an Anthropic model (the latest Claude), and collect a
-    PASS/FAIL/PARTIAL judgement per item — mirroring skill-creator's comparator
-    pattern (blind A/B vs a no-skill baseline). Not wired up: the rule-based
-    checks.json path above is what runs in CI today.
-    """
-    raise NotImplementedError("LLM-as-judge grading is a future hook; use checks.json for now.")
+CHECK_TYPES = {"file_exists", "contains_regex", "absent_regex", "min_matches"}
+PATTERN_CHECK_TYPES = {"contains_regex", "absent_regex", "min_matches"}
+REQUIRED_CASE_FILES = ("input.md", "rubric.md")
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Eval runner for sdlc-* skills.")
-    ap.add_argument("--list", action="store_true", help="list cases and exit")
-    ap.add_argument("--skill", help="restrict to one skill (e.g. sdlc-spec)")
-    ap.add_argument("--case", help="restrict to one case (skill/case-name)")
-    ap.add_argument("--actual", help="directory of actual skill output to grade against")
-    args = ap.parse_args(argv)
+    """Parse arguments, then list, lint, or grade the selected cases."""
+    parser = argparse.ArgumentParser(description="Eval runner for sdlc-* skills.")
+    parser.add_argument("--list", action="store_true", help="list cases and exit")
+    parser.add_argument("--skill", help="restrict to one skill (e.g. sdlc-spec)")
+    parser.add_argument("--case", help="restrict to one case (skill/case-name)")
+    parser.add_argument("--actual", help="directory of skill output to grade")
+    arguments = parser.parse_args(argv)
 
-    cases = list(discover_cases())
-    if args.skill:
-        cases = [c for c in cases if c[0] == args.skill]
-    if args.case:
-        cases = [c for c in cases if "%s/%s" % (c[0], c[1]) == args.case]
-
+    cases = get_selected_cases(arguments.skill, arguments.case)
     if not cases:
         print("No matching cases.")
-        return 1
+        return EXIT_FAIL
 
-    if args.list:
-        for skill, case, cdir in cases:
-            has = "checks.json" if os.path.exists(os.path.join(cdir, "checks.json")) else "rubric-only"
-            print("%s/%s  [%s]" % (skill, case, has))
-        return 0
+    if arguments.list:
+        return list_cases(cases)
+    if not arguments.actual:
+        return lint_cases(cases)
+    return grade_cases(cases, os.path.abspath(arguments.actual))
 
-    # Lint mode (no --actual): validate structure only.
-    if not args.actual:
-        bad = 0
-        for skill, case, cdir in cases:
-            problems = lint_case(cdir)
-            if problems:
-                bad += 1
-                print("LINT FAIL %s/%s: %s" % (skill, case, "; ".join(problems)))
-            else:
-                print("LINT OK   %s/%s" % (skill, case))
-        print("\n%d case(s), %d with problems" % (len(cases), bad))
-        return 1 if bad else 0
 
-    # Grade mode.
-    actual = os.path.abspath(args.actual)
-    any_fail = False
-    for skill, case, cdir in cases:
-        verdict, results = grade_case(cdir, actual)
-        print("\n=== %s/%s: %s ===" % (skill, case, verdict))
-        for cid, ok, detail in results:
-            print("  [%s] %s  %s" % ("PASS" if ok else "FAIL", cid, detail))
+def get_selected_cases(skill_filter, case_filter):
+    """Return the golden cases matching the filters, as (skill, name, path)."""
+    cases = get_golden_cases()
+    if skill_filter:
+        cases = [case for case in cases if case[0] == skill_filter]
+    if case_filter:
+        cases = [case for case in cases if "%s/%s" % (case[0], case[1]) == case_filter]
+    return cases
+
+
+def get_golden_cases():
+    """Return every (skill, case_name, case_directory) under evals/golden/."""
+    cases = []
+    if not os.path.isdir(GOLDEN_DIRECTORY):
+        return cases
+    for skill in sorted(os.listdir(GOLDEN_DIRECTORY)):
+        skill_directory = os.path.join(GOLDEN_DIRECTORY, skill)
+        if not os.path.isdir(skill_directory):
+            continue
+        for case_name in sorted(os.listdir(skill_directory)):
+            case_directory = os.path.join(skill_directory, case_name)
+            if os.path.isdir(case_directory):
+                cases.append((skill, case_name, case_directory))
+    return cases
+
+
+def list_cases(cases):
+    """Print each case and whether it carries deterministic checks."""
+    for skill, case_name, case_directory in cases:
+        has_checks = os.path.exists(os.path.join(case_directory, "checks.json"))
+        print("%s/%s  [%s]"
+              % (skill, case_name, "checks.json" if has_checks else "rubric-only"))
+    return EXIT_PASS
+
+
+def lint_cases(cases):
+    """Validate every case's structure without grading anything."""
+    problem_count = 0
+    for skill, case_name, case_directory in cases:
+        problems = get_case_problems(case_directory)
+        if problems:
+            problem_count += 1
+            print("LINT FAIL %s/%s: %s" % (skill, case_name, "; ".join(problems)))
+        else:
+            print("LINT OK   %s/%s" % (skill, case_name))
+    print("\n%d case(s), %d with problems" % (len(cases), problem_count))
+    return EXIT_FAIL if problem_count else EXIT_PASS
+
+
+def grade_cases(cases, actual_directory):
+    """Grade every case against the produced output and print the results."""
+    has_failure = False
+    for skill, case_name, case_directory in cases:
+        verdict, results = grade_case(case_directory, actual_directory)
+        print("\n=== %s/%s: %s ===" % (skill, case_name, verdict))
+        for check_id, is_passing, detail in results:
+            print("  [%s] %s  %s" % ("PASS" if is_passing else "FAIL", check_id, detail))
         if verdict == "FAIL":
-            any_fail = True
-    print("\nOverall: %s" % ("FAIL" if any_fail else "PASS"))
-    return 1 if any_fail else 0
+            has_failure = True
+    print("\nOverall: %s" % ("FAIL" if has_failure else "PASS"))
+    return EXIT_FAIL if has_failure else EXIT_PASS
+
+
+def get_case_problems(case_directory):
+    """Return a list of structural problems for one case (empty means clean)."""
+    problems = []
+    for required_file in REQUIRED_CASE_FILES:
+        if not os.path.exists(os.path.join(case_directory, required_file)):
+            problems.append("missing %s" % required_file)
+
+    checks_path = os.path.join(case_directory, "checks.json")
+    if not os.path.exists(checks_path):
+        return problems
+    try:
+        with open(checks_path, encoding="utf-8") as file_handle:
+            case_data = json.load(file_handle)
+    except (ValueError, OSError) as error:
+        problems.append("checks.json not valid JSON: %s" % error)
+        return problems
+
+    checks = case_data.get("checks")
+    if not isinstance(checks, list):
+        problems.append("checks.json has no 'checks' list")
+        return problems
+    for index, check in enumerate(checks):
+        problems.extend(get_check_problems(check, index))
+    return problems
+
+
+def get_check_problems(check, index):
+    """Return a list of problems with one check definition."""
+    problems = []
+    check_type = check.get("type")
+    if check_type not in CHECK_TYPES:
+        problems.append("check #%d: bad type %r" % (index, check_type))
+    if not check.get("target_file"):
+        problems.append("check #%d: missing target_file" % index)
+    if check_type in PATTERN_CHECK_TYPES and not check.get("pattern"):
+        problems.append("check #%d: missing pattern" % index)
+    if check_type == "min_matches" and not isinstance(check.get("min_count"), int):
+        problems.append("check #%d: min_matches needs integer min_count" % index)
+    return problems
+
+
+def grade_case(case_directory, actual_directory):
+    """Grade one case, returning (verdict, results) with verdict PASS/FAIL/PARTIAL/SKIP."""
+    checks_path = os.path.join(case_directory, "checks.json")
+    if not os.path.exists(checks_path):
+        return ("SKIP", [("—", True, "no checks.json (rubric is human-graded)")])
+
+    with open(checks_path, encoding="utf-8") as file_handle:
+        case_data = json.load(file_handle)
+
+    results = []
+    has_blocking_failure = False
+    has_warning_failure = False
+    for check in case_data.get("checks", []):
+        is_passing, detail = grade_check(check, actual_directory)
+        if not is_passing:
+            if check.get("severity", "error") == "warning":
+                has_warning_failure = True
+            else:
+                has_blocking_failure = True
+        results.append((
+            check.get("id", "?"),
+            is_passing,
+            "%s — %s" % (check.get("description", check["type"]), detail),
+        ))
+
+    if has_blocking_failure:
+        return ("FAIL", results)
+    return ("PARTIAL" if has_warning_failure else "PASS", results)
+
+
+def grade_check(check, actual_directory):
+    """Grade one check against the produced output, returning (is_passing, detail)."""
+    target_path = os.path.join(actual_directory, check["target_file"])
+    check_type = check["type"]
+    is_present = os.path.exists(target_path)
+
+    if check_type == "file_exists":
+        return (is_present, "exists" if is_present else "missing")
+
+    if check_type == "absent_regex":
+        if not is_present:
+            return (True, "file absent (vacuously absent)")
+        match = re.search(check["pattern"], read_file_text(target_path))
+        if match:
+            return (False, "found forbidden %r" % check["pattern"])
+        return (True, "pattern absent")
+
+    if not is_present:
+        return (False, "file missing")
+    text = read_file_text(target_path)
+
+    if check_type == "contains_regex":
+        match = re.search(check["pattern"], text)
+        return (match is not None,
+                "found" if match else "pattern %r not found" % check["pattern"])
+
+    if check_type == "min_matches":
+        match_count = len(re.findall(check["pattern"], text))
+        return (match_count >= check["min_count"],
+                "%d matches (need %d)" % (match_count, check["min_count"]))
+
+    return (False, "unknown check type")
+
+
+def read_file_text(path):
+    """Return a file's text, replacing undecodable bytes."""
+    with open(path, encoding="utf-8", errors="replace") as file_handle:
+        return file_handle.read()
 
 
 if __name__ == "__main__":
