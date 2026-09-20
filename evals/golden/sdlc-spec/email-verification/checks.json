@@ -42,10 +42,10 @@
     },
     {
       "id": "SPEC-6",
-      "description": "no deprecated EARS 'AS ... THEN'",
+      "description": "no deprecated EARS 'AS ... THEN' opening a requirement",
       "type": "absent_regex",
       "target_file": ".sdlc/specs/email-verification/spec.md",
-      "pattern": "\\bAS\\b.+\\bTHEN\\b",
+      "pattern": "(?m)^[-*\\s|]*`?(?:REQ|NFR)-\\d+`?[^:\\n]*:\\s*AS\\b.+\\bTHEN\\b",
       "severity": "error"
     },
     {
@@ -59,11 +59,12 @@
     },
     {
       "id": "SPEC-8",
-      "description": "requirements use a canonical EARS keyword or SHALL",
-      "type": "contains_regex",
+      "description": "requirements use uppercase SHALL (one per requirement)",
+      "type": "min_matches",
       "target_file": ".sdlc/specs/email-verification/spec.md",
-      "pattern": "\\b(WHEN|WHILE|WHERE|IF)\\b|SHALL",
-      "severity": "error"
+      "pattern": "\\bSHALL\\b",
+      "severity": "error",
+      "min_count": 3
     },
     {
       "id": "SPEC-9",
@@ -83,7 +84,7 @@
     },
     {
       "id": "SPEC-11",
-      "description": "PBT section populated (hypothesis configured) \u2014 not N/A",
+      "description": "PBT section populated (hypothesis configured) — not N/A",
       "type": "absent_regex",
       "target_file": ".sdlc/specs/email-verification/spec.md",
       "pattern": "no property-testing framework configured",

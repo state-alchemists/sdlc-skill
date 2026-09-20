@@ -22,14 +22,15 @@ Installs the `.sdlc/` scaffolding every other skill depends on, then writes the 
 ### Phase 1: Project Discovery
 
 - List the repo root and `src/` (if present). Read `README.md` and any manifest (`pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`, ...) — in parallel.
-- **Detect layout**: if SDLC artifacts exist only at legacy roots (`docs/`, `requirements/`, `rules.md`), stop and tell the user: *"This project uses the legacy layout. Run `/sdlc-adopt` to consolidate under `.sdlc/`, then re-run `/sdlc-init` to fill any gaps."* Do not create a parallel `.sdlc/` tree.
+- **Detect layout — by content, never by directory name.** A `docs/` directory is not evidence of anything; most projects have one. Legacy SDLC artifacts are these exact files, matched case-sensitively: `docs/product.md` / `tech.md` / `test-strategy.md` / `architecture.md`, `docs/adr/ADR-*.md`, `requirements/problem-brief.md` / `entity-dictionary.md`, `specs/<slug>/spec.md` (or `requirements.md` + `design.md`), a root `rules.md` containing `RULE-`. `ARCHITECTURE.md` is the project's own document — a near-miss is a miss.
 - Choose the branch:
+  - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`.
   - **Greenfield** (no source beyond scaffolding, no meaningful README) → Phase 3a.
   - **Brownfield** (existing source, real README, manifests with real deps) → Phase 3b.
 
 ### Phase 2: Install Scaffolding
 
-Copy the files bundled alongside this skill in `assets/` into the project (Tier-2, batched with the Phase 4 documents — present the list, write on one affirmative):
+Copy the files bundled alongside this skill in `assets/` into the project (Tier-2, batched with the Phase 4 documents — present the list, write on one affirmative). On the legacy-layout path this phase runs alone, as its own Tier-2 batch:
 
 | From (this skill) | To (project) |
 |---|---|
@@ -46,6 +47,11 @@ Not every file upgrades the same way — the difference matters when re-running 
 | `CONVENTIONS.md` | **Refresh, but show your work.** If the existing file differs from the bundled one, present the diff and get an affirmative (**Tier-1**) before replacing — a user may have appended project-specific conventions. If it is identical or absent, just write it. |
 
 If the bundled files are unreachable from your runtime, say so and link the user to the repo — do not hand-write substitutes.
+
+**Legacy Transition** (legacy-layout path only — deliver this instead of the Phase Transition, then end your turn):
+
+> Scaffolding installed: `.sdlc/CONVENTIONS.md`, `.sdlc/templates/`, `.sdlc/tools/sdlc-validate.py`. Your SDLC artifacts are still at the legacy paths, so I have not written steering documents — they would sit in a parallel tree.
+> To continue: exit this chat, start a fresh session, and run `/sdlc-adopt` to consolidate under `.sdlc/`. Then re-run `/sdlc-init` to fill any gaps.
 
 ### Phase 3a: Greenfield Interview
 
@@ -75,7 +81,7 @@ Present the full draft even where you are confident — the user approves every 
 
 ### Phase 4: Steering Documents
 
-Fill `.sdlc/templates/product.md`, `tech.md`, `test-strategy.md`, and `agents.md` with the facts gathered. `AGENTS.md` goes at the **repo root**; the other three go under `.sdlc/docs/`. Present all four plus the Phase 2 scaffolding as **one Tier-2 batch**.
+Fill `.sdlc/templates/product.md`, `tech.md`, `test-strategy.md`, and `agents.md` with the facts gathered. **Which copy**: read each template from `.sdlc/templates/` when it is already there (a re-run, or a user-edited template — theirs wins), otherwise from this skill's `assets/templates/`, since Phase 2 has not written yet on a first run. `AGENTS.md` goes at the **repo root**; the other three go under `.sdlc/docs/`. Present all four plus the Phase 2 scaffolding as **one Tier-2 batch**.
 
 ### Phase 5: Project Constitution
 
@@ -101,6 +107,11 @@ Fill `.sdlc/templates/rules.md` into `.sdlc/rules.md`. First creation is Tier-2.
 ### Phase 6: Verify
 
 Run `python3 .sdlc/tools/sdlc-validate.py` and report the summary. With no specs yet it reports "No SDLC specs found" — that is the expected clean result at this stage.
+
+Then offer the CI gate, once — it is what the validator is for:
+
+> Add this step to your CI workflow to fail a build on broken traceability:
+> `python3 .sdlc/tools/sdlc-validate.py --strict`
 
 On a project that already has specs, the refreshed validator may report findings the old copy missed. Two are expected right after an upgrade and both route to `/sdlc-adopt`: `legacy-test-plan` (the feature keeps a separate `test-plan.md`) and `legacy-layout`. Report them, don't fix them here.
 
