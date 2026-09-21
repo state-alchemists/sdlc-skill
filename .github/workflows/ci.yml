@@ -14,20 +14,33 @@ jobs:
         with:
           python-version: '3.8'   # the floor the validator promises
 
+      # Discovery, not a hardcoded list: the previous four-file list and the
+      # identical copy in zrb_init.py both went stale the moment a script moved.
       - name: Compile bundled scripts
-        run: >
-          python3 -m py_compile
-          skills/sdlc-init/assets/tools/sdlc-validate.py
-          evals/run.py tests/test_sdlc_validate.py zrb_init.py
+        run: python3 -m compileall -q skills evals tests zrb_init.py
 
       - name: Validator regression tests
         run: python3 tests/test_sdlc_validate.py
+
+      - name: Prompt invariants
+        run: python3 tests/test_skill_prompts.py
 
       - name: Lint eval cases
         run: python3 evals/run.py
 
       - name: Installer dry-run
         run: bin/install.sh --dry-run --tools claude
+
+      # "all" must mean every VERIFIED tool. It used to mean every tool the
+      # script knew a path for, creating ~/.bob, ~/.qoder and ~/.trae for
+      # software nobody had installed.
+      - name: Installer "all" targets only verified tools
+        run: |
+          set -euo pipefail
+          out="$(bin/install.sh --dry-run --tools all)"
+          echo "$out" | grep -q '\.claude/skills'
+          echo "$out" | grep -q '\.zrb/skills'
+          ! echo "$out" | grep -qE '\.(cospec|bob|qoder|trae|github)/skills'
 
       - name: Installer project-scoped target
         run: bin/install.sh --dry-run --dir .claude/skills

@@ -1,0 +1,34 @@
+{
+  "case": "sdlc-adopt/legacy-layout-migration",
+  "checks": [
+    {"id": "ADOPT-1", "description": "steering docs relocated under .sdlc/", "type": "file_exists", "target_file": ".sdlc/docs/product.md", "severity": "error"},
+    {"id": "ADOPT-2", "description": "ADRs relocated", "type": "file_exists", "target_file": ".sdlc/docs/adr/ADR-0001-database.md", "severity": "error"},
+    {"id": "ADOPT-3", "description": "rules relocated", "type": "file_exists", "target_file": ".sdlc/rules.md", "severity": "error"},
+    {"id": "ADOPT-4", "description": "two-file spec merged into one spec.md", "type": "file_exists", "target_file": ".sdlc/specs/auth/spec.md", "severity": "error"},
+
+    {"id": "ADOPT-5", "description": "git mv, not copy-and-leave (steering)", "type": "file_absent", "target_file": "docs/product.md", "severity": "error"},
+    {"id": "ADOPT-6", "description": "git mv, not copy-and-leave (rules)", "type": "file_absent", "target_file": "rules.md", "severity": "error"},
+    {"id": "ADOPT-7", "description": "retired two-file spec format removed", "type": "file_absent", "target_file": "specs/auth/requirements.md", "severity": "error"},
+
+    {"id": "ADOPT-8", "description": "Feature Key declared", "type": "contains_regex", "target_file": ".sdlc/specs/auth/spec.md", "pattern": "\\*\\*Feature Key:\\*\\*\\s*[A-Z][A-Z0-9_-]*", "severity": "error"},
+    {"id": "ADOPT-9", "description": "test plan folded into the spec", "type": "contains_regex", "target_file": ".sdlc/specs/auth/spec.md", "pattern": "^#{2,3}\\s+Test Plan\\b", "severity": "error"},
+    {"id": "ADOPT-10", "description": "no fabricated AC citation when no brief exists", "type": "absent_regex", "target_file": ".sdlc/specs/auth/spec.md", "pattern": "\\(AC-\\d+\\)", "severity": "warning"},
+
+    {"id": "ADOPT-11", "description": "shebang survived the header", "type": "contains_regex", "target_file": "src/auth/session.py", "pattern": "\\A#!/usr/bin/env python3\\n", "severity": "error"},
+    {"id": "ADOPT-12", "description": "encoding declaration still on line 1 or 2 (PEP 263)", "type": "contains_regex", "target_file": "src/auth/cli.py", "pattern": "\\A#![^\\n]*\\n#[^\\n]*coding[:=]", "severity": "error"},
+    {"id": "ADOPT-13", "description": "source header present, in Python comment syntax", "type": "contains_regex", "target_file": "src/auth/session.py", "pattern": "(?m)^#\\s*IMPLEMENTS:\\s*[A-Z][A-Z0-9_-]*:REQ-", "severity": "error"},
+    {"id": "ADOPT-14", "description": "test header present", "type": "contains_regex", "target_file": "tests/auth/test_session.py", "pattern": "(?m)^#\\s*COVERS:\\s*[A-Z][A-Z0-9_-]*:", "severity": "error"},
+    {"id": "ADOPT-15", "description": "no COVERS header smuggled into a source file", "type": "absent_regex", "target_file": "src/auth/session.py", "pattern": "(?m)^#\\s*COVERS:", "severity": "error"},
+    {"id": "ADOPT-16", "description": "unkeyed legacy tag re-keyed", "type": "absent_regex", "target_file": "src/auth/session.py", "pattern": "@sdlc\\s+REQ-", "severity": "error"},
+    {"id": "ADOPT-17", "description": "only one source header per file", "type": "max_matches", "target_file": "src/auth/session.py", "pattern": "(?m)^#\\s*IMPLEMENTS:", "max_count": 1, "severity": "error"},
+
+    {"id": "ADOPT-18", "description": "vendored file not annotated", "type": "absent_regex", "target_file": "vendor/lib/x.py", "pattern": "IMPLEMENTS:", "severity": "error"},
+    {"id": "ADOPT-19", "description": "generated file not annotated", "type": "absent_regex", "target_file": "api/gen/user_pb2.py", "pattern": "IMPLEMENTS:", "severity": "error"},
+
+    {"id": "ADOPT-20", "description": "SPEC: token, not the retired GENERATED FROM SPEC:", "type": "absent_regex", "target_file": "src/auth/session.py", "pattern": "GENERATED FROM SPEC", "severity": "error"},
+    {"id": "ADOPT-21", "description": "drift report written with a real timestamp", "type": "min_matches", "target_file": ".sdlc/specs/auth/spec.md", "pattern": "\\d{4}-\\d{2}-\\d{2}", "min_count": 1, "severity": "warning"},
+
+    {"id": "STD-1", "description": "no unfilled template placeholder", "type": "absent_regex", "target_file": ".sdlc/specs/auth/spec.md", "pattern": "\\{\\{[A-Za-z_ -]+\\}\\}", "severity": "error"},
+    {"id": "STD-2", "description": "no literal date placeholder", "type": "absent_regex", "target_file": ".sdlc/specs/auth/spec.md", "pattern": "YYYY-MM-DD", "severity": "error"}
+  ]
+}

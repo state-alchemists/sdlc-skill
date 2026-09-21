@@ -14,7 +14,8 @@ For changes that do not justify the full pipeline. Uses an `ADDED/MODIFIED/REMOV
 
 ## Before you start
 
-- **Conventions**: read `.sdlc/CONVENTIONS.md`.
+- **Conventions**: read `.sdlc/CONVENTIONS.md` — paths, ID scheme, file roles, approval tiers.
+- **Layout**: read `.sdlc/config.json` for this project's source and test roots, and `.sdlc/ANNOTATION.md` before writing or editing any traceability header.
 - **Template**: fill `.sdlc/templates/quickfix.md`.
 - **Argument → slug**: slugify to locate `.sdlc/specs/<slug>/`. If missing, ask.
 - **Required input**: no existing `spec.md` for the feature? There is nothing to delta against — tell the user to run `/sdlc-spec <feature>` (new feature) or `/sdlc-adopt` (existing code, no spec).
@@ -35,7 +36,7 @@ State in one or two sentences exactly what is changing and what is not. Ask for 
 
 ### Phase 3: Write the Delta
 
-Fill `.sdlc/templates/quickfix.md` into `.sdlc/specs/<slug>/quickfix-{YYYY-MM-DDTHH-MM-SS}.md`. Requirements use canonical EARS with uppercase keywords. The Test Delta lists the `UT-*`/`IT-*` rows that will be promoted into the spec's `## Test Plan`.
+Fill `.sdlc/templates/quickfix.md` into `.sdlc/specs/<slug>/quickfix-<TIMESTAMP>.md`, where `<TIMESTAMP>` is the output of `date -u +%Y-%m-%dT%H-%M-%SZ` — run it, do not invent it (see `.sdlc/CONVENTIONS.md` § Dates and timestamps). Requirements use canonical EARS with uppercase keywords. The Test Delta lists the `UT-*`/`IT-*` rows that will be promoted into the spec's `## Test Plan`.
 
 ### Phase 4: Single Delegation
 
@@ -52,7 +53,7 @@ PROJECT RULES (.sdlc/rules.md):
 
 INSTRUCTIONS:
 1. Apply only the changes in the delta. Do not refactor unrelated code.
-2. Update the affected source files. Add `@sdlc {KEY}:REQ-{N}` inline tags on any function whose contract changed (comma-separated, one line).
+2. Update the affected source files. Add `@sdlc {KEY}:REQ-{N}` inline tags on any function whose contract changed (comma-separated, one line). Follow .sdlc/ANNOTATION.md for comment syntax and header placement — a header above a shebang or an encoding line breaks the file.
 3. Tests per the Test Delta:
    - ADDED → new tests with key-namespaced COVERS: headers.
    - MODIFIED → update bodies; keep names unless renamed; update COVERS if the covered IDs changed.
@@ -79,7 +80,7 @@ The quickfix path skips `/sdlc-review` — too small for a separate pass. Audit 
 On approval, update `.sdlc/specs/<slug>/spec.md`:
 - **ADDED** → append with the assigned `REQ-*` IDs; add the matching rows to the `## Test Plan` section.
 - **MODIFIED** → rewrite the existing `REQ-NNN` line; update its test-plan rows.
-- **REMOVED** → keep the ID line, its text beginning `REMOVED ({YYYY-MM-DD}) — {reason}`; remove its test-plan rows.
+- **REMOVED** → keep the ID line, its text beginning `REMOVED (<output of `date +%Y-%m-%d`>) — {reason}`; remove its test-plan rows.
 
 **Keep the dated quickfix file** either way — it is the chronological record of what changed and when. Set its `**Promoted**:` header to match what happened. A promoted delta's IDs now live in `spec.md`, so it may be moved to `.sdlc/specs/<slug>/archive/` to keep the feature directory readable; a standalone one stays put, because it is the only record of its IDs.
 
@@ -100,5 +101,5 @@ Interrupted: list `.sdlc/specs/<slug>/quickfix-*.md` to find the in-progress del
 | File | Location | Purpose |
 |------|----------|---------|
 | `quickfix-{ts}.md` | `.sdlc/specs/<slug>/` | Dated delta record (ADDED/MODIFIED/REMOVED) |
-| Source + test diff | `src/`, `tests/` | The change, with key-namespaced tags |
+| Source + test diff | the project's source and test roots | The change, with key-namespaced tags |
 | `spec.md` | `.sdlc/specs/<slug>/` | Updated in place when the delta is promoted |

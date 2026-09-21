@@ -57,8 +57,13 @@ EXIT_PASS, EXIT_FAIL = 0, 1
 GOLDEN_DIRECTORY = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "golden")
 
-CHECK_TYPES = {"file_exists", "contains_regex", "absent_regex", "min_matches"}
-PATTERN_CHECK_TYPES = {"contains_regex", "absent_regex", "min_matches"}
+CHECK_TYPES = {"file_exists", "file_absent", "contains_regex", "absent_regex",
+               "min_matches", "max_matches"}
+PATTERN_CHECK_TYPES = {"contains_regex", "absent_regex", "min_matches",
+                       "max_matches"}
+KNOWN_CHECK_KEYS = {"id", "description", "type", "target_file", "pattern",
+                    "min_count", "max_count", "severity"}
+KNOWN_SEVERITIES = {"error", "warning"}
 REQUIRED_CASE_FILES = ("input.md", "rubric.md")
 
 
@@ -184,6 +189,21 @@ def get_check_problems(check, index):
         problems.append("check #%d: missing pattern" % index)
     if check_type == "min_matches" and not isinstance(check.get("min_count"), int):
         problems.append("check #%d: min_matches needs integer min_count" % index)
+    if check_type == "max_matches" and not isinstance(check.get("max_count"), int):
+        problems.append("check #%d: max_matches needs integer max_count" % index)
+    # An unknown key is almost always a typo that silently disables a threshold.
+    for key in sorted(set(check) - KNOWN_CHECK_KEYS):
+        problems.append("check #%d: unknown key %r" % (index, key))
+    severity = check.get("severity", "error")
+    if severity not in KNOWN_SEVERITIES:
+        problems.append("check #%d: bad severity %r" % (index, severity))
+    # Compile now, so an invalid regex fails at lint rather than at grade time.
+    if check.get("pattern"):
+        try:
+            re.compile(check["pattern"])
+        except re.error as error:
+            problems.append("check #%d: bad regex %r (%s)"
+                            % (index, check["pattern"], error))
     return problems
 
 
@@ -226,9 +246,15 @@ def grade_check(check, actual_directory):
     if check_type == "file_exists":
         return (is_present, "exists" if is_present else "missing")
 
+    if check_type == "file_absent":
+        return (not is_present, "absent" if not is_present else "unexpectedly present")
+
     if check_type == "absent_regex":
+        # A missing file used to pass this vacuously, so a case could pass by
+        # producing nothing at all. Use `file_absent` when absence is the point.
         if not is_present:
-            return (True, "file absent (vacuously absent)")
+            return (False, "file missing — absent_regex requires the target to "
+                           "exist; use file_absent to assert absence")
         match = re.search(check["pattern"], read_file_text(target_path))
         if match:
             return (False, "found forbidden %r" % check["pattern"])
@@ -247,6 +273,11 @@ def grade_check(check, actual_directory):
         match_count = len(re.findall(check["pattern"], text))
         return (match_count >= check["min_count"],
                 "%d matches (need %d)" % (match_count, check["min_count"]))
+
+    if check_type == "max_matches":
+        match_count = len(re.findall(check["pattern"], text))
+        return (match_count <= check["max_count"],
+                "%d matches (allow %d)" % (match_count, check["max_count"]))
 
     return (False, "unknown check type")
 

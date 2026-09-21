@@ -1,0 +1,19 @@
+{
+  "layout": {
+    "test_directory_names": [],
+    "test_stem_patterns": [],
+    "test_path_fragments": [],
+    "source_overrides": [],
+    "test_overrides": []
+  },
+  "headings": {
+    "test_plan": [],
+    "outside_code": []
+  },
+  "comments": {},
+  "scan": {
+    "skip_directories": [],
+    "scan_directories": [],
+    "max_file_bytes": 2097152
+  }
+}

@@ -65,13 +65,37 @@ tool_dir() {
 
 known_tool() { tool_dir "$1" > /dev/null 2>&1; }
 
-# Ordered list for usage display and --tools all.
-TOOL_IDS=(
-    zrb claude codex opencode cursor windsurf github-copilot
+# Tools confirmed to load a directory of SKILL.md files from <dotdir>/skills/.
+# These are what "--tools all" and auto-detection target.
+VERIFIED_TOOL_IDS=(zrb claude)
+
+# Everything else this script knows a path for. The list came from OpenSpec's
+# supported-tools table, which enumerates tools whose *rules/instruction* files
+# OpenSpec writes -- not tools that implement the SKILL.md format. Those are
+# different things: Cursor reads .cursor/rules/*.mdc, Windsurf .windsurf/rules/,
+# Gemini CLI GEMINI.md. Writing a SKILL.md into <dotdir>/skills/ for those is
+# inert. They stay reachable by explicit --tools <id>, with a warning, but they
+# are no longer swept up by "all", which used to create ~/.bob, ~/.qoder and
+# friends for software the user had never installed.
+UNVERIFIED_TOOL_IDS=(
+    codex opencode cursor windsurf github-copilot
     gemini amazon-q cline codebuddy continue crush factory iflow
     junie kilocode kiro lingma pi qoder qwen roocode
     antigravity bob costrict forgecode kimi trae vibe auggie
 )
+
+# Ordered list for usage display and auto-detection.
+TOOL_IDS=("${VERIFIED_TOOL_IDS[@]}" "${UNVERIFIED_TOOL_IDS[@]}")
+
+# Warn once per explicitly named unverified tool.
+warn_if_unverified() {
+    local id="$1" x
+    for x in "${VERIFIED_TOOL_IDS[@]}"; do
+        [[ "$x" == "$id" ]] && return 0
+    done
+    log "Warning: '${id}' is not known to load SKILL.md files from its skills/"
+    log "         directory. Installing anyway because you asked for it."
+}
 
 # Skills this repo used to ship. They are removed on upgrade because they still
 # answer their old slash command against paths that no longer exist. Every other
@@ -103,7 +127,7 @@ Options:
   --zrb               Target ~/.zrb/skills/
   --claude            Target ~/.claude/skills/
   --tools <id,...>    Target specific tools by ID (comma-separated).
-                      Use "all" for every known tool.
+                      Use "all" for every VERIFIED tool (zrb, claude).
   --all               Alias for --tools all
   --dir <path>        Target an arbitrary skills directory, e.g. a
                       project-scoped .claude/skills/ (repeatable)
@@ -113,6 +137,12 @@ Options:
 
 With no target flags, install.sh installs to whichever tool directories
 already exist on this machine. If none exist, it exits with a hint.
+
+"all" means every tool confirmed to load a directory of SKILL.md files:
+zrb and Claude Code. Other IDs are still accepted explicitly, with a
+warning -- most of them read a rules or instructions file rather than a
+skills directory, so a SKILL.md dropped there does nothing. For anything
+else, --dir <path> is the honest answer.
 
 Only the skills this repo ships, plus ones it used to ship, are ever
 removed. An sdlc-* skill of your own in the same directory is left alone.
@@ -136,14 +166,14 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --zrb)       want_tool+=("zrb") ;;
         --claude)    want_tool+=("claude") ;;
-        --all)       want_tool=("${TOOL_IDS[@]}") ;;
+        --all)       want_tool=("${VERIFIED_TOOL_IDS[@]}") ;;
         --tools)
             shift
             if [[ $# -eq 0 ]]; then
                 log "Missing value for --tools"; usage; exit 2
             fi
             if [[ "$1" == "all" ]]; then
-                want_tool=("${TOOL_IDS[@]}")
+                want_tool=("${VERIFIED_TOOL_IDS[@]}")
             else
                 IFS=',' read -ra ids <<< "$1"
                 for id in "${ids[@]}"; do
@@ -304,6 +334,7 @@ action() {
 # ---------------------------------------------------------------------------
 for id in "${TOOL_IDS[@]}"; do
     if want "${id}"; then
+        warn_if_unverified "${id}"
         action "$(tool_dir "${id}")"
     fi
 done

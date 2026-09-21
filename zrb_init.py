@@ -19,13 +19,14 @@ skill_group = cli.add_group(
 test_skills = skill_group.add_task(
     CmdTask(
         name="test-skills",
-        description="Compile scripts, run validator tests, lint eval cases",
+        description="Compile scripts, run validator and prompt tests, lint eval cases",
         cwd=_DIR,
+        # Discovery, not a hardcoded list: this list and the identical copy in
+        # .github/workflows/ci.yml both went stale the moment a script moved.
         cmd=" && ".join([
-            f"{_PYTHON} -m py_compile"
-            " skills/sdlc-init/assets/tools/sdlc-validate.py"
-            " evals/run.py tests/test_sdlc_validate.py zrb_init.py",
+            f"{_PYTHON} -m compileall -q skills evals tests zrb_init.py",
             f"{_PYTHON} tests/test_sdlc_validate.py",
+            f"{_PYTHON} tests/test_skill_prompts.py",
             f"{_PYTHON} evals/run.py",
         ]),
     ),

@@ -27,15 +27,17 @@ Read `.sdlc/rules.md` (every violation is a FAIL unless the Override Log records
 ### Phase 2: Deterministic Pass
 
 Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug> --strict` and capture the full output. This authoritatively covers **traceability**, **EARS syntax**, and **ID hygiene** — record its findings in the report rather than re-deriving them. Findings are scoped to this feature while every spec stays parsed, so a finding about another feature's key is a real defect, not scoping noise. If the validator is absent, note that, tell the user to run `/sdlc-init`, and fall back to:
-- `grep -rnE "IMPLEMENTS: " src/`
-- `grep -rnE "COVERS: " tests/`
-- `grep -rnE "@sdlc [A-Z0-9_-]+:(REQ|NFR)-" src/ tests/`
+- `git grep -nE "(^|[^A-Za-z])IMPLEMENTS:[[:space:]]"`
+- `git grep -nE "(^|[^A-Za-z])COVERS:[[:space:]]"`
+- `git grep -nE "@sdlc [A-Z][A-Z0-9_-]*:(REQ|NFR)-"`
+
+These are repo-wide on purpose: the validator is layout-agnostic — a Go, Maven or monorepo project validates fine — and this fallback should be too. When you fall back to these greps, **say so in the report and cap the verdict at COMMENT**: an APPROVE with no deterministic pass is a false pass.
 
 ### Phase 3: Identify Changed Files
 
 `git diff HEAD` is empty once the work is committed, so scope by tag and by branch:
-- `grep -rlE "{KEY}:(REQ|NFR)-" src/ tests/`
-- plus `git diff --name-only $(git merge-base HEAD main)...HEAD` if a base branch exists, else list `src/` and `tests/`.
+- `git grep -lE "{KEY}:(REQ|NFR)-"`
+- plus `git diff --name-only $(git merge-base HEAD main)...HEAD` if a base branch exists, else `git ls-files` restricted to the roots in `.sdlc/config.json`.
 
 ### Phase 4: Judgement Pass
 
@@ -76,7 +78,7 @@ A sanity audit, not a re-run:
 
 ### Phase 6: Report
 
-Write `.sdlc/reviews/<slug>/report-<YYYY-MM-DDTHH-MM-SS>.md` from `.sdlc/templates/review-report.md` (colons → hyphens for filesystem safety).
+Write `.sdlc/reviews/<slug>/report-<TIMESTAMP>.md` from `.sdlc/templates/review-report.md`, where `<TIMESTAMP>` is the output of `date -u +%Y-%m-%dT%H-%M-%SZ` — run it, do not invent it (see `.sdlc/CONVENTIONS.md` § Dates and timestamps; colons are hyphens for filesystem safety).
 
 **Verdict mapping** — deterministic, do not freelance:
 - **REQUEST CHANGES** — any validator ERROR, any FAIL check, or any rule violation without an Override Log entry.

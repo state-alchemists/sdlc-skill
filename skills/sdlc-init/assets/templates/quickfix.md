@@ -1,6 +1,8 @@
 # Quickfix: {{ONE-LINE DESCRIPTION}}
 
-**Date**: {{YYYY-MM-DD}}
+*Dates: see `.sdlc/CONVENTIONS.md` § Dates and timestamps — run `date`, do not guess.*
+
+**Date**: {{TODAY}}
 **Feature**: {{slug}}  **Key**: {{KEY}}
 **Trigger**: {{Bug ticket / user request / observation}}
 **Promoted**: {{yes — folded into spec.md / no — kept standalone}}

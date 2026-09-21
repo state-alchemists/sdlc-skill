@@ -21,10 +21,23 @@ Installs the `.sdlc/` scaffolding every other skill depends on, then writes the 
 
 ### Phase 1: Project Discovery
 
-- List the repo root and `src/` (if present). Read `README.md` and any manifest (`pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`, ...) — in parallel.
-- **Detect layout — by content, never by directory name.** A `docs/` directory is not evidence of anything; most projects have one. Legacy SDLC artifacts are these exact files, matched case-sensitively: `docs/product.md` / `tech.md` / `test-strategy.md` / `architecture.md`, `docs/adr/ADR-*.md`, `requirements/problem-brief.md` / `entity-dictionary.md`, `specs/<slug>/spec.md` (or `requirements.md` + `design.md`), a root `rules.md` containing `RULE-`. `ARCHITECTURE.md` is the project's own document — a near-miss is a miss.
+- List the repo root and whatever source directories it actually has. Read `README.md` and any manifest (`pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`, `pom.xml`, ...) — in parallel. The manifest is what tells you the layout; record anything surprising in `.sdlc/config.json` in Phase 2.
+- **Detect layout — by content, never by directory name.** A `docs/` directory is not evidence of anything; most projects have one.
+
+<!-- legacy-detection:start -->
+A project is on the **legacy SDLC layout** when either of these holds:
+
+1. **A conclusive marker exists** — `docs/adr/ADR-*.md`; a root `rules.md` containing `RULE-`; `specs/<slug>/spec.md` (or `requirements.md` + `design.md`); `requirements/problem-brief.md` or `requirements/entity-dictionary.md`; or `docs/product.md`, `docs/tech.md` or `docs/test-strategy.md` — names this project writes and almost nothing else does.
+2. **A weak marker exists and its own text cross-references the scheme** — `docs/architecture.md` containing `.sdlc/`, `ADR-<n>`, `RULE-<n>`, `US-<n>`, `AC-<n>`, `NFR-<n>` or `Feature Key`.
+
+**`docs/architecture.md` on its own is not evidence.** MkDocs, Docusaurus and Diátaxis all emit that filename by default; far more projects have one than have ever run `/sdlc-init`. Treating it as a marker made `/sdlc-init` refuse to write steering documents on projects that had never used these skills.
+
+Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — and the near-miss that bites is the lowercase collision, not the uppercase one.
+<!-- legacy-detection:end -->
+
 - Choose the branch:
-  - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`.
+  - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. **Name the markers that triggered it**, so the user can say "that one is ours" and you can continue on the brownfield path instead. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`.
+  - **Suspected but not confirmed** (a weak marker with no scheme reference) → say in one line what you found, then **continue on the brownfield path**. Writing `.sdlc/docs/architecture.md` beside a project's own `docs/architecture.md` is not a parallel tree; it is a project with two documents, which is the normal case.
   - **Greenfield** (no source beyond scaffolding, no meaningful README) → Phase 3a.
   - **Brownfield** (existing source, real README, manifests with real deps) → Phase 3b.
 
@@ -35,6 +48,8 @@ Copy the files bundled alongside this skill in `assets/` into the project (Tier-
 | From (this skill) | To (project) |
 |---|---|
 | `assets/CONVENTIONS.md` | `.sdlc/CONVENTIONS.md` |
+| `assets/ANNOTATION.md` | `.sdlc/ANNOTATION.md` |
+| `assets/config.json` | `.sdlc/config.json` |
 | `assets/templates/*.md` | `.sdlc/templates/` |
 | `assets/tools/sdlc-validate.py` | `.sdlc/tools/sdlc-validate.py` |
 
@@ -43,7 +58,9 @@ Not every file upgrades the same way — the difference matters when re-running 
 | File | On re-run |
 |------|-----------|
 | `templates/*.md` | **Never overwrite.** Templates are project-owned; a user who edited `spec.md` keeps their version. Install only what is missing and report what you skipped. |
+| `config.json` | **Never overwrite.** It records this project's source/test layout and comment styles — the one file that is genuinely per-project. Install only if missing. |
 | `tools/sdlc-validate.py` | **Always refresh.** It is tooling, not content — nobody hand-edits it, and an old copy carries fixed bugs. Say that you replaced it. |
+| `ANNOTATION.md` | **Refresh, but show your work** — same as `CONVENTIONS.md`. A user may have added rows for their own file types. |
 | `CONVENTIONS.md` | **Refresh, but show your work.** If the existing file differs from the bundled one, present the diff and get an affirmative (**Tier-1**) before replacing — a user may have appended project-specific conventions. If it is identical or absent, just write it. |
 
 If the bundled files are unreachable from your runtime, say so and link the user to the repo — do not hand-write substitutes.
@@ -108,6 +125,8 @@ Fill `.sdlc/templates/rules.md` into `.sdlc/rules.md`. First creation is Tier-2.
 
 Run `python3 .sdlc/tools/sdlc-validate.py` and report the summary. With no specs yet it reports "No SDLC specs found" — that is the expected clean result at this stage.
 
+**Confirm the detected layout.** The validator classifies files as source or test from the conventions in `.sdlc/CONVENTIONS.md` (§ File roles). They cover Python, Go, Maven, Jest, RSpec, .NET and monorepos as shipped. If this project puts tests somewhere those defaults would miss — or keeps helper code in a directory named like a test tree — record it in `.sdlc/config.json` now, before any spec exists, and say what you set and why. Do not assume `src/` and `tests/`.
+
 Then offer the CI gate, once — it is what the validator is for:
 
 > Add this step to your CI workflow to fail a build on broken traceability:
@@ -136,5 +155,7 @@ Interrupted mid-phase: start a new chat, list `.sdlc/`, `.sdlc/docs/`, `.sdlc/te
 | `AGENTS.md` | repo root | AI assistant guide |
 | `rules.md` | `.sdlc/` | Immutable project invariants |
 | `CONVENTIONS.md` | `.sdlc/` | Paths, EARS dialect, ID scheme, approval tiers |
+| `ANNOTATION.md` | `.sdlc/` | Comment syntax and header placement per language |
+| `config.json` | `.sdlc/` | Source/test layout, comment styles, scan overrides |
 | `templates/*.md` | `.sdlc/templates/` | Project-owned templates every skill generates from |
 | `sdlc-validate.py` | `.sdlc/tools/` | Deterministic traceability + EARS validator |

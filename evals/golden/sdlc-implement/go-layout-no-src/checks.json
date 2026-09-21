@@ -1,0 +1,21 @@
+{
+  "case": "sdlc-implement/go-layout-no-src",
+  "checks": [
+    {"id": "IMPL-1", "description": "no invented src/ directory", "type": "file_absent", "target_file": "src", "severity": "error"},
+    {"id": "IMPL-2", "description": "no invented tests/ directory", "type": "file_absent", "target_file": "tests", "severity": "error"},
+
+    {"id": "IMPL-3", "description": "source header present, in Go comment syntax", "type": "contains_regex", "target_file": "internal/auth/session.go", "pattern": "(?m)^//\\s*IMPLEMENTS:\\s*AUTH:REQ-", "severity": "error"},
+    {"id": "IMPL-4", "description": "no hash comments in a Go file", "type": "absent_regex", "target_file": "internal/auth/session.go", "pattern": "(?m)^#\\s*(IMPLEMENTS|COVERS|SPEC):", "severity": "error"},
+    {"id": "IMPL-5", "description": "header does not become the package doc comment", "type": "absent_regex", "target_file": "internal/auth/session.go", "pattern": "(?m)^//[^\\n]*(IMPLEMENTS|SPEC):[^\\n]*\\npackage\\b", "severity": "error"},
+    {"id": "IMPL-6", "description": "no COVERS header in a non-test file", "type": "absent_regex", "target_file": "internal/auth/session.go", "pattern": "(?m)^//\\s*COVERS:", "severity": "error"},
+
+    {"id": "IMPL-7", "description": "colocated test carries the COVERS header", "type": "contains_regex", "target_file": "internal/auth/session_test.go", "pattern": "(?m)^//\\s*COVERS:\\s*AUTH:", "severity": "error"},
+    {"id": "IMPL-8", "description": "no IMPLEMENTS header in a test file", "type": "absent_regex", "target_file": "internal/auth/session_test.go", "pattern": "(?m)^//\\s*IMPLEMENTS:", "severity": "error"},
+
+    {"id": "IMPL-9", "description": "SPEC: token, not the retired GENERATED FROM SPEC:", "type": "absent_regex", "target_file": "internal/auth/session.go", "pattern": "GENERATED FROM SPEC", "severity": "error"},
+    {"id": "IMPL-10", "description": "the spec still declares its Feature Key", "type": "contains_regex", "target_file": ".sdlc/specs/user-auth/spec.md", "pattern": "\\*\\*Feature Key:\\*\\*\\s*AUTH", "severity": "error"},
+    {"id": "IMPL-11", "description": "no requirement was retired to clear a validator error", "type": "absent_regex", "target_file": ".sdlc/specs/user-auth/spec.md", "pattern": "REMOVED \\(", "severity": "error"},
+
+    {"id": "STD-1", "description": "no unfilled template placeholder", "type": "absent_regex", "target_file": ".sdlc/specs/user-auth/spec.md", "pattern": "\\{\\{[A-Za-z_ -]+\\}\\}", "severity": "error"}
+  ]
+}
