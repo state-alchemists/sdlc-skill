@@ -21,8 +21,8 @@ test_skills = skill_group.add_task(
         name="test-skills",
         description="Compile scripts, run validator and prompt tests, lint eval cases",
         cwd=_DIR,
-        # Discovery, not a hardcoded list: this list and the identical copy in
-        # .github/workflows/ci.yml both went stale the moment a script moved.
+        # Discovery rather than a file list, so a new or moved script is
+        # covered without editing this and its twin in .github/workflows/ci.yml.
         cmd=" && ".join([
             f"{_PYTHON} -m compileall -q skills evals tests zrb_init.py",
             f"{_PYTHON} tests/test_sdlc_validate.py",

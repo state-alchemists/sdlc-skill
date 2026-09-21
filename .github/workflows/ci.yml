@@ -14,8 +14,8 @@ jobs:
         with:
           python-version: '3.8'   # the floor the validator promises
 
-      # Discovery, not a hardcoded list: the previous four-file list and the
-      # identical copy in zrb_init.py both went stale the moment a script moved.
+      # Discovery rather than a file list, so a new or moved script is covered
+      # without editing this job and its twin in zrb_init.py.
       - name: Compile bundled scripts
         run: python3 -m compileall -q skills evals tests zrb_init.py
 
@@ -31,16 +31,18 @@ jobs:
       - name: Installer dry-run
         run: bin/install.sh --dry-run --tools claude
 
-      # "all" must mean every VERIFIED tool. It used to mean every tool the
-      # script knew a path for, creating ~/.bob, ~/.qoder and ~/.trae for
-      # software nobody had installed.
-      - name: Installer "all" targets only verified tools
+      # Pins the skills directories checked against each tool's own docs, and
+      # Cursor's absence: it loads skills per project, so a $HOME target
+      # installs nothing it reads.
+      - name: Installer targets the documented skills directories
         run: |
           set -euo pipefail
           out="$(bin/install.sh --dry-run --tools all)"
-          echo "$out" | grep -q '\.claude/skills'
-          echo "$out" | grep -q '\.zrb/skills'
-          ! echo "$out" | grep -qE '\.(cospec|bob|qoder|trae|github)/skills'
+          for path in .claude/skills .zrb/skills .agents/skills .codex/skills \
+                      .gemini/skills .copilot/skills .config/opencode/skills; do
+            echo "$out" | grep -q "$path" || { echo "missing: $path"; exit 1; }
+          done
+          ! echo "$out" | grep -qE '\.github/skills|\.cursor/skills'
 
       - name: Installer project-scoped target
         run: bin/install.sh --dry-run --dir .claude/skills

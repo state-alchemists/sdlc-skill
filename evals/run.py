@@ -191,13 +191,13 @@ def get_check_problems(check, index):
         problems.append("check #%d: min_matches needs integer min_count" % index)
     if check_type == "max_matches" and not isinstance(check.get("max_count"), int):
         problems.append("check #%d: max_matches needs integer max_count" % index)
-    # An unknown key is almost always a typo that silently disables a threshold.
+    # An unknown key is usually a typo, which would silently drop a threshold.
     for key in sorted(set(check) - KNOWN_CHECK_KEYS):
         problems.append("check #%d: unknown key %r" % (index, key))
     severity = check.get("severity", "error")
     if severity not in KNOWN_SEVERITIES:
         problems.append("check #%d: bad severity %r" % (index, severity))
-    # Compile now, so an invalid regex fails at lint rather than at grade time.
+    # Compiled at lint time so an invalid pattern fails here, not at grading.
     if check.get("pattern"):
         try:
             re.compile(check["pattern"])
@@ -250,8 +250,8 @@ def grade_check(check, actual_directory):
         return (not is_present, "absent" if not is_present else "unexpectedly present")
 
     if check_type == "absent_regex":
-        # A missing file used to pass this vacuously, so a case could pass by
-        # producing nothing at all. Use `file_absent` when absence is the point.
+        # A missing target fails: absence of the file is a different assertion,
+        # and `file_absent` is the check that makes it.
         if not is_present:
             return (False, "file missing — absent_regex requires the target to "
                            "exist; use file_absent to assert absence")

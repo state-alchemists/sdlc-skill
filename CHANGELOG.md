@@ -93,7 +93,16 @@ including a translated heading.
   case could pass by producing nothing. Adds `file_absent` and `max_matches`, rejects unknown keys
   and bad severities, and compiles every pattern at lint time.
 - The duplicated `py_compile` file list in `zrb_init.py` and `ci.yml` is replaced by `compileall`.
-- **`--tools all` now means every *verified* tool** (zrb, Claude Code). It used to sweep in ~30
-  IDs inherited from OpenSpec's rules-file table, creating `~/.cospec`, `~/.bob`, `~/.qoder` and
-  friends for software the user had never installed. Those IDs still work when named explicitly,
-  with a warning.
+
+### Installer
+
+Three skills directories were wrong and are corrected, checked against each tool's own docs:
+
+| Tool | Was | Now |
+|---|---|---|
+| GitHub Copilot | `~/.github/skills` | `~/.copilot/skills` |
+| OpenCode | `~/.opencode/skills` | `~/.config/opencode/skills` |
+| Cursor | `~/.cursor/skills` | *(removed — Cursor is project-scoped; use `--dir .cursor/skills`)* |
+
+Adds `agents` → `~/.agents/skills`, the vendor-neutral location Copilot, OpenCode and others read
+in addition to their own. CI pins all of these.

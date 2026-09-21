@@ -2,7 +2,7 @@
 
 **Skills, not CLI commands.** Seven chat skills (`/sdlc-init`, `/sdlc-plan`, ...) that guide an LLM through Spec-Driven Development, plus a deterministic validator and a rule-based eval runner.
 
-**Primary target: zrb.** Also runs under Claude Code — both load a directory of `SKILL.md` files. The skills themselves are runtime-neutral prose, so any assistant you can point at `skills/sdlc-*/SKILL.md` can follow them; `bin/install.sh --dir <path>` targets an arbitrary directory for that (see [Runtime Compatibility](#runtime-compatibility)).
+**Primary target: zrb.** Also runs under Claude Code and the ~30 other tools that load `SKILL.md` files — skills are runtime-neutral, so the LLM picks the right mechanism either way (see [Runtime Compatibility](#runtime-compatibility)).
 
 Everything the skills generate comes from **templates installed into your project** at `.sdlc/templates/`. Edit those files and every later run follows your shape — no forking the plugin.
 
@@ -11,8 +11,8 @@ Everything the skills generate comes from **templates installed into your projec
 ## Installation
 
 ```bash
-bin/install.sh --tools all                    # install to every verified tool (zrb, Claude Code)
-bin/install.sh --tools codex,opencode,cursor  # specific tools (comma-separated; warns if unverified)
+bin/install.sh --tools all                    # install to all known AI coding tools
+bin/install.sh --tools codex,opencode,gemini  # specific tools (comma-separated)
 bin/install.sh                                # auto-detect — only tools already on this machine
 bin/install.sh --dir .claude/skills           # a project-scoped directory, checked into the repo
 bin/install.sh --uninstall --tools all        # remove sdlc-* skills from all targets
@@ -328,9 +328,21 @@ Three cases ship today (`sdlc-init`, `sdlc-spec`, `sdlc-quickfix`); the authorin
 
 Skills are runtime-neutral: they describe **what** the LLM should do (read a file, delegate to a sub-agent, use a worktree), not **which tool** to use. The delegation blocks in `sdlc-implement`, `sdlc-review`, and `sdlc-quickfix` are prompt templates — they prefer progressive disclosure and fall back to inlining for runtimes without file access. The validator and eval runner are stdlib-only Python 3.8+.
 
-**Which tools the installer actually targets.** `zrb` and Claude Code load a directory of `SKILL.md` files; those are what `--tools all` and auto-detection install to. The installer knows paths for ~30 other tools, inherited from OpenSpec's supported-tools table — but that table lists tools whose *rules or instruction files* OpenSpec writes, which is a different thing. Cursor reads `.cursor/rules/*.mdc`, Windsurf `.windsurf/rules/`, Gemini CLI `GEMINI.md`, GitHub Copilot an in-repo `.github/copilot-instructions.md`. A `SKILL.md` dropped into `~/.cursor/skills/` is inert. Those IDs still work if you name them explicitly, with a warning, and none of them are swept up by `all`.
+**Skills directories.** Anthropic published Agent Skills as an open spec in December 2025, and `~/.<tool>/skills/<name>/SKILL.md` is the convention it established. These were checked against each tool's own documentation:
 
-To use these skills with a rules-file assistant: check the repo out and add a one-line rule pointing at `skills/sdlc-*/SKILL.md`. That is what the 30-tool list was really gesturing at.
+| Tool | Personal skills directory |
+|------|---------------------------|
+| Claude Code | `~/.claude/skills/` |
+| zrb | `~/.zrb/skills/` |
+| OpenAI Codex CLI | `~/.codex/skills/` |
+| Gemini CLI | `~/.gemini/skills/` |
+| GitHub Copilot | `~/.copilot/skills/` |
+| OpenCode | `~/.config/opencode/skills/` |
+| *(vendor-neutral)* | `~/.agents/skills/` — read by Copilot, OpenCode and others |
+
+The remaining IDs follow the same convention and are inherited from OpenSpec's supported-tools table; they are installed to but not individually confirmed here.
+
+**Cursor is project-scoped only** — it reads `.cursor/skills/` inside a repository and has no `$HOME` location, so it has no tool ID. Install to it with `bin/install.sh --dir .cursor/skills`.
 
 Claude Code ignores the `disable-model-invocation` / `user-invocable` frontmatter (zrb-specific) but otherwise loads the skills as-is.
 

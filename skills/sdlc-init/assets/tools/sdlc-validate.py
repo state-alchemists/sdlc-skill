@@ -106,18 +106,17 @@ SKIPPED_EXTENSIONS = {
 MAX_SCANNED_BYTES = 2 * 1024 * 1024
 MARKDOWN_EXTENSIONS = {".md", ".markdown"}
 
-# Documentation carries examples of the tag format, never coverage. Tags found in
-# these files are ignored rather than reported: a README that shows `IMPLEMENTS:`
-# is teaching, not claiming, and erroring on it made the tool fail on its own docs.
+# Documentation carries examples of the tag format, never coverage. Tags in these
+# files are ignored silently rather than reported, so a README may show the
+# format freely.
 DOCUMENTATION_EXTENSIONS = {
     ".md", ".markdown", ".rst", ".adoc", ".asciidoc", ".org",
 }
 
 # --- File roles -----------------------------------------------------------
 # Every scanned code file is SOURCE or TEST; documentation is DOC and ignored.
-# There is deliberately no fourth "neither" role: a tag in a code file always
-# belongs somewhere, so the useful report is "this is the wrong kind of file",
-# not "this file is unclassifiable".
+# A tag in a code file always belongs somewhere, so there is no fourth
+# "unclassifiable" role: the report is always which kind of file it belongs in.
 ROLE_SOURCE, ROLE_TEST, ROLE_DOC = "source", "test", "doc"
 
 # Matched on path COMPONENTS and filename STEMS, never on substrings -- so
@@ -132,12 +131,11 @@ DEFAULT_TEST_STEM_PATTERNS = [
 DEFAULT_TEST_PATH_FRAGMENTS = ["src/test/", "src/it/", "src/androidTest/"]
 
 # --- Comment syntax -------------------------------------------------------
-# A tag only counts when it sits in a real comment. Without this, the scanner
-# read `MSG = "IMPLEMENTS: KEY:REQ-001"`, a line of prose in a .txt file, and a
-# commented-out deleted implementation as live coverage.
+# A tag counts only inside a real comment, which separates a claim from a string
+# literal or a line of prose.
 #
-# Several leaders per extension is deliberate: `.m` is both Objective-C and
-# MATLAB, and guessing wrong loses real tags.
+# An extension may carry several leaders: `.m` is both Objective-C and MATLAB,
+# and accepting both loses fewer real tags than picking one.
 LINE_COMMENT_EXTENSIONS_BY_LEADER = {
     "#": (".py", ".rb", ".sh", ".bash", ".zsh", ".fish", ".pl", ".pm", ".r",
           ".yaml", ".yml", ".toml", ".tf", ".tfvars", ".ex", ".exs", ".jl",
@@ -170,9 +168,8 @@ BLOCK_COMMENT_EXTENSIONS_BY_PAIR = {
     ("{-", "-}"): (".hs", ".lhs", ".elm"),
     ("--[[", "]]"): (".lua",),
 }
-# Used when an extension is in neither table. Generous on purpose: an exotic
-# language should not silently lose its tags. Prose still fails, carrying no
-# leader at all.
+# Used when an extension appears in neither table. Deliberately broad so an
+# unlisted language keeps its tags; prose still fails, carrying no leader.
 FALLBACK_LINE_COMMENT_LEADERS = ("#", "//", "--", ";", "%", "!")
 
 # Continuation markers a comment body may open with: the `*` of a javadoc line,
@@ -202,9 +199,9 @@ CONFIG_LIST_FIELDS = {
     "scan": ("skip_directories", "scan_directories"),
 }
 
-# Bold is how the template writes it, but a spec that drops the asterisks still
-# means it. Matching only the bold form let the declaration vanish silently and
-# the key default to the uppercased slug.
+# The template writes the key in bold, but a spec that drops the asterisks still
+# declares one. An unrecognised declaration falls back to the uppercased slug,
+# so the pattern accepts both forms.
 FEATURE_KEY_PATTERN = re.compile(
     r"^\s*(?:[-*+]\s*)?(?:\*\*|__)?Feature Key(?:\*\*|__)?\s*:\s*"
     r"(?:\*\*|`)?\s*([A-Z][A-Z0-9_-]*)", re.M)
@@ -217,11 +214,10 @@ FEATURE_KEY_TOKEN_PATTERN = re.compile(r"^[A-Z][A-Z0-9_-]*$")
 # An ID token, optionally key-prefixed: KEY:REQ-001 or REQ-001.
 TAG_TOKEN_PATTERN = re.compile(
     r"\b(?:([A-Z][A-Z0-9_-]*):)?((?:REQ|NFR|UT|IT|E2E|PBT)-\d+)\b")
-# A requirement or NFR definition line in spec.md. The ID needs a list or table
-# marker AND a definition punctuator after it -- `:`, an `(AC-NNN)` citation, or
-# a table cell boundary. Without both, the prose bullet `- REQ-001 was the
-# hardest one to get right` read as a second definition and produced a spurious
-# duplicate-id error plus an EARS warning on a line that defines nothing.
+# A requirement or NFR definition line in spec.md. The ID needs both a list or
+# table marker and a definition punctuator after it -- `:`, an `(AC-NNN)`
+# citation, or a table cell boundary. Prose that merely names an ID, such as
+# `- REQ-001 was the hardest one to get right`, defines nothing and is skipped.
 REQUIREMENT_LINE_PATTERN = re.compile(
     r"^\s*(?:[-*+]|\|)\s*`?((?:REQ|NFR)-\d+)`?\s*(?=[:(|]|$)(.*)$")
 TEST_ID_PATTERN = re.compile(r"\b((?:UT|IT|E2E|PBT)-\d+)\b")
@@ -242,9 +238,9 @@ ANCHORED_TAG_PATTERNS_BY_KIND = {
     "COVERS": re.compile(r"^COVERS:\s*(.+)"),
     "@sdlc": re.compile(r"^@sdlc\s+(.+)"),
 }
-# Templates are project-owned and the README invites editing them, so a renamed
-# heading must not break the parser. A literal "## Test Plan" match turned a
-# rename into a dangling-tag ERROR plus a missing-test-plan WARNING.
+# Templates are project-owned and meant to be edited, so the heading is matched
+# by meaning rather than by literal text. Anything outside this set goes in
+# `headings.test_plan` in .sdlc/config.json.
 TEST_PLAN_HEADING_PATTERN = re.compile(
     r"^#{2,4}\s+(?:Test Plan|Tests|Test Cases|Test Design|Testing|Test Strategy)\b",
     re.M | re.I)
@@ -254,11 +250,9 @@ OUTSIDE_CODE_HEADING_PATTERN = re.compile(
     r"\boutside\b[^#]{0,32}\bcode\b|\bnot\b[^#]{0,32}\bin\s+code\b"
     r"|\bvalidated\b[^#]{0,32}\b(?:infra|infrastructure|externally|process)\b",
     re.I)
-# A fence opens with 3+ backticks or tildes and closes only on the SAME
-# character, at least as long, and with no info string. A plain open/close
-# toggle treated a ``` nested inside a ```` block as a closer, which flipped
-# the parity for the rest of the file -- hiding real content after it, and
-# un-hiding documented examples.
+# A fence opens with 3+ backticks or tildes and closes only on the same
+# character, at least as long, with no info string. Tracking the opener rather
+# than toggling a flag lets a fenced block contain a shorter fence.
 CODE_FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})[ \t]*(\S*)")
 
 # EARS keywords are uppercase by convention (see CONVENTIONS.md), so these match
@@ -323,9 +317,9 @@ VAGUE_TERM_PATTERN = re.compile(
 # thing. The optional group keeps the `(AC-NNN)` citation the spec template
 # prescribes -- without it, retiring a requirement the documented way left it
 # active forever.
-# Applied to the requirement TEXT, which get_requirement_text has already
-# stripped of its ID, citation and separator -- so the marker no longer has to
-# spell out every punctuation shape that could precede it.
+# Applied to the requirement text, which get_requirement_text has already
+# stripped of its ID, citation and separator. Only a leading marker retires a
+# requirement; one that merely mentions a removed thing stays active.
 REMOVED_MARKER_PATTERN = re.compile(r"^[`*_\s]*REMOVED\b")
 
 # Legacy artifacts are recognised by CONTENT, case-sensitively, never by
@@ -855,8 +849,8 @@ def is_deprecated_leading_then(text, keyword):
     """True when `keyword` opens the requirement and owns the THEN that follows.
 
     A THEN with an IF, WHEN or WHILE between it and the keyword belongs to that
-    clause, not to the keyword -- which is what makes the canonical composite
-    `WHERE <feature>, IF <condition>, THEN ... SHALL ...` legal.
+    clause rather than to the keyword, which is why the canonical composite
+    `WHERE <feature>, IF <condition>, THEN ... SHALL ...` is not deprecated.
     """
     opening = re.match(r"\s*%s\b" % keyword, text)
     if not opening:
@@ -893,11 +887,10 @@ def get_non_ears_leading_keyword(text):
 def collect_traceability_tags(root, config, report, excluded_patterns=()):
     """Walk the project, returning every traceability tag found in a comment.
 
-    Documentation is never scanned. A README that shows `IMPLEMENTS:` is
-    teaching the format, not claiming coverage, and reading those as real tags
-    made the tool pass on its own examples -- and fail on its own documentation.
-    Skipping documentation outright also retires the fenced-code guessing that
-    used to be needed here.
+    Documentation is skipped entirely, so a README showing the tag format
+    neither claims coverage nor reports as a dangling tag. Every other file is
+    read for comments and classified as source or test, since a tag means
+    different things in each.
     """
     skipped_directories = set(config["scan"]["skip_directories"])
     skipped_directories -= set(config["scan"]["scan_directories"])
@@ -932,9 +925,9 @@ def collect_traceability_tags(root, config, report, excluded_patterns=()):
 def get_file_role(relative_path, config):
     """Classify a scanned file as source, test, or documentation.
 
-    There is deliberately no "neither": every code file a tag can appear in is
-    one or the other, so the actionable report is always "this is the wrong kind
-    of file for this tag", never "this file could not be classified".
+    Every code file is source or test; only documentation is neither. That
+    keeps the report actionable -- a misplaced tag is always "the wrong kind of
+    file", never "unclassifiable".
     """
     posix_path = relative_path.replace(os.sep, "/")
     if os.path.splitext(posix_path)[1].lower() in DOCUMENTATION_EXTENSIONS:
@@ -987,9 +980,9 @@ def strip_code_fences(text):
     """Blank out fenced code blocks, keeping line numbers intact.
 
     A fence closes only on the same character, at least as long as the opener,
-    and with no info string -- so documenting Markdown inside Markdown no longer
-    flips the parity for the rest of the file. An unclosed fence blanks
-    everything after it: in a document, a missed example beats an invented one.
+    and with no info string, so a fenced block may itself contain a shorter
+    fence. An unclosed fence blanks everything after it: in a document, a
+    missed example costs less than an invented tag.
     """
     lines = text.splitlines()
     open_marker = None
@@ -1074,8 +1067,9 @@ def get_first_comment_opener(line, line_leaders, block_pairs):
     """Return (opener, offset, marker_length) for the first comment on a line.
 
     `opener` is "line" for a line comment, the closing marker for a block
-    comment, or None when the line holds no comment. A marker found inside a
-    string literal does not count -- that is the whole point.
+    comment, or None when the line holds no comment. A marker inside a quoted
+    span is skipped, so the earliest marker returned is one that really opens
+    a comment.
     """
     best = (None, len(line), 0)
     for leader in line_leaders:
@@ -1100,8 +1094,9 @@ def get_first_comment_opener(line, line_leaders, block_pairs):
 def is_inside_string_literal(line, offset):
     """True when `offset` sits inside a quoted span earlier on the same line.
 
-    Counts unescaped quotes before the offset. Approximate on purpose: the job
-    is to reject `MSG = "IMPLEMENTS: ..."`, not to tokenise every language.
+    Counts unescaped quotes before the offset. This is an approximation, not a
+    lexer: it rejects a comment marker inside an ordinary string without
+    tokenising the language.
     """
     for quote in ('"', "'"):
         count, index = 0, 0
@@ -1172,9 +1167,9 @@ def check_tag_targets(tags, valid_targets, slug_by_key, report):
 def check_tag_roles(tags, report):
     """Check 15 — IMPLEMENTS lives in source, COVERS lives in tests.
 
-    Reported where the tag is, which is nearer the mistake than the coverage
-    error it causes. Dropping a misplaced tag silently is what let one file
-    implement and cover its own requirement and exit 0 with no tests at all.
+    Reported at the tag rather than at the requirement, which is nearer the
+    edit that caused it. The matching coverage error names this path too, so
+    the two findings read as one problem.
     """
     expected_role_by_kind = {"IMPLEMENTS": ROLE_SOURCE, "COVERS": ROLE_TEST}
     remedy_by_kind = {
@@ -1200,9 +1195,9 @@ def check_tag_roles(tags, report):
 def check_requirement_coverage(root, specs_by_slug, spec_paths_by_slug, tags, report):
     """Checks 2, 3, 9 — every requirement is implemented, tested, and planned.
 
-    A tag only counts from the right kind of file: IMPLEMENTS from source,
-    COVERS from a test. Counting either from anywhere is what made a single
-    file with both headers, and no test suite at all, a clean build.
+    A tag counts only from the right kind of file: IMPLEMENTS from source,
+    COVERS from a test. `misplaced_paths_by_target` records the tags that fail
+    that rule so the coverage error can name where they actually sit.
     """
     implemented_targets = {
         (tag.feature_key, tag.requirement_id) for tag in tags
@@ -1418,9 +1413,9 @@ def get_requirement_text(remainder):
 def get_requirement_citation(remainder):
     """Return the `(AC-NNN)` citation that precedes the requirement prose, or ''.
 
-    Read positionally rather than by splitting on a colon: a requirement written
-    `REQ-001 (AC-999) WHEN ...`, with no colon, used to skip the citation check
-    entirely -- disabling the very check that catches an AC renumbered upstream.
+    Read positionally rather than by splitting on a colon, so a requirement
+    written without one still has its citation checked, and a colon inside the
+    requirement prose does not truncate it.
     """
     citation_match = CITATION_PATTERN.match(remainder)
     return citation_match.group(1) if citation_match else ""
@@ -1464,10 +1459,9 @@ def find_first_existing_path(*paths):
 def read_file_text(path, maximum_bytes=None, relative_path=None, report=None):
     """Return a file's text, or None when it is missing, binary, or oversized.
 
-    A scanner passes `report` so a skip is announced. Returning a silent None
-    made an oversized or binary file indistinguishable from a clean one, so a
-    tag inside a 3 MB generated source vanished and the requirement it covered
-    reported as untraced with nothing to explain why.
+    A scanner passes `report` so that a skip is announced: an oversized or
+    binary file is otherwise indistinguishable from one holding no tags, and
+    the requirement it covers reports as untraced with nothing to explain why.
     """
     maximum_bytes = MAX_SCANNED_BYTES if maximum_bytes is None else maximum_bytes
     try:
