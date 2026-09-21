@@ -30,7 +30,8 @@ WRITING_SKILL_NAMES = ("sdlc-implement", "sdlc-quickfix", "sdlc-adopt")
 LAYOUT_PATH_PATTERN = re.compile(r"(?<![\w./`])(?:src|tests)/")
 CODE_FENCE_PATTERN = re.compile(r"^\s*```")
 LEGACY_BLOCK_PATTERN = re.compile(
-    r"<!-- legacy-detection:start -->.*?<!-- legacy-detection:end -->", re.S)
+    r"<!-- legacy-detection:start -->.*?<!-- legacy-detection:end -->", re.S
+)
 
 
 def main():
@@ -53,8 +54,7 @@ def main():
             print("PASS  %s" % case.__name__)
         except Exception as error:  # a crash is a failed case, not a lost run
             failures.append((case.__name__, error))
-            print("FAIL  %s — %s: %s"
-                  % (case.__name__, type(error).__name__, error))
+            print("FAIL  %s — %s: %s" % (case.__name__, type(error).__name__, error))
 
     print("\n%d case(s), %d failed" % (len(cases), len(failures)))
     return 1 if failures else 0
@@ -76,11 +76,13 @@ def case_no_skill_hardcodes_the_source_or_test_layout():
             if "<!-- layout-ok -->" in line:
                 continue
             if LAYOUT_PATH_PATTERN.search(line):
-                offenders.append("%s:%d" % (os.path.relpath(path, REPOSITORY_ROOT),
-                                            line_number))
+                offenders.append(
+                    "%s:%d" % (os.path.relpath(path, REPOSITORY_ROOT), line_number)
+                )
     assert not offenders, (
         "a skill hardcodes src/ or tests/ instead of reading the project's "
-        "layout: %s" % ", ".join(offenders))
+        "layout: %s" % ", ".join(offenders)
+    )
 
 
 def case_implement_forbids_editing_the_spec():
@@ -90,20 +92,25 @@ def case_implement_forbids_editing_the_spec():
     model to treat validator errors as failures to fix, with a retry loop.
     """
     text = read_text(get_skill_path("sdlc-implement"))
-    assert re.search(r"Do NOT modify[^\n]{0,120}\.sdlc", text), \
-        "sdlc-implement does not forbid the sub-agent from editing the spec"
-    assert "git diff --name-only -- .sdlc/" in text, \
-        "sdlc-implement does not verify the spec was left alone"
+    assert re.search(
+        r"Do NOT modify[^\n]{0,120}\.sdlc", text
+    ), "sdlc-implement does not forbid the sub-agent from editing the spec"
+    assert (
+        "git diff --name-only -- .sdlc/" in text
+    ), "sdlc-implement does not verify the spec was left alone"
 
 
 def case_no_skill_still_says_generated_from_spec():
     """One token everywhere. `SPEC:` is a prefix of the old one, so a grep
     written for it already matches both; the reverse is impossible."""
-    offenders = [os.path.relpath(path, REPOSITORY_ROOT)
-                 for _, path in get_skill_paths()
-                 if "GENERATED FROM SPEC" in read_text(path)]
-    assert not offenders, \
-        "these files still use the retired header token: %s" % ", ".join(offenders)
+    offenders = [
+        os.path.relpath(path, REPOSITORY_ROOT)
+        for _, path in get_skill_paths()
+        if "GENERATED FROM SPEC" in read_text(path)
+    ]
+    assert (
+        not offenders
+    ), "these files still use the retired header token: %s" % ", ".join(offenders)
 
 
 def case_legacy_detection_rule_is_identical_everywhere():
@@ -118,26 +125,31 @@ def case_legacy_detection_rule_is_identical_everywhere():
     for path in paths:
         match = LEGACY_BLOCK_PATTERN.search(read_text(path))
         assert match, "%s carries no legacy-detection block" % os.path.relpath(
-            path, REPOSITORY_ROOT)
+            path, REPOSITORY_ROOT
+        )
         blocks[path] = match.group(0)
-    assert len(set(blocks.values())) == 1, \
-        "the legacy-detection blocks have drifted apart: %s" % ", ".join(
-            os.path.relpath(path, REPOSITORY_ROOT) for path in paths)
+    assert (
+        len(set(blocks.values())) == 1
+    ), "the legacy-detection blocks have drifted apart: %s" % ", ".join(
+        os.path.relpath(path, REPOSITORY_ROOT) for path in paths
+    )
 
 
 def case_every_skill_reads_the_conventions():
     """CONVENTIONS.md is the single source of truth every skill claims to read."""
     for skill_name, path in get_skill_paths():
-        assert "CONVENTIONS.md" in read_text(path), \
+        assert "CONVENTIONS.md" in read_text(path), (
             "%s never reads .sdlc/CONVENTIONS.md" % skill_name
+        )
 
 
 def case_writing_skills_read_the_annotation_reference():
     """A header above a shebang, an encoding line or an XML prolog does not
     produce an untidy file — it produces one that no longer runs."""
     for skill_name in WRITING_SKILL_NAMES:
-        assert "ANNOTATION.md" in read_text(get_skill_path(skill_name)), \
+        assert "ANNOTATION.md" in read_text(get_skill_path(skill_name)), (
             "%s writes headers but never reads .sdlc/ANNOTATION.md" % skill_name
+        )
 
 
 def case_templates_ask_for_a_date_not_a_date_format():
@@ -150,30 +162,40 @@ def case_templates_ask_for_a_date_not_a_date_format():
             offenders.append(file_name)
     assert not offenders, (
         "these templates ask for a date FORMAT rather than today's date: %s"
-        % ", ".join(offenders))
+        % ", ".join(offenders)
+    )
 
 
 def case_shipped_config_is_valid_json():
     """A config that does not parse is worse than no config: the validator
     reports it as an error and every layout declaration in it is lost."""
     import json
+
     config_path = os.path.join(ASSETS_DIRECTORY, "config.json")
     with open(config_path, encoding="utf-8") as file_handle:
         config = json.load(file_handle)
     for section in ("layout", "headings", "comments", "scan"):
-        assert section in config, \
+        assert section in config, (
             "the shipped config.json is missing its '%s' section" % section
+        )
 
 
 def case_annotation_covers_every_hazard_that_broke_a_file():
     """Each of these was reproduced against a real parser, not guessed."""
     text = read_text(os.path.join(ASSETS_DIRECTORY, "ANNOTATION.md"))
-    for hazard in ("shebang", "PEP 263", "<?php", "prolog", "docstring",
-                   "generated", "Makefile"):
-        assert hazard in text, \
-            "ANNOTATION.md does not mention the %r hazard" % hazard
-    assert re.search(r"`\.css`|\.css", text) and "not a CSS comment" in text, \
-        "ANNOTATION.md does not warn that // is not a CSS comment"
+    for hazard in (
+        "shebang",
+        "PEP 263",
+        "<?php",
+        "prolog",
+        "docstring",
+        "generated",
+        "Makefile",
+    ):
+        assert hazard in text, "ANNOTATION.md does not mention the %r hazard" % hazard
+    assert (
+        re.search(r"`\.css`|\.css", text) and "not a CSS comment" in text
+    ), "ANNOTATION.md does not warn that // is not a CSS comment"
 
 
 # --------------------------------------------------------------------------

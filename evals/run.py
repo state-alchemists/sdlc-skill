@@ -54,15 +54,27 @@ import sys
 
 EXIT_PASS, EXIT_FAIL = 0, 1
 
-GOLDEN_DIRECTORY = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "golden")
+GOLDEN_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
 
-CHECK_TYPES = {"file_exists", "file_absent", "contains_regex", "absent_regex",
-               "min_matches", "max_matches"}
-PATTERN_CHECK_TYPES = {"contains_regex", "absent_regex", "min_matches",
-                       "max_matches"}
-KNOWN_CHECK_KEYS = {"id", "description", "type", "target_file", "pattern",
-                    "min_count", "max_count", "severity"}
+CHECK_TYPES = {
+    "file_exists",
+    "file_absent",
+    "contains_regex",
+    "absent_regex",
+    "min_matches",
+    "max_matches",
+}
+PATTERN_CHECK_TYPES = {"contains_regex", "absent_regex", "min_matches", "max_matches"}
+KNOWN_CHECK_KEYS = {
+    "id",
+    "description",
+    "type",
+    "target_file",
+    "pattern",
+    "min_count",
+    "max_count",
+    "severity",
+}
 KNOWN_SEVERITIES = {"error", "warning"}
 REQUIRED_CASE_FILES = ("input.md", "rubric.md")
 
@@ -118,8 +130,10 @@ def list_cases(cases):
     """Print each case and whether it carries deterministic checks."""
     for skill, case_name, case_directory in cases:
         has_checks = os.path.exists(os.path.join(case_directory, "checks.json"))
-        print("%s/%s  [%s]"
-              % (skill, case_name, "checks.json" if has_checks else "rubric-only"))
+        print(
+            "%s/%s  [%s]"
+            % (skill, case_name, "checks.json" if has_checks else "rubric-only")
+        )
     return EXIT_PASS
 
 
@@ -144,7 +158,9 @@ def grade_cases(cases, actual_directory):
         verdict, results = grade_case(case_directory, actual_directory)
         print("\n=== %s/%s: %s ===" % (skill, case_name, verdict))
         for check_id, is_passing, detail in results:
-            print("  [%s] %s  %s" % ("PASS" if is_passing else "FAIL", check_id, detail))
+            print(
+                "  [%s] %s  %s" % ("PASS" if is_passing else "FAIL", check_id, detail)
+            )
         if verdict == "FAIL":
             has_failure = True
     print("\nOverall: %s" % ("FAIL" if has_failure else "PASS"))
@@ -202,8 +218,9 @@ def get_check_problems(check, index):
         try:
             re.compile(check["pattern"])
         except re.error as error:
-            problems.append("check #%d: bad regex %r (%s)"
-                            % (index, check["pattern"], error))
+            problems.append(
+                "check #%d: bad regex %r (%s)" % (index, check["pattern"], error)
+            )
     return problems
 
 
@@ -226,11 +243,13 @@ def grade_case(case_directory, actual_directory):
                 has_warning_failure = True
             else:
                 has_blocking_failure = True
-        results.append((
-            check.get("id", "?"),
-            is_passing,
-            "%s — %s" % (check.get("description", check["type"]), detail),
-        ))
+        results.append(
+            (
+                check.get("id", "?"),
+                is_passing,
+                "%s — %s" % (check.get("description", check["type"]), detail),
+            )
+        )
 
     if has_blocking_failure:
         return ("FAIL", results)
@@ -253,8 +272,11 @@ def grade_check(check, actual_directory):
         # A missing target fails: absence of the file is a different assertion,
         # and `file_absent` is the check that makes it.
         if not is_present:
-            return (False, "file missing — absent_regex requires the target to "
-                           "exist; use file_absent to assert absence")
+            return (
+                False,
+                "file missing — absent_regex requires the target to "
+                "exist; use file_absent to assert absence",
+            )
         match = re.search(check["pattern"], read_file_text(target_path))
         if match:
             return (False, "found forbidden %r" % check["pattern"])
@@ -266,18 +288,24 @@ def grade_check(check, actual_directory):
 
     if check_type == "contains_regex":
         match = re.search(check["pattern"], text)
-        return (match is not None,
-                "found" if match else "pattern %r not found" % check["pattern"])
+        return (
+            match is not None,
+            "found" if match else "pattern %r not found" % check["pattern"],
+        )
 
     if check_type == "min_matches":
         match_count = len(re.findall(check["pattern"], text))
-        return (match_count >= check["min_count"],
-                "%d matches (need %d)" % (match_count, check["min_count"]))
+        return (
+            match_count >= check["min_count"],
+            "%d matches (need %d)" % (match_count, check["min_count"]),
+        )
 
     if check_type == "max_matches":
         match_count = len(re.findall(check["pattern"], text))
-        return (match_count <= check["max_count"],
-                "%d matches (allow %d)" % (match_count, check["max_count"]))
+        return (
+            match_count <= check["max_count"],
+            "%d matches (allow %d)" % (match_count, check["max_count"]),
+        )
 
     return (False, "unknown check type")
 
