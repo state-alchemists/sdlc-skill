@@ -27,7 +27,7 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 ## Before you start
 
 - **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
-- **Conventions**: read `.sdlc/CONVENTIONS.md` if present.
+- **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.
 - **Preserve history**: `git mv` in a git repo; `mkdir -p` + `mv` outside one. Never copy-and-leave-the-original.
 - **Never rewrite meaning in Mode A**: it relocates files and mechanically re-keys tags. Restating requirements is Mode B's job.
 - **Never invent compliance**: where code does not do something, say so. An adopted spec that overstates the code is worse than no spec.
@@ -52,7 +52,7 @@ Read-only. List, only where they exist: the repo root, `docs/`, `docs/adr/`, `re
 | Legacy rules | `rules.md` at the repo root |
 | Prior SDLC use | Any `@sdlc`, `IMPLEMENTS:` or `COVERS:` tag anywhere |
 
-Case matters, and this is where the check is usually got wrong. `ARCHITECTURE.md`, `DESIGN.md` or `README.md` are a project's *own* documents; `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — do not count it, and do not "helpfully" treat a project's `ARCHITECTURE.md` as a mis-capitalised SDLC artifact. Likewise `docs/adr/0007-some-title.md` is not `docs/adr/ADR-0007-some-title.md`.
+Case matters, and this is where the check usually goes wrong. `ARCHITECTURE.md`, `DESIGN.md` or `README.md` are a project's *own* documents; `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — do not count it, and do not "helpfully" treat a project's `ARCHITECTURE.md` as a mis-capitalised SDLC artifact. Likewise `docs/adr/0007-some-title.md` is not `docs/adr/ADR-0007-some-title.md`.
 
 If none match, the project **has never used these skills**. Mode A has nothing to migrate — say so plainly and do not propose moving anything. A project's own `docs/` belongs to that project. Moving it produces a `.sdlc/` that advertises an adoption that did not happen, which is worse than leaving it alone. Go to Mode B and C only.
 
@@ -61,14 +61,14 @@ If none match, the project **has never used these skills**. Mode A has nothing t
 | Finding | Needs |
 |---------|-------|
 | Legacy artifacts confirmed by 1a | Mode A |
-| `.sdlc/tests/<slug>/test-plan.md` beside a `spec.md` | Mode A (fold) |
+| `.sdlc/tests/<slug>/test-plan.md` beside a `spec.md`, and `CONVENTIONS.md` doesn't keep them separate | Mode A (fold) |
 | `requirements.md` + `design.md`, no `spec.md` | Mode A (move) then Mode B (merge) |
 | Unkeyed tags (`@sdlc REQ-003`, `IMPLEMENTS: REQ-`) | Mode A (re-key) |
 | Deprecated EARS (`ALWAYS SHALL`, uppercase `AS … THEN`, uppercase `UNLESS`, `WHERE … THEN`) | Mode B, or `/sdlc-quickfix` |
 | Source files with no spec covering them | Mode B, then C |
 | Spec exists, but its code carries no `IMPLEMENTS:`/`COVERS:` | Mode C |
 | ADRs exist, but no code cites them | Mode C (optional — ask) |
-| Everything already under `.sdlc/`, specs hold `## Test Plan`, tags keyed and complete | Nothing — report and stop |
+| Everything already under `.sdlc/`, test plans complete (folded into `spec.md`, or standalone where `CONVENTIONS.md` says so), tags keyed and complete | Nothing — report and stop |
 
 ### 1c. Measure the starting point
 
@@ -130,11 +130,11 @@ Accept a partial approval and run only the approved modes. If the user declines,
 1. Create destinations (`mkdir -p`, or let `git mv` do it).
 2. `git mv <src> <dst>` per file, or per directory where the whole directory relocates.
 3. Remove now-empty legacy directories.
-4. **Fold test plans**: append each `test-plan.md` to its feature's `spec.md` under `## Test Plan`, demoting its headings one level (`## Unit Tests` → `### Unit Tests`). Keep every `UT-*`/`IT-*`/`E2E-*`/`PBT-*` ID verbatim — `COVERS:` headers reference them. Then `git rm` the old file.
+4. **Fold test plans, unless `CONVENTIONS.md` keeps them separate** — then skip this step; the validator may cross-reference `UT-*`/`IT-*`/`E2E-*` IDs against that standalone file, and folding breaks it. Otherwise: append each `test-plan.md` to its feature's `spec.md` under `## Test Plan`, demoting its headings one level (`## Unit Tests` → `### Unit Tests`). Keep every ID verbatim — `COVERS:` headers reference them. Then `git rm` the old file.
 5. **Repoint every reference**, including the non-markdown ones from the risk register. Re-grep after the move to prove none remain.
 6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first. Default to the uppercased slug, but only when that is a valid key (`[A-Z][A-Z0-9_-]*`) — a slug starting with a digit (`2fa` → `2FA`) is not one, and a tag built from it cannot be parsed, so choose a real key (`TWOFA`) and say why. Then across `src/` and `tests/`: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
 
-Every scripted edit asserts its anchor before writing — a blind `str.replace` that matches nothing fails silently and reports success.
+Every scripted edit asserts its anchor before writing — a blind `str.replace` that matches nothing fails silently and reports success. Before starting Mode B or C, re-run `.sdlc/tools/sdlc-validate.py`: Mode A restructures the files the validator cross-references, so a regression is cheap to catch here and expensive to catch at Phase 4, after later modes have built on top of it.
 
 ---
 
@@ -307,6 +307,6 @@ After delivering this message, end your turn.
 | File | Location | Purpose |
 |------|----------|---------|
 | (moved artifacts) | `.sdlc/…` | Relocated steering docs, ADRs, requirements, specs, reviews |
-| `spec.md` | `.sdlc/specs/<slug>/` | Test plan folded in (Mode A) or reverse-engineered (Mode B) |
+| `spec.md` | `.sdlc/specs/<slug>/` | Test plan folded in where Mode A's fold applies, or reverse-engineered (Mode B) |
 | `drift-report-{ts}.md` | `.sdlc/specs/<slug>/` | Diff against the prior spec, when one existed |
 | (annotated sources) | `src/`, `tests/` | `SPEC:` / `IMPLEMENTS:` / `COVERS:` / `@sdlc` / `@sdlc-adr` |
