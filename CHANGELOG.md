@@ -85,7 +85,7 @@ including a translated heading.
 
 ### Tests and CI
 
-- Validator regression suite: 24 → 57 cases. Each new case was verified to fail with its fix
+- Validator regression suite: 24 → 67 cases. Each new case was verified to fail with its fix
   reverted.
 - New `tests/test_skill_prompts.py`: static invariants over the prompts, which CI previously could
   not see at all. Nine cases, each pinning a prompt bug that actually shipped.
@@ -106,3 +106,44 @@ Three skills directories were wrong and are corrected, checked against each tool
 
 Adds `agents` → `~/.agents/skills`, the vendor-neutral location Copilot, OpenCode and others read
 in addition to their own. CI pins all of these.
+
+Correcting a path is not enough on its own: the previous version's copy stays where it was, and a
+tool reading both has no way to tell which is current. Every run now sweeps the superseded
+directories (`~/.opencode/skills`, `~/.github/skills`, `~/.cursor/skills`) under the same rule as
+any other target — only skills this repo ships or used to ship — and `--keep-legacy` opts out. CI
+pins the sweep, including that it leaves a user's own `sdlc-*` skill alone.
+
+### Fixes to the above, before it ships
+
+The strict gate was reviewed against real layouts, and four of its own defects are fixed here.
+
+- **A comment after an apostrophe is no longer dropped.** Quote characters were counted
+  independently, so `msg := "it's here" // IMPLEMENTS: KEY:REQ-001` looked like an open string: the
+  tag vanished and its requirement reported as unimplemented with the header in plain sight. Now a
+  single left-to-right pass with one active quote — and a quote with no partner on the line opens
+  nothing, so Rust's `&'a str` and Lisp's `'(a b)` keep their trailing comments too.
+- **Browser suites are tests.** `cypress/e2e/*.cy.ts` matched no built-in pattern, so a Cypress or
+  Playwright project met the new rule with a wall of `tag-role` errors on files that were tests all
+  along. `e2e`, `cypress`, `*.cy`, `*.e2e`, Failsafe's `*IT`, and Gradle's `src/integrationTest/`
+  are defaults now. `features/` is deliberately still not one: `src/features/` is a component
+  directory more often than a Cucumber suite, and a wrong default fails a *source* file.
+- **Prose and data files are never scanned.** CONVENTIONS.md said a `.txt` file is not a claim, but
+  the fallback comment leaders let `# IMPLEMENTS: KEY:REQ-001` in a `notes.txt` satisfy code
+  coverage. `.txt`, `.log`, `.csv`, `.tsv` and `.json` join documentation as never-scanned;
+  `.jsonc`, `.json5` and `.yaml` are configuration that really carries comments, and still count.
+- **An unclosed code fence is reported.** Everything after it is blanked, so a requirement below a
+  typo'd fence stopped existing and the tags pointing at it reported as dangling, with nothing
+  connecting the two. Now a WARNING naming the line, in a spec and in the problem brief.
+
+And one hole that was not a defect so much as a missing exit:
+
+- **`--relax-tag-roles` / `gate.enforce_tag_roles`** is the migration ramp. It restores the old
+  leniency for the role rule alone — a tag counts wherever it sits, a misplaced one is a WARNING
+  that still names where it belongs — while the comment rule stays on. The relaxed gate announces
+  itself as a WARNING on every run, so it is visible in the report and non-zero under `--strict`:
+  a ramp for the first pass over an existing project, not a setting to forget. A `gate` value that
+  is not `true`/`false` is an ERROR, never a silent "off".
+
+One behaviour is now pinned rather than changed: a header inside a Python **docstring** does not
+count, because a docstring is a string. `ANNOTATION.md` already put the `#` header after it; a test
+now holds the parser and the guidance together.

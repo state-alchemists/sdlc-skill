@@ -83,8 +83,21 @@ TOOL_IDS=(
 # wrote themselves, and deleting someone's own sdlc-deploy is not an upgrade.
 RETIRED_SKILLS=(sdlc-requirements sdlc-architect sdlc-document sdlc-migrate)
 
+# Skills directories earlier versions of this installer wrote to, before each
+# path was checked against the tool's own documentation. Upgrading leaves a full
+# copy of every skill behind at the old path, where a tool that reads both ends
+# up with two copies of each skill and no way to tell which is current. Swept on
+# install and on uninstall, under exactly the rule every other target follows:
+# only sdlc-* directories this repo ships or used to ship are removed.
+SUPERSEDED_DIRS=(
+    "${HOME}/.opencode/skills"   # now ~/.config/opencode/skills
+    "${HOME}/.github/skills"     # now ~/.copilot/skills
+    "${HOME}/.cursor/skills"     # Cursor reads skills per project, not from $HOME
+)
+
 uninstall=0
 dry_run=0
+keep_legacy=0
 want_tool=()
 want_dir=()
 
@@ -112,6 +125,7 @@ Options:
   --dir <path>        Target an arbitrary skills directory, e.g. a
                       project-scoped .claude/skills/ (repeatable)
   --uninstall         Remove this repo's sdlc-* skills from selected targets
+  --keep-legacy       Leave copies at superseded skills directories in place
   --dry-run           Print what would happen without changing anything
   -h, --help          This message
 
@@ -120,6 +134,10 @@ already exist on this machine. If none exist, it exits with a hint.
 
 Cursor loads skills per project rather than from $HOME, so it has no
 tool ID. Install to it with: --dir .cursor/skills
+
+Copies left at a skills directory an earlier version targeted are removed
+on every run, so an upgrade does not leave two copies of each skill on
+disk. Pass --keep-legacy to leave them where they are.
 
 Only the skills this repo ships, plus ones it used to ship, are ever
 removed. An sdlc-* skill of your own in the same directory is left alone.
@@ -171,8 +189,9 @@ while [[ $# -gt 0 ]]; do
             fi
             want_dir+=("$1")
             ;;
-        --uninstall) uninstall=1 ;;
-        --dry-run)   dry_run=1 ;;
+        --uninstall)   uninstall=1 ;;
+        --keep-legacy) keep_legacy=1 ;;
+        --dry-run)     dry_run=1 ;;
         -h|--help)   usage; exit 0 ;;
         *)           log "Unknown option: $1"; usage; exit 2 ;;
     esac
@@ -306,6 +325,30 @@ action() {
     fi
 }
 
+# Remove this repo's skills from directories an earlier version installed to.
+# Anything else in them, including an sdlc-* skill of the user's own, is left
+# exactly where it is — a superseded path is still the user's directory.
+sweep_superseded_dirs() {
+    local dir dest name swept
+    for dir in "${SUPERSEDED_DIRS[@]}"; do
+        [[ -d "${dir}" ]] || continue
+        swept=0
+        while IFS= read -r dest; do
+            [[ -n "${dest}" ]] || continue
+            name="$(basename "${dest}")"
+            if ! is_shipped "${name}" && ! is_retired "${name}"; then
+                continue
+            fi
+            if [[ "${swept}" -eq 0 ]]; then
+                log "Superseded: ${dir} (an earlier version installed here)"
+                swept=1
+            fi
+            run rm -rf "${dest}"
+            log "  removed ${name}"
+        done < <(installed_skills_in "${dir}")
+    done
+}
+
 # ---------------------------------------------------------------------------
 # Execute
 # ---------------------------------------------------------------------------
@@ -318,5 +361,9 @@ done
 for dir in "${want_dir[@]+"${want_dir[@]}"}"; do
     action "${dir}"
 done
+
+if [[ "${keep_legacy}" -eq 0 ]]; then
+    sweep_superseded_dirs
+fi
 
 log "Done."

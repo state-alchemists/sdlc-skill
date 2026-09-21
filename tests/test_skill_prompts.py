@@ -174,10 +174,14 @@ def case_shipped_config_is_valid_json():
     config_path = os.path.join(ASSETS_DIRECTORY, "config.json")
     with open(config_path, encoding="utf-8") as file_handle:
         config = json.load(file_handle)
-    for section in ("layout", "headings", "comments", "scan"):
+    for section in ("layout", "headings", "comments", "gate", "scan"):
         assert section in config, (
             "the shipped config.json is missing its '%s' section" % section
         )
+    assert config["gate"]["enforce_tag_roles"] is True, (
+        "the shipped config ships the migration ramp switched on, which would "
+        "hand every new project the pre-migration gate"
+    )
 
 
 def case_annotation_covers_every_hazard_that_broke_a_file():

@@ -94,6 +94,16 @@ def main():
         case_localised_heading_declared_in_config_resolves,
         case_ordinary_docs_architecture_is_not_legacy,
         case_docs_architecture_citing_the_scheme_is_legacy,
+        case_apostrophe_inside_a_string_does_not_hide_the_comment,
+        case_unpaired_quote_does_not_hide_the_comment,
+        case_browser_suite_is_classified_as_a_test,
+        case_header_inside_a_python_docstring_does_not_count,
+        case_commented_tag_in_a_data_file_is_not_a_tag,
+        case_relaxed_gate_counts_a_misplaced_tag_and_says_so,
+        case_relaxed_gate_still_reports_where_the_tag_belongs,
+        case_bad_gate_value_is_reported,
+        case_unclosed_fence_in_a_spec_is_reported,
+        case_unclosed_fence_in_a_brief_is_reported,
     ]
     failures = []
     for case in cases:
@@ -1054,6 +1064,185 @@ def case_docs_architecture_citing_the_scheme_is_legacy():
     ), "a legacy architecture.md that cites an ADR was not detected"
 
 
+# --- Comment detection: a heuristic that must not eat real tags -------------
+
+
+def case_apostrophe_inside_a_string_does_not_hide_the_comment():
+    """`msg := "it's here" // IMPLEMENTS: ...` — counting each quote character
+    separately made the line look like an open string, so the header vanished
+    while sitting in plain sight and its requirement reported as unimplemented."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source='package auth\nvar msg = "it\'s here" // IMPLEMENTS: USERMGMT:REQ-001\n',
+        source_path=os.path.join("internal", "auth", "session.go"),
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    assert not has_finding(
+        findings, check="trace-code"
+    ), "an apostrophe inside a string hid the IMPLEMENTS header after it"
+
+
+def case_unpaired_quote_does_not_hide_the_comment():
+    """A quote with no partner on the line opens nothing: Rust's `&'a str` and
+    Lisp's `'(a b)` would otherwise swallow every comment after them."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="fn signup<'a>(name: &str) {} // IMPLEMENTS: USERMGMT:REQ-001\n",
+        source_path=os.path.join("src", "signup.rs"),
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    assert not has_finding(
+        findings, check="trace-code"
+    ), "a Rust lifetime was read as an open string, hiding the header"
+
+
+# --- File roles: the defaults have to cover the layouts people ship ---------
+
+
+def case_browser_suite_is_classified_as_a_test():
+    """A Cypress or Playwright suite is a test suite. `cypress/e2e/*.cy.ts`
+    matched no default, so the role rule failed a project on files that were
+    tests all along."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="// IMPLEMENTS: USERMGMT:REQ-001\n",
+        source_path=os.path.join("app", "signup.ts"),
+        test="// COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        test_path=os.path.join("cypress", "e2e", "signup.cy.ts"),
+    )
+    assert not has_finding(
+        findings, check="tag-role"
+    ), "a Cypress spec was classified as a source file"
+    assert not has_finding(
+        findings, check="trace-test"
+    ), "a browser test did not satisfy test coverage"
+
+
+def case_header_inside_a_python_docstring_does_not_count():
+    """A docstring is a string, not a comment. ANNOTATION.md puts the `#` header
+    after it; this pins the behaviour so guidance and parser agree."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source='"""Signup.\n\nIMPLEMENTS: USERMGMT:REQ-001\n"""\n',
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    assert has_finding(
+        findings, check="trace-code", message="USERMGMT:REQ-001"
+    ), "a header inside a docstring was counted as a comment"
+
+
+def case_commented_tag_in_a_data_file_is_not_a_tag():
+    """CONVENTIONS.md says a .txt file is not a claim. The fallback leader set
+    still let a `#`-prefixed tag in notes.txt satisfy code coverage."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source=None,
+        test=None,
+        extra_files={
+            "notes.txt": "# IMPLEMENTS: USERMGMT:REQ-001\n"
+            "# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+            "seed.csv": "# IMPLEMENTS: USERMGMT:REQ-001\n",
+        },
+    )
+    assert has_finding(
+        findings, check="trace-code", message="USERMGMT:REQ-001"
+    ), "a commented tag in a data file satisfied code coverage"
+    assert has_finding(
+        findings, check="trace-test", message="USERMGMT:REQ-001"
+    ), "a commented tag in a data file satisfied test coverage"
+
+
+# --- The migration ramp -----------------------------------------------------
+
+
+def case_relaxed_gate_counts_a_misplaced_tag_and_says_so():
+    """`gate.enforce_tag_roles: false` restores the lenient behaviour for the
+    first pass over an existing project — and announces itself as a WARNING, so
+    a --strict CI cannot adopt it permanently by accident."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n"
+        "# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        test=None,
+        config={"gate": {"enforce_tag_roles": False}},
+    )
+    assert not has_severity(
+        findings, "ERROR"
+    ), "the relaxed gate still failed the build it exists to unblock"
+    assert has_severity(
+        findings, "WARNING", check="gate-relaxed"
+    ), "a relaxed gate did not announce itself as a warning"
+
+
+def case_relaxed_gate_still_reports_where_the_tag_belongs():
+    """Relaxing the gate buys time, not silence: the misplaced tag is still
+    named, as a warning, so the migration has a worklist."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n"
+        "# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        test=None,
+        relax_tag_roles=True,
+    )
+    assert has_severity(
+        findings, "WARNING", check="tag-role"
+    ), "a misplaced tag went unreported under the relaxed gate"
+    assert not has_severity(
+        findings, "ERROR", check="tag-role"
+    ), "the relaxed gate still reported a misplaced tag as an error"
+
+
+def case_bad_gate_value_is_reported():
+    """A misspelt value must not read as "off" — this is the one key that can
+    turn the whole rule off."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        config={"gate": {"enforce_tag_roles": "false"}},
+    )
+    assert has_severity(
+        findings, "ERROR", check="config"
+    ), "a non-boolean gate.enforce_tag_roles was accepted"
+    assert not has_finding(
+        findings, check="gate-relaxed"
+    ), "a malformed gate value silently relaxed the gate"
+
+
+# --- An unclosed fence must not swallow a document in silence ---------------
+
+
+def case_unclosed_fence_in_a_spec_is_reported():
+    """Everything after an unclosed fence is blanked, so a requirement below it
+    stops existing. That has to be said, not inferred from dangling tags."""
+    findings = get_spec_text_findings(
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n\n"
+        + "```python\nsignup()\n\n"
+        + "- `REQ-002` (AC-002): The system SHALL email a receipt.\n\n"
+        + "## Test Plan\n\n| UT-001 | REQ-001 |\n"
+    )
+    assert has_finding(
+        findings, check="unclosed-fence"
+    ), "an unclosed fence blanked the rest of the spec without saying so"
+
+
+def case_unclosed_fence_in_a_brief_is_reported():
+    """The same failure in the problem brief: every AC below the fence
+    disappears, and each requirement citing one reports as citing an undefined
+    AC."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        problem_brief="# Brief\n\n```text\nexample\n\n- AC-001: A user signs up.\n",
+    )
+    assert has_finding(
+        findings, check="unclosed-fence"
+    ), "an unclosed fence in the brief hid every AC it defines"
+
+
 # --------------------------------------------------------------------------
 # Fixture helpers
 # --------------------------------------------------------------------------
@@ -1104,6 +1293,7 @@ def get_findings(
     config=None,
     source_path=None,
     test_path=None,
+    relax_tag_roles=False,
 ):
     """Build a one-feature project in a temp dir and return the validator findings.
 
@@ -1153,7 +1343,9 @@ def get_findings(
             )
         for relative_path, content in sorted((extra_files or {}).items()):
             write_file(root, relative_path, content)
-        return run_validator(root, only_feature=only_feature)
+        return run_validator(
+            root, only_feature=only_feature, relax_tag_roles=relax_tag_roles
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -1206,12 +1398,15 @@ def write_file(root, relative_path, content):
         file_handle.write(content)
 
 
-def run_validator(root, only_feature=None, excluded_patterns=()):
+def run_validator(root, only_feature=None, excluded_patterns=(), relax_tag_roles=False):
     """Validate the project at `root` and return its findings."""
     return (
         load_validator()
         .validate_project(
-            root, only_feature=only_feature, excluded_patterns=excluded_patterns
+            root,
+            only_feature=only_feature,
+            excluded_patterns=excluded_patterns,
+            relax_tag_roles=relax_tag_roles,
         )
         .findings
     )

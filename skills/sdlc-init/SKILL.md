@@ -125,7 +125,7 @@ Fill `.sdlc/templates/rules.md` into `.sdlc/rules.md`. First creation is Tier-2.
 
 Run `python3 .sdlc/tools/sdlc-validate.py` and report the summary. With no specs yet it reports "No SDLC specs found" — that is the expected clean result at this stage.
 
-**Confirm the detected layout.** The validator classifies files as source or test from the conventions in `.sdlc/CONVENTIONS.md` (§ File roles). They cover Python, Go, Maven, Jest, RSpec, .NET and monorepos as shipped. If this project puts tests somewhere those defaults would miss — or keeps helper code in a directory named like a test tree — record it in `.sdlc/config.json` now, before any spec exists, and say what you set and why. Do not assume `src/` and `tests/`.
+**Confirm the detected layout.** The validator classifies files as source or test from the conventions in `.sdlc/CONVENTIONS.md` (§ File roles). They cover Python, Go, Maven, Jest, RSpec, Cypress/Playwright, .NET, Gradle and monorepos as shipped. If this project puts tests somewhere those defaults would miss — or keeps helper code in a directory named like a test tree — record it in `.sdlc/config.json` now, before any spec exists, and say what you set and why. Do not assume `src/` and `tests/`.
 
 Then offer the CI gate, once — it is what the validator is for:
 
@@ -133,6 +133,12 @@ Then offer the CI gate, once — it is what the validator is for:
 > `python3 .sdlc/tools/sdlc-validate.py --strict`
 
 On a project that already has specs, the refreshed validator may report findings the old copy missed. Two are expected right after an upgrade and both route to `/sdlc-adopt`: `legacy-test-plan` (the feature keeps a separate `test-plan.md`) and `legacy-layout`. Report them, don't fix them here.
+
+If that project's tags predate the role rule, the count of `tag-role` and `trace-*` errors can be large. Say so plainly, offer the ramp once, and never set it without being asked:
+
+> `python3 .sdlc/tools/sdlc-validate.py --relax-tag-roles` gives you the same worklist as warnings instead of a red build, until the tags are moved. Every run says the gate is relaxed, and says it as a warning, so `--strict` still sees it.
+
+Fixing the tags is the goal; the ramp only decides whether the build blocks while you do it.
 
 ## Phase Transition
 

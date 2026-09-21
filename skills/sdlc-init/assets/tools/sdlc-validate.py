@@ -9,7 +9,7 @@ This file is the only copy — skills install it, none of them embed it.
 
 USAGE
     python3 sdlc-validate.py [--root DIR] [--feature SLUG] [--strict] [--json]
-                             [--exclude GLOB ...]
+                             [--exclude GLOB ...] [--relax-tag-roles]
 
     --root DIR     Project root to scan (default: current directory).
     --feature SLUG Restrict FINDINGS to one feature. Every spec is still parsed,
@@ -22,6 +22,13 @@ USAGE
     --exclude GLOB Skip files matching this glob when scanning for tags
                    (repeatable). Fenced code blocks in Markdown are skipped
                    already, so documented examples need no exclusion.
+    --relax-tag-roles
+                   Migration ramp for a project arriving from the lenient
+                   validator: a tag counts wherever it sits, and a misplaced one
+                   is a WARNING rather than an ERROR. Every run then says the
+                   gate is relaxed, and says it as a warning, so --strict still
+                   sees it. `gate.enforce_tag_roles: false` in
+                   .sdlc/config.json is the same switch, for CI.
 
 EXIT CODES
     0  clean (no errors; warnings allowed unless --strict)
@@ -59,11 +66,15 @@ CHECKS
    15  Tag in the wrong kind of file (role) ............. ERROR
    16  Unusable .sdlc/config.json ....................... ERROR
    17  File skipped while scanning for tags ............. WARNING
+   18  Test-plan row citing a REMOVED or unknown ID ..... ERROR
+   19  Unclosed code fence in a spec or brief ........... WARNING
+   20  Tag-role enforcement relaxed ..................... WARNING
 
 FILE ROLES
     Every scanned file is SOURCE, TEST, or DOC.
-      - DOC  (.md, .rst, .adoc, ...) is never scanned: documentation shows the
-             tag format, it does not claim coverage.
+      - DOC  is never scanned. Documentation (.md, .rst, .adoc, ...) shows the
+             tag format rather than claiming coverage, and prose or data
+             (.txt, .csv, .json, ...) implements nothing at all.
       - TEST is decided by path COMPONENTS and filename STEMS -- `tests/`,
              `test_*.py`, `*_test.go`, `src/test/java/`, `*.spec.ts`, and so on
              -- never by substring, so `src/contest/` stays source.
@@ -149,6 +160,23 @@ DOCUMENTATION_EXTENSIONS = {
     ".asciidoc",
     ".org",
 }
+# Prose and data implement nothing, so a tag in one claims nothing. The fallback
+# leader set otherwise let `# IMPLEMENTS: KEY:REQ-001` in a notes.txt satisfy
+# code coverage -- CONVENTIONS.md says a .txt file is not a claim, and this is
+# what makes that true. `.jsonc` and `.json5` stay scannable: they are
+# configuration formats that really do carry comments.
+UNTAGGABLE_EXTENSIONS = {
+    ".txt",
+    ".text",
+    ".log",
+    ".csv",
+    ".tsv",
+    ".json",
+    ".jsonl",
+    ".ndjson",
+    ".geojson",
+}
+UNSCANNED_EXTENSIONS = DOCUMENTATION_EXTENSIONS | UNTAGGABLE_EXTENSIONS
 
 # --- File roles -----------------------------------------------------------
 # Every scanned code file is SOURCE or TEST; documentation is DOC and ignored.
@@ -158,6 +186,11 @@ ROLE_SOURCE, ROLE_TEST, ROLE_DOC = "source", "test", "doc"
 
 # Matched on path COMPONENTS and filename STEMS, never on substrings -- so
 # `src/contest/models.py` and `src/latest_prices.py` stay source.
+# `e2e` and `cypress` are here because a browser suite is a test suite: without
+# them a Cypress or Playwright project met the role rule with a wall of errors
+# on files that were tests all along. `features` is deliberately absent --
+# `src/features/` is a component directory in more projects than it is a
+# Cucumber suite, and a wrong default fails a source file instead.
 DEFAULT_TEST_DIRECTORY_NAMES = [
     "tests",
     "test",
@@ -165,6 +198,10 @@ DEFAULT_TEST_DIRECTORY_NAMES = [
     "specs",
     "__tests__",
     "testing",
+    "e2e",
+    "cypress",
+    "integration-tests",
+    "integration_tests",
 ]
 DEFAULT_TEST_STEM_PATTERNS = [
     "test_*",
@@ -178,8 +215,20 @@ DEFAULT_TEST_STEM_PATTERNS = [
     "*Spec",
     "*Specs",
     "conftest",
+    "*.cy",
+    "*.e2e",
+    "*_e2e",
+    "*IT",
+    "*ITCase",
+    "*TestCase",
 ]
-DEFAULT_TEST_PATH_FRAGMENTS = ["src/test/", "src/it/", "src/androidTest/"]
+DEFAULT_TEST_PATH_FRAGMENTS = [
+    "src/test/",
+    "src/it/",
+    "src/androidTest/",
+    "src/integrationTest/",
+    "src/functionalTest/",
+]
 
 # --- Comment syntax -------------------------------------------------------
 # A tag counts only inside a real comment, which separates a claim from a string
@@ -584,11 +633,22 @@ def main(argv=None):
         metavar="GLOB",
         help="skip files matching this glob when scanning for " "tags (repeatable)",
     )
+    parser.add_argument(
+        "--relax-tag-roles",
+        action="store_true",
+        help="migration ramp: count IMPLEMENTS:/COVERS: from "
+        "any file and report a misplaced tag as a WARNING "
+        "instead of an ERROR (same switch as "
+        "gate.enforce_tag_roles in .sdlc/config.json)",
+    )
     arguments = parser.parse_args(argv)
 
     root = os.path.abspath(arguments.root)
     report = validate_project(
-        root, only_feature=arguments.feature, excluded_patterns=arguments.exclude
+        root,
+        only_feature=arguments.feature,
+        excluded_patterns=arguments.exclude,
+        relax_tag_roles=arguments.relax_tag_roles,
     )
 
     if arguments.json:
@@ -605,7 +665,12 @@ def main(argv=None):
 
 
 def validate_project(
-    root, only_feature=None, report=None, excluded_patterns=(), config=None
+    root,
+    only_feature=None,
+    report=None,
+    excluded_patterns=(),
+    config=None,
+    relax_tag_roles=False,
 ):
     """Run every check over the project at `root` and return the filled Report.
 
@@ -616,6 +681,22 @@ def validate_project(
     """
     report = report or Report()
     config = load_config(root, report) if config is None else config
+    if relax_tag_roles:
+        config["gate"]["enforce_tag_roles"] = False
+    is_enforcing_roles = config["gate"]["enforce_tag_roles"]
+    if not is_enforcing_roles:
+        # A WARNING, not an INFO: a relaxed gate has to be visible in every
+        # report and non-zero under --strict, or the ramp quietly becomes the
+        # permanent setting and the gate is back to proving nothing.
+        report.warn(
+            "gate-relaxed",
+            "Tag-role enforcement is OFF: IMPLEMENTS:/COVERS: count "
+            "from any file, so one file can satisfy both. This is the "
+            "pre-migration behaviour, meant for the first pass over an "
+            "existing project. Turn it back on by dropping "
+            "--relax-tag-roles, or by setting gate.enforce_tag_roles "
+            "to true in %s." % CONFIG_RELATIVE_PATH,
+        )
 
     check_legacy_layout(root, report)
 
@@ -658,12 +739,14 @@ def validate_project(
             if tag.feature_key is None or tag.feature_key in reported_keys
         ]
     check_tag_targets(tags, valid_targets, slug_by_key, report)
-    check_tag_roles(tags, report)
+    check_tag_roles(tags, report, is_enforcing_roles)
 
     reported_specs = {
         slug: spec for slug, spec in specs_by_slug.items() if slug in reported_slugs
     }
-    check_requirement_coverage(root, reported_specs, spec_paths_by_slug, tags, report)
+    check_requirement_coverage(
+        root, reported_specs, spec_paths_by_slug, tags, report, is_enforcing_roles
+    )
     check_ac_citations(root, reported_specs, spec_paths_by_slug, report)
     return report
 
@@ -739,6 +822,7 @@ def get_default_config():
         },
         "headings": {"test_plan": [], "outside_code": []},
         "comments": {},
+        "gate": {"enforce_tag_roles": True},
         "scan": {
             "skip_directories": sorted(SKIPPED_DIRECTORIES),
             "scan_directories": [],
@@ -762,6 +846,16 @@ def merge_config_section(config, section_name, section, report):
                     "config",
                     "%s.%s in %s must be a list of strings."
                     % (section_name, key, CONFIG_RELATIVE_PATH),
+                    CONFIG_RELATIVE_PATH,
+                )
+        elif section_name == "gate" and key == "enforce_tag_roles":
+            if isinstance(value, bool):
+                config["gate"]["enforce_tag_roles"] = value
+            else:
+                report.error(
+                    "config",
+                    "gate.enforce_tag_roles in %s must be "
+                    "true or false." % CONFIG_RELATIVE_PATH,
                     CONFIG_RELATIVE_PATH,
                 )
         elif section_name == "scan" and key == "max_file_bytes":
@@ -945,6 +1039,15 @@ def check_spec_hygiene(
             continue
 
         spec = parse_spec(text, config)
+        if spec["unclosed_fence_line"]:
+            spec_report.warn(
+                "unclosed-fence",
+                "Unclosed code fence opened at line %d — everything below it is "
+                "ignored, so any requirement, NFR or test-plan row after that "
+                "line is invisible to the validator. Close the fence."
+                % spec["unclosed_fence_line"],
+                location,
+            )
         feature_key = resolve_feature_key(spec, slug, location, spec_report)
 
         # Check 1: feature key uniqueness.
@@ -1224,10 +1327,10 @@ def get_non_ears_leading_keyword(text):
 def collect_traceability_tags(root, config, report, excluded_patterns=()):
     """Walk the project, returning every traceability tag found in a comment.
 
-    Documentation is skipped entirely, so a README showing the tag format
-    neither claims coverage nor reports as a dangling tag. Every other file is
-    read for comments and classified as source or test, since a tag means
-    different things in each.
+    Documentation, prose and data files are skipped entirely, so a README
+    showing the tag format neither claims coverage nor reports as a dangling
+    tag. Every other file is read for comments and classified as source or
+    test, since a tag means different things in each.
     """
     skipped_directories = set(config["scan"]["skip_directories"])
     skipped_directories -= set(config["scan"]["scan_directories"])
@@ -1263,14 +1366,15 @@ def collect_traceability_tags(root, config, report, excluded_patterns=()):
 
 
 def get_file_role(relative_path, config):
-    """Classify a scanned file as source, test, or documentation.
+    """Classify a scanned file as source, test, or never-scanned.
 
-    Every code file is source or test; only documentation is neither. That
-    keeps the report actionable -- a misplaced tag is always "the wrong kind of
-    file", never "unclassifiable".
+    Every code file is source or test. ROLE_DOC covers everything that cannot
+    carry a claim at all -- documentation, prose and data formats -- and those
+    files are skipped before a tag is read. That keeps the report actionable: a
+    misplaced tag is always "the wrong kind of file", never "unclassifiable".
     """
     posix_path = relative_path.replace(os.sep, "/")
-    if os.path.splitext(posix_path)[1].lower() in DOCUMENTATION_EXTENSIONS:
+    if os.path.splitext(posix_path)[1].lower() in UNSCANNED_EXTENSIONS:
         return ROLE_DOC
     layout = config["layout"]
     if is_matching_any_glob(posix_path, layout["source_overrides"]):
@@ -1319,21 +1423,28 @@ def is_excluded_path(relative_path, excluded_patterns):
     return False
 
 
-def strip_code_fences(text):
-    """Blank out fenced code blocks, keeping line numbers intact.
+def scan_code_fences(text):
+    """Return (text with fences blanked, line number of an unclosed fence).
 
     A fence closes only on the same character, at least as long as the opener,
     and with no info string, so a fenced block may itself contain a shorter
     fence. An unclosed fence blanks everything after it: in a document, a
     missed example costs less than an invented tag.
+
+    The line number comes back so the caller can SAY so. Swallowing the rest of
+    the file in silence made every requirement below a typo'd fence stop
+    existing, and the tags pointing at them reported as dangling with nothing
+    to connect the two.
     """
     lines = text.splitlines()
     open_marker = None
+    open_line_number = None
     for index, line in enumerate(lines):
         fence_match = CODE_FENCE_PATTERN.match(line)
         if open_marker is None:
             if fence_match:
                 open_marker = fence_match.group(1)
+                open_line_number = index + 1
                 lines[index] = ""
             continue
         if (
@@ -1343,8 +1454,9 @@ def strip_code_fences(text):
             and not fence_match.group(2)
         ):
             open_marker = None
+            open_line_number = None
         lines[index] = ""
-    return "\n".join(lines)
+    return "\n".join(lines), open_line_number
 
 
 def get_declared_heading_match(text, extra_headings):
@@ -1381,8 +1493,11 @@ def get_comment_texts(file_text, extension, config):
 
     Not a lexer. A single left-to-right pass that skips string literals, so
     `MSG = "IMPLEMENTS: KEY:REQ-001"` stops claiming coverage, while a tag in a
-    `/* ... */` block or a Python docstring is still seen. Block state carries
-    across lines.
+    `/* ... */` block is still seen. Block state carries across lines.
+
+    A Python docstring is a string, not a comment, so a header written inside
+    one does not count. That is why ANNOTATION.md places the `#` header AFTER
+    the module docstring rather than in it.
     """
     line_leaders, block_pairs = get_comment_syntax(extension, config)
     comment_texts = []
@@ -1440,23 +1555,55 @@ def get_first_comment_opener(line, line_leaders, block_pairs):
 def is_inside_string_literal(line, offset):
     """True when `offset` sits inside a quoted span earlier on the same line.
 
-    Counts unescaped quotes before the offset. This is an approximation, not a
-    lexer: it rejects a comment marker inside an ordinary string without
-    tokenising the language.
+    An approximation, not a lexer: it rejects a comment marker inside an
+    ordinary string without tokenising the language.
     """
-    for quote in ('"', "'"):
-        count, index = 0, 0
-        while index < offset:
-            character = line[index]
-            if character == "\\":
-                index += 2
+    return any(start < offset < end for start, end in get_string_literal_spans(line))
+
+
+def get_string_literal_spans(line):
+    """Return (start, end) for every quoted span that opens AND closes on the line.
+
+    One left-to-right pass with a single active quote, so the apostrophe in
+    `"it's here"` belongs to that string rather than opening one of its own.
+    Counting each quote character independently, as this used to, made
+    `msg := "it's here" // IMPLEMENTS: KEY:REQ-001` look like an open string and
+    dropped the tag with no diagnostic -- the requirement then reported as
+    unimplemented while its header sat in plain sight.
+
+    A quote with no partner on the line opens nothing: Rust's `&'a str`, Lisp's
+    `'(a b)` and an apostrophe in a trailing note would otherwise swallow the
+    rest of the line and every comment on it.
+    """
+    spans = []
+    index = 0
+    while index < len(line):
+        character = line[index]
+        if character == "\\":
+            index += 2
+            continue
+        if character in ('"', "'"):
+            closing_index = get_closing_quote_index(line, index)
+            if closing_index is not None:
+                spans.append((index, closing_index))
+                index = closing_index + 1
                 continue
-            if character == quote:
-                count += 1
-            index += 1
-        if count % 2:
-            return True
-    return False
+        index += 1
+    return spans
+
+
+def get_closing_quote_index(line, start):
+    """Return the index of the quote closing the one at `start`, or None."""
+    quote = line[start]
+    index = start + 1
+    while index < len(line):
+        if line[index] == "\\":
+            index += 2
+            continue
+        if line[index] == quote:
+            return index
+        index += 1
+    return None
 
 
 def get_comment_syntax(extension, config):
@@ -1517,12 +1664,16 @@ def check_tag_targets(tags, valid_targets, slug_by_key, report):
             )
 
 
-def check_tag_roles(tags, report):
+def check_tag_roles(tags, report, is_enforced=True):
     """Check 15 — IMPLEMENTS lives in source, COVERS lives in tests.
 
     Reported at the tag rather than at the requirement, which is nearer the
     edit that caused it. The matching coverage error names this path too, so
     the two findings read as one problem.
+
+    With the gate relaxed (`gate.enforce_tag_roles`), the same finding is a
+    WARNING and the tag still counts: a project arriving from the lenient
+    validator gets the full worklist without a red build on day one.
     """
     expected_role_by_kind = {"IMPLEMENTS": ROLE_SOURCE, "COVERS": ROLE_TEST}
     remedy_by_kind = {
@@ -1535,7 +1686,8 @@ def check_tag_roles(tags, report):
         expected_role = expected_role_by_kind.get(tag.kind)
         if expected_role is None or tag.role == expected_role:
             continue
-        report.error(
+        announce = report.error if is_enforced else report.warn
+        announce(
             "tag-role",
             "%s: %s:%s sits in %s, which is a %s file, so it does not "
             "satisfy %s coverage. %s in %s."
@@ -1553,22 +1705,30 @@ def check_tag_roles(tags, report):
         )
 
 
-def check_requirement_coverage(root, specs_by_slug, spec_paths_by_slug, tags, report):
+def check_requirement_coverage(
+    root, specs_by_slug, spec_paths_by_slug, tags, report, is_enforcing_roles=True
+):
     """Checks 2, 3, 9 — every requirement is implemented, tested, and planned.
 
     A tag counts only from the right kind of file: IMPLEMENTS from source,
     COVERS from a test. `misplaced_paths_by_target` records the tags that fail
-    that rule so the coverage error can name where they actually sit.
+    that rule so the coverage error can name where they actually sit. With the
+    gate relaxed a misplaced tag still counts -- and is still reported, as a
+    warning, so the work stays visible.
     """
     implemented_targets = {
         (tag.feature_key, tag.requirement_id)
         for tag in tags
-        if tag.kind == "IMPLEMENTS" and tag.feature_key and tag.role == ROLE_SOURCE
+        if tag.kind == "IMPLEMENTS"
+        and tag.feature_key
+        and (tag.role == ROLE_SOURCE or not is_enforcing_roles)
     }
     covered_targets = {
         (tag.feature_key, tag.requirement_id)
         for tag in tags
-        if tag.kind == "COVERS" and tag.feature_key and tag.role == ROLE_TEST
+        if tag.kind == "COVERS"
+        and tag.feature_key
+        and (tag.role == ROLE_TEST or not is_enforcing_roles)
     }
     misplaced_paths_by_target = {}
     for tag in tags:
@@ -1697,12 +1857,20 @@ def check_ac_citations(root, specs_by_slug, spec_paths_by_slug, report):
     )
     if not brief_path:
         return
-    brief_text = strip_code_fences(read_file_text(brief_path) or "")
+    brief_location = os.path.relpath(brief_path, root)
+    brief_text, unclosed_fence_line = scan_code_fences(read_file_text(brief_path) or "")
+    if unclosed_fence_line:
+        report.warn(
+            "unclosed-fence",
+            "Unclosed code fence opened at line %d — every AC defined "
+            "below it is invisible, so a requirement citing one reports "
+            "as citing an AC the brief does not define." % unclosed_fence_line,
+            brief_location,
+        )
     defined_ac_ids = set(AC_DEFINITION_PATTERN.findall(brief_text))
     if not defined_ac_ids:
         return
 
-    brief_location = os.path.relpath(brief_path, root)
     for slug, spec in sorted(specs_by_slug.items()):
         location = os.path.relpath(spec_paths_by_slug[slug], root)
         for requirement_id, cited_ac_ids in sorted(spec["ac_citations"].items()):
@@ -1733,7 +1901,7 @@ def parse_spec(text, config=None):
     and reading that example as a definition reported the real requirement as a
     recycled id. Blanking preserves line count, so line numbers stay true.
     """
-    text = strip_code_fences(text)
+    text, unclosed_fence_line = scan_code_fences(text)
     headings = (config or get_default_config())["headings"]
     feature_key_match = FEATURE_KEY_PATTERN.search(text)
     declared_key_match = FEATURE_KEY_LINE_PATTERN.search(text)
@@ -1805,6 +1973,7 @@ def parse_spec(text, config=None):
         "relisted_nfrs": relisted_nfrs - outside_code_nfrs,
         "test_plan_text": test_plan_text,
         "test_ids": set(TEST_ID_PATTERN.findall(test_plan_text)),
+        "unclosed_fence_line": unclosed_fence_line,
     }
 
 

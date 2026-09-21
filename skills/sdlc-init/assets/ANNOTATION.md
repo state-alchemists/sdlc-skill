@@ -35,7 +35,7 @@ The header goes **after** whatever the file requires to come first. General rule
 | **P1** | the `#!` shebang | `.py .sh .bash .zsh .rb .pl .lua`, any CLI entrypoint |
 | **P2** | the encoding / magic comment (must stay on line 1–2) | `.py` (`coding:`), `.rb` (`frozen_string_literal:`), `.pl` |
 | **P3** | the licence / copyright block | any — SPDX and licence scanners require it first |
-| **P4** | the module docstring | `.py .ex .exs .clj .rkt` — a string that is no longer the first statement stops being a docstring |
+| **P4** | the module docstring | `.py .ex .exs .clj .rkt` — a string that is no longer the first statement stops being a docstring. The header goes after it, in comment syntax: a docstring is a string, and a header written **inside** one does not count as a tag |
 | **P5** | `<?php` — never above it | `.php` |
 | **P6** | the XML prolog / doctype, before the root element | `.xml .xsl .svg .plist .html` |
 | **P7** | inside the `<script>` block, in that block's syntax | `.vue .svelte .astro` |
@@ -86,7 +86,7 @@ An extension in neither table falls back to a generous set of line-comment leade
 
 1. Tag the **code that loads, validates or writes the file** — the schema class, the loader, the migration runner. That is where the requirement is actually implemented.
 2. Where the file's *contents* are the deliverable, the header goes in the module that loads it, and the spec's Test Plan names the test that asserts those contents.
-3. **Never invent a comment.** No `"_comment": "IMPLEMENTS: ..."` key, no `#` line in a JSON file, no header row in a CSV. That changes the data, and every consumer of that data becomes your problem.
+3. **Never invent a comment.** No `"_comment": "IMPLEMENTS: ..."` key, no `#` line in a JSON file, no header row in a CSV. That changes the data, and every consumer of that data becomes your problem. The validator does not scan these files either, so a header smuggled into one satisfies nothing — it only corrupts the data.
 4. `.jsonc`, `.json5` and `.yaml` **do** support comments — tag them normally.
 5. `.ipynb` is JSON on disk but a cell's source is text: put the header at the top of the **first code cell**. Never hand-edit the notebook JSON.
 

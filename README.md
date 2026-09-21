@@ -19,7 +19,7 @@ bin/install.sh --uninstall --tools all        # remove sdlc-* skills from all ta
 bin/install.sh --dry-run --tools cursor       # preview without changing anything
 ```
 
-Portable bash (works on macOS's bash 3.2) and replaces any prior copy of each skill. It only ever removes the skills this repo ships plus the ones it used to ship (`sdlc-requirements`, `sdlc-architect`, `sdlc-document`, `sdlc-migrate`) — your own skill in the same directory is left alone and reported as kept, whether it is called `my-skill` or `sdlc-deploy`.
+Portable bash (works on macOS's bash 3.2) and replaces any prior copy of each skill. It also removes this repo's skills from directories an earlier version installed to (`~/.opencode/skills`, `~/.github/skills`, `~/.cursor/skills`), so an upgrade leaves one copy rather than two — pass `--keep-legacy` to leave them alone. It only ever removes the skills this repo ships plus the ones it used to ship (`sdlc-requirements`, `sdlc-architect`, `sdlc-document`, `sdlc-migrate`) — your own skill in the same directory is left alone and reported as kept, whether it is called `my-skill` or `sdlc-deploy`.
 
 ### Upgrading from an earlier version
 
@@ -43,6 +43,12 @@ This release makes the traceability gate enforce what it always claimed. Three r
 Every one of those errors names the file, the rule, and the fix, and says which `.sdlc/config.json` key relaxes it. If your project's test files are somewhere the built-in conventions do not recognise, declare it in `.sdlc/config.json` (`layout.test_directory_names`, `layout.test_stem_patterns`, `layout.test_overrides`) rather than re-tagging.
 
 A project with no test files will now fail, which is the point: it used to pass.
+
+**The ramp, if you cannot fix it all at once.** `--relax-tag-roles` (or `"gate": {"enforce_tag_roles": false}` in `.sdlc/config.json`) restores the old leniency for the role rule only: a tag counts wherever it sits, and a misplaced one is a WARNING that still names the file to move it to. The comment rule stays on, so a string literal never counts again. Every run then reports `gate-relaxed` as a WARNING — visible in the report, and non-zero under `--strict` — so the ramp cannot quietly become the setting.
+
+```bash
+python3 .sdlc/tools/sdlc-validate.py --relax-tag-roles   # green build, full worklist
+```
 
 Then, **per project** that was set up by an older version — always `/sdlc-init` first, then `/sdlc-adopt`:
 

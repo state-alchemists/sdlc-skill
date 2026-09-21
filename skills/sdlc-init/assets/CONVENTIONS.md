@@ -62,9 +62,11 @@ The validator classifies every file it scans as **source**, **test**, or **docum
 | `COVERS:` | a **test** file | a requirement is covered by a test that runs |
 | any tag | inside a **real comment** | a string literal, a line of prose, or a `.txt` file is not a claim |
 
-Documentation (`.md`, `.rst`, `.adoc`, ...) is never scanned — a README that shows the tag format is teaching it, not claiming coverage.
+Two kinds of file are never scanned at all. Documentation (`.md`, `.rst`, `.adoc`, ...) shows the tag format rather than claiming coverage — a README teaching it is not a claim. Prose and data (`.txt`, `.log`, `.csv`, `.tsv`, `.json`, ...) implement nothing, so a `#`-prefixed line in one is not a header either; `.jsonc`, `.json5` and `.yaml` are configuration that really does carry comments, and are scanned normally.
 
-**Test files are recognised by path components and filename stems, never by substring**: a `tests`/`test`/`spec`/`__tests__` directory, a `src/test/` or `src/it/` path fragment, or a stem like `test_*`, `*_test`, `*_spec`, `*.test`, `*.spec`, `*Test`, `*Tests`. That covers Python, Go's colocated `*_test.go`, Maven's `src/test/java`, Jest's `*.test.ts` and `__tests__/`, RSpec's `spec/`, .NET's `*Tests.cs` and monorepo nesting — and it leaves `src/contest/models.py` and `src/latest_prices.py` as source, which substring matching would not.
+A **comment is what the file's own syntax says it is**, not anything that looks like one. A Python docstring is a string, which is why `.sdlc/ANNOTATION.md` puts the `#` header *after* the module docstring rather than inside it.
+
+**Test files are recognised by path components and filename stems, never by substring**: a `tests`/`test`/`spec`/`__tests__`/`e2e`/`cypress` directory, a `src/test/`, `src/it/` or `src/integrationTest/` path fragment, or a stem like `test_*`, `*_test`, `*_spec`, `*.test`, `*.spec`, `*.cy`, `*Test`, `*Tests`, `*IT`. That covers Python, Go's colocated `*_test.go`, Maven's `src/test/java` and Failsafe's `*IT.java`, Jest's `*.test.ts` and `__tests__/`, RSpec's `spec/`, Cypress's `cypress/e2e/*.cy.ts`, Playwright, .NET's `*Tests.cs`, Gradle's `src/integrationTest/` and monorepo nesting — and it leaves `src/contest/models.py` and `src/latest_prices.py` as source, which substring matching would not. `features/` is deliberately *not* a default: `src/features/` is a component directory far more often than it is a Cucumber suite. Declare it in `test_directory_names` if yours is one.
 
 Everything above is a **default**, not a requirement. `.sdlc/config.json` overrides it; the file is optional, and a project without one validates on the defaults. Every list **extends** the built-in list rather than replacing it, so the file stays short and keeps working when the defaults grow.
 
@@ -79,6 +81,7 @@ Everything above is a **default**, not a requirement. `.sdlc/config.json` overri
   },
   "headings": { "test_plan": ["Rencana Pengujian"], "outside_code": [] },
   "comments": { ".myext": { "line": ["#"], "block": [["/*", "*/"]] } },
+  "gate": { "enforce_tag_roles": true },
   "scan": {
     "skip_directories": ["generated"],
     "scan_directories": ["build"],
@@ -91,7 +94,8 @@ Everything above is a **default**, not a requirement. `.sdlc/config.json` overri
 - `scan_directories` removes a name from the skip list — a project whose real code lives under `build/` needs it.
 - `headings` names a renamed or translated `## Test Plan` / `## NFRs Validated Outside Code` heading. The built-in match already accepts `Tests`, `Test Cases`, `Test Design`, `Testing` and common rewordings of the exemption heading; declare anything else here.
 - `comments` teaches the validator a file extension it does not know. An unknown extension falls back to a generous set of line-comment leaders rather than losing its tags.
-- A malformed `config.json` is an **ERROR** naming the key. Silently ignoring a layout declaration would report a project's real tags as missing.
+- `gate.enforce_tag_roles` is the **migration ramp**, and the only switch that weakens a check. Setting it to `false` — or passing `--relax-tag-roles` — makes a tag count wherever it sits and drops a misplaced one to a WARNING, which is how the validator behaved before this rule existed. Every run then reports `gate-relaxed` as a WARNING, so it is visible in the report and non-zero under `--strict`: it is a ramp for the first pass over an existing project, not a setting. The misplaced tags are still listed, so the worklist survives.
+- A malformed `config.json` is an **ERROR** naming the key. Silently ignoring a layout declaration would report a project's real tags as missing, and a `gate` value that is not `true`/`false` is an error rather than a silent "off".
 
 ## Feature slugs
 A feature directory name is the slug of the feature: lowercase; spaces/underscores to `-`; drop characters outside `[a-z0-9-]`; collapse repeated `-`; trim leading/trailing `-`. Slugs are stable — never rename once code references `.sdlc/specs/<slug>/`.

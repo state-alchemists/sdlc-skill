@@ -11,6 +11,9 @@
     "outside_code": []
   },
   "comments": {},
+  "gate": {
+    "enforce_tag_roles": true
+  },
   "scan": {
     "skip_directories": [],
     "scan_directories": [],
