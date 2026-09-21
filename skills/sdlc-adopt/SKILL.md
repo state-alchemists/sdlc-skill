@@ -27,6 +27,7 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 ## Before you start
 
 - **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
+- **Annotation reference**: read `.sdlc/ANNOTATION.md` before Mode C — comment syntax and header placement per language, and the policy for files that cannot carry a comment.
 - **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.
 - **Preserve history**: `git mv` in a git repo; `mkdir -p` + `mv` outside one. Never copy-and-leave-the-original.
 - **Never rewrite meaning in Mode A**: it relocates files and mechanically re-keys tags. Restating requirements is Mode B's job.
@@ -42,17 +43,20 @@ Read-only. List, only where they exist: the repo root, `docs/`, `docs/adr/`, `re
 
 ### 1a. Is this an SDLC project at all?
 
-**Classify by content, never by directory name.** A `docs/` directory is not evidence of anything — most projects have one. Treat artifacts as SDLC-legacy only when the *files* match, **exactly and case-sensitively**:
+**Classify by content, never by directory name.** A `docs/` directory is not evidence of anything — most projects have one.
 
-| Signal | Evidence required |
-|--------|-------------------|
-| Legacy steering docs | `docs/` contains `product.md`, `tech.md`, `test-strategy.md` or `architecture.md` |
-| Legacy ADRs | `docs/adr/` contains `ADR-*.md` |
-| Legacy specs | `specs/<slug>/` contains `spec.md`, or `requirements.md` + `design.md` |
-| Legacy rules | `rules.md` at the repo root |
-| Prior SDLC use | Any `@sdlc`, `IMPLEMENTS:` or `COVERS:` tag anywhere |
+<!-- legacy-detection:start -->
+A project is on the **legacy SDLC layout** when either of these holds:
 
-Case matters, and this is where the check usually goes wrong. `ARCHITECTURE.md`, `DESIGN.md` or `README.md` are a project's *own* documents; `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — do not count it, and do not "helpfully" treat a project's `ARCHITECTURE.md` as a mis-capitalised SDLC artifact. Likewise `docs/adr/0007-some-title.md` is not `docs/adr/ADR-0007-some-title.md`.
+1. **A conclusive marker exists** — `docs/adr/ADR-*.md`; a root `rules.md` containing `RULE-`; `specs/<slug>/spec.md` (or `requirements.md` + `design.md`); `requirements/problem-brief.md` or `requirements/entity-dictionary.md`; or `docs/product.md`, `docs/tech.md` or `docs/test-strategy.md` — names this project writes and almost nothing else does.
+2. **A weak marker exists and its own text cross-references the scheme** — `docs/architecture.md` containing `.sdlc/`, `ADR-<n>`, `RULE-<n>`, `US-<n>`, `AC-<n>`, `NFR-<n>` or `Feature Key`.
+
+**`docs/architecture.md` on its own is not evidence.** MkDocs, Docusaurus and Diátaxis all emit that filename by default; far more projects have one than have ever run `/sdlc-init`. Treating it as a marker made `/sdlc-init` refuse to write steering documents on projects that had never used these skills.
+
+Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — and the near-miss that bites is the lowercase collision, not the uppercase one.
+<!-- legacy-detection:end -->
+
+Any `@sdlc`, `IMPLEMENTS:` or `COVERS:` tag anywhere is also conclusive — it is prior SDLC use by definition. And `docs/adr/0007-some-title.md` is not `docs/adr/ADR-0007-some-title.md`: do not "helpfully" treat a project's own `ARCHITECTURE.md` or `DESIGN.md` as a mis-capitalised SDLC artifact.
 
 If none match, the project **has never used these skills**. Mode A has nothing to migrate — say so plainly and do not propose moving anything. A project's own `docs/` belongs to that project. Moving it produces a `.sdlc/` that advertises an adoption that did not happen, which is worse than leaving it alone. Go to Mode B and C only.
 
@@ -83,6 +87,8 @@ Present **one** plan covering every mode that will run. Nothing is written befor
 ### 2a. What changes
 
 A table with one row per file or group, and an **Effect** column stating what breaks or improves. Never just list paths — a path list is not informed consent.
+
+*(example — the paths below are illustrative; yours come from the project's own layout)*
 
 ```
 MODE A — Layout                                          Risk
@@ -132,7 +138,7 @@ Accept a partial approval and run only the approved modes. If the user declines,
 3. Remove now-empty legacy directories.
 4. **Fold test plans, unless `CONVENTIONS.md` keeps them separate** — then skip this step; the validator may cross-reference `UT-*`/`IT-*`/`E2E-*` IDs against that standalone file, and folding breaks it. Otherwise: append each `test-plan.md` to its feature's `spec.md` under `## Test Plan`, demoting its headings one level (`## Unit Tests` → `### Unit Tests`). Keep every ID verbatim — `COVERS:` headers reference them. Then `git rm` the old file.
 5. **Repoint every reference**, including the non-markdown ones from the risk register. Re-grep after the move to prove none remain.
-6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first. Default to the uppercased slug, but only when that is a valid key (`[A-Z][A-Z0-9_-]*`) — a slug starting with a digit (`2fa` → `2FA`) is not one, and a tag built from it cannot be parsed, so choose a real key (`TWOFA`) and say why. Then across `src/` and `tests/`: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
+6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first. Default to the uppercased slug, but only when that is a valid key (`[A-Z][A-Z0-9_-]*`) — a slug starting with a digit (`2fa` → `2FA`) is not one, and a tag built from it cannot be parsed, so choose a real key (`TWOFA`) and say why. Then across every tracked file (`git grep -l`), skipping anything vendored or generated: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
 
 Every scripted edit asserts its anchor before writing — a blind `str.replace` that matches nothing fails silently and reports success. Before starting Mode B or C, re-run `.sdlc/tools/sdlc-validate.py`: Mode A restructures the files the validator cross-references, so a regression is cheap to catch here and expensive to catch at Phase 4, after later modes have built on top of it.
 
@@ -224,9 +230,9 @@ Using the `file:line` map from B3, emit exactly the three forms the validator pa
 def validate_login(...): ...
 ```
 
-Use the file's own comment syntax. Place file headers after any shebang, encoding line, or licence block, and after the module docstring — never above it.
+Follow `.sdlc/ANNOTATION.md` for comment syntax and header placement. It is the shared rule, and it covers the cases these three Python examples do not — PHP, CSS, XML, single-file components, formats with no comment syntax, and generated files.
 
-**`SPEC:`, not `GENERATED FROM SPEC:`.** `/sdlc-implement` writes the latter because it generated that file. This code was not generated from the spec; the spec was derived from it. The validator parses neither line, so nothing is lost, and the header stays true. If the user prefers uniformity, ask — do not decide it silently.
+**Never annotate a file you do not own.** Before touching any file, apply the exclusion test in `.sdlc/ANNOTATION.md`: the vendored and generated globs in `.sdlc/config.json`, the standard vendor directories, a `DO NOT EDIT` / `@generated` / `Code generated by` marker in the first five lines, or `linguist-generated` in `.gitattributes`. A header on a generated file is wiped by the next regeneration and the validator then reports the requirement as untraced. Tag the generator's input or the hand-written wrapper instead. **Count and list every file you skipped, and repeat that list in the Phase 4 report** — a silent skip looks identical to a missed file.
 
 Every `REQ-*` and `NFR-*` must land in at least one source header and one test header, or the validator errors. For an NFR under "NFRs Validated Outside Code", emit no tag — the validator exempts it, and a fake `IMPLEMENTS:` line is a lie it cannot catch.
 
@@ -309,4 +315,4 @@ After delivering this message, end your turn.
 | (moved artifacts) | `.sdlc/…` | Relocated steering docs, ADRs, requirements, specs, reviews |
 | `spec.md` | `.sdlc/specs/<slug>/` | Test plan folded in where Mode A's fold applies, or reverse-engineered (Mode B) |
 | `drift-report-{ts}.md` | `.sdlc/specs/<slug>/` | Diff against the prior spec, when one existed |
-| (annotated sources) | `src/`, `tests/` | `SPEC:` / `IMPLEMENTS:` / `COVERS:` / `@sdlc` / `@sdlc-adr` |
+| (annotated sources) | the project's source and test roots | `SPEC:` / `IMPLEMENTS:` / `COVERS:` / `@sdlc` / `@sdlc-adr` |

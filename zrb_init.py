@@ -9,9 +9,7 @@ _PYTHON = sys.executable
 
 # SKILL =======================================================================
 
-skill_group = cli.add_group(
-    Group(name="skill", description="🧩 Skill maintenance")
-)
+skill_group = cli.add_group(Group(name="skill", description="🧩 Skill maintenance"))
 
 # Lint the eval cases and byte-compile the bundled scripts. There is nothing to
 # sync: the validator and the templates exist once, under
@@ -19,15 +17,18 @@ skill_group = cli.add_group(
 test_skills = skill_group.add_task(
     CmdTask(
         name="test-skills",
-        description="Compile scripts, run validator tests, lint eval cases",
+        description="Compile scripts, run validator and prompt tests, lint eval cases",
         cwd=_DIR,
-        cmd=" && ".join([
-            f"{_PYTHON} -m py_compile"
-            " skills/sdlc-init/assets/tools/sdlc-validate.py"
-            " evals/run.py tests/test_sdlc_validate.py zrb_init.py",
-            f"{_PYTHON} tests/test_sdlc_validate.py",
-            f"{_PYTHON} evals/run.py",
-        ]),
+        # Discovery rather than a file list, so a new or moved script is
+        # covered without editing this and its twin in .github/workflows/ci.yml.
+        cmd=" && ".join(
+            [
+                f"{_PYTHON} -m compileall -q skills evals tests zrb_init.py",
+                f"{_PYTHON} tests/test_sdlc_validate.py",
+                f"{_PYTHON} tests/test_skill_prompts.py",
+                f"{_PYTHON} evals/run.py",
+            ]
+        ),
     ),
     alias="test",
 )

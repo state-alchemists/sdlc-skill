@@ -14,20 +14,64 @@ jobs:
         with:
           python-version: '3.8'   # the floor the validator promises
 
+      # Discovery rather than a file list, so a new or moved script is covered
+      # without editing this job and its twin in zrb_init.py.
       - name: Compile bundled scripts
-        run: >
-          python3 -m py_compile
-          skills/sdlc-init/assets/tools/sdlc-validate.py
-          evals/run.py tests/test_sdlc_validate.py zrb_init.py
+        run: python3 -m compileall -q skills evals tests zrb_init.py
 
       - name: Validator regression tests
         run: python3 tests/test_sdlc_validate.py
+
+      - name: Prompt invariants
+        run: python3 tests/test_skill_prompts.py
 
       - name: Lint eval cases
         run: python3 evals/run.py
 
       - name: Installer dry-run
         run: bin/install.sh --dry-run --tools claude
+
+      # Pins the skills directories checked against each tool's own docs, and
+      # Cursor's absence: it loads skills per project, so a $HOME target
+      # installs nothing it reads. Matched against the Target lines alone —
+      # a superseded path is named too, as somewhere to sweep, not to install.
+      - name: Installer targets the documented skills directories
+        run: |
+          set -euo pipefail
+          targets="$(bin/install.sh --dry-run --tools all \
+                     | sed -n 's/^\[install.sh\] Target: //p')"
+          for path in .claude/skills .zrb/skills .agents/skills .codex/skills \
+                      .gemini/skills .copilot/skills .config/opencode/skills; do
+            echo "$targets" | grep -q "$path" || { echo "missing: $path"; exit 1; }
+          done
+          ! echo "$targets" | grep -qE '\.github/skills|\.cursor/skills'
+
+      # An upgrade must not leave a second copy of every skill at the path the
+      # previous version installed to: a tool reading both has no way to tell
+      # which is current.
+      - name: Installer sweeps a superseded skills directory
+        run: |
+          set -euo pipefail
+          export HOME="$(mktemp -d)"
+          mkdir -p "$HOME/.opencode/skills/sdlc-plan" \
+                   "$HOME/.opencode/skills/sdlc-requirements" \
+                   "$HOME/.opencode/skills/my-own-skill" \
+                   "$HOME/.opencode/skills/sdlc-deploy"
+          bin/install.sh --tools opencode > /dev/null
+          test -d "$HOME/.config/opencode/skills/sdlc-plan"
+          test ! -d "$HOME/.opencode/skills/sdlc-plan" \
+            || { echo "a stale copy was left at the superseded path"; exit 1; }
+          test ! -d "$HOME/.opencode/skills/sdlc-requirements" \
+            || { echo "a merged-away skill was left at the superseded path"; exit 1; }
+          test -d "$HOME/.opencode/skills/my-own-skill" \
+            || { echo "the sweep removed a skill that is not ours"; exit 1; }
+          test -d "$HOME/.opencode/skills/sdlc-deploy" \
+            || { echo "the sweep removed a user's own sdlc-* skill"; exit 1; }
+          bin/install.sh --tools opencode --keep-legacy > /dev/null
+          mkdir -p "$HOME/.opencode/skills/sdlc-plan"
+          bin/install.sh --tools opencode --keep-legacy > /dev/null
+          test -d "$HOME/.opencode/skills/sdlc-plan" \
+            || { echo "--keep-legacy still swept the superseded path"; exit 1; }
 
       - name: Installer project-scoped target
         run: bin/install.sh --dry-run --dir .claude/skills
