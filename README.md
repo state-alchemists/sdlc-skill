@@ -50,16 +50,17 @@ A project with no test files will now fail, which is the point: it used to pass.
 python3 .sdlc/tools/sdlc-validate.py --relax-tag-roles   # green build, full worklist
 ```
 
-Then, **per project** that was set up by an older version — always `/sdlc-init` first, then `/sdlc-adopt`:
+Then, **per project** that was set up by an older version — `/sdlc-init` first, then `/sdlc-adopt`:
 
 ```
 /sdlc-init     # refreshes the validator, installs .sdlc/templates/, keeps your documents
-/sdlc-adopt    # folds .sdlc/tests/<slug>/test-plan.md into each spec.md, re-keys tags
+/sdlc-adopt    # relocates legacy artifacts, folds test plans, re-keys tags,
+               # then derives any steering document or rules.md you are missing
 ```
 
 `/sdlc-init` never overwrites a template you have edited, always refreshes `.sdlc/tools/sdlc-validate.py` (an old copy carries fixed bugs), and shows a diff before replacing `.sdlc/CONVENTIONS.md`.
 
-**The order is always `/sdlc-init` → `/sdlc-adopt`**, on every kind of project. `/sdlc-adopt` fills a structure rather than creating one, so it needs the templates and validator that `/sdlc-init` installs. On a project still using the legacy layout, `/sdlc-init` installs that scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`. Re-run `/sdlc-init` afterwards to fill the gaps.
+**The order is always `/sdlc-init` → `/sdlc-adopt`, and `/sdlc-adopt` is the last command.** `/sdlc-adopt` fills a structure rather than creating one, so it needs the templates and validator that `/sdlc-init` installs. On a project still using the legacy layout, `/sdlc-init` installs that scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`, which relocates the documents and then completes the setup. A project can end up adopted with no `.sdlc/rules.md`, and every later skill reads that file, so `/sdlc-adopt` treats an absent constitution as unfinished work rather than a clean run.
 
 Manual install is the same pattern for any tool — copy the skill directories into `<dotdir>/skills/`:
 
@@ -203,7 +204,7 @@ Specs are snapshots. When code changes outside the pipeline: `/sdlc-adopt` (docu
 
 ### F: Project From an Earlier Version of These Skills
 
-`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, and re-keys tags, preserving git history. Re-run `/sdlc-init` to fill any remaining gaps.
+`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, re-keys tags, and completes the setup by deriving any steering document or `rules.md` that is missing, preserving git history throughout.
 
 ---
 
