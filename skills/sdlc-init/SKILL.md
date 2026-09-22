@@ -68,7 +68,17 @@ If the bundled files are unreachable from your runtime, say so and link the user
 **Legacy Transition** (legacy-layout path only — deliver this instead of the Phase Transition, then end your turn):
 
 > Scaffolding installed: `.sdlc/CONVENTIONS.md`, `.sdlc/templates/`, `.sdlc/tools/sdlc-validate.py`. Your SDLC artifacts are still at the legacy paths, so I have not written steering documents — they would sit in a parallel tree.
-> To continue: exit this chat, start a fresh session, and run `/sdlc-adopt` to consolidate under `.sdlc/`. Then re-run `/sdlc-init` to fill any gaps.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff), naming the markers that triggered the legacy path:
+
+```
+Next, in a fresh session, in this order:
+
+  [ ] /sdlc-adopt      consolidate <the legacy paths you found> under .sdlc/
+  [ ] /sdlc-init       re-run after adopt to fill any steering gaps
+```
+
+Order matters — adopt needs the scaffolding this run installed, and init's second pass fills what adopt could not relocate.
 
 ### Phase 3a: Greenfield Interview
 
@@ -143,7 +153,16 @@ Fixing the tags is the goal; the ramp only decides whether the build blocks whil
 ## Phase Transition
 
 > Project setup is complete: `.sdlc/docs/`, `AGENTS.md`, `.sdlc/rules.md`, `.sdlc/CONVENTIONS.md`, templates in `.sdlc/templates/`, and the validator at `.sdlc/tools/sdlc-validate.py`. Edit anything in `.sdlc/templates/` to change the shape of what later skills generate.
-> To continue: exit this chat, start a fresh session, and run `/sdlc-plan`.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff):
+
+```
+Next, in a fresh session:
+
+  [ ] /sdlc-plan       elicit the problem brief, entities, ADRs and architecture
+```
+
+`/sdlc-plan` is single-writer and must run before any spec exists — there is no parallel work available yet. Say that rather than implying otherwise. If Phase 6 offered the CI gate and the user has not added it, add that as an unchecked item too.
 
 After delivering this message, end your turn.
 

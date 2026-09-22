@@ -87,8 +87,15 @@ On approval, update `.sdlc/specs/<slug>/spec.md`:
 ## Phase Transition
 
 > Quickfix applied for `<slug>`: delta at `.sdlc/specs/<slug>/quickfix-<ts>.md`, code and tests updated, suite passing, {promoted into spec.md / kept standalone}.
-> - If the quickfix uncovered a deeper design issue, start a fresh session and run `/sdlc-spec <slug>` to regenerate the spec.
-> - Otherwise the change is complete and ready for PR.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff). A quickfix is usually complete in itself, so the common block has one item:
+
+```
+Next:
+  [ ] open the PR for <slug>            the change is complete
+```
+
+Offer an alternative only when the work justified it: if the fix uncovered a deeper design issue, `/sdlc-spec <slug>` to regenerate the spec; if a test was added or changed, `/sdlc-review <slug>` to verify it against the spec. Do not list both unconditionally — name the one the work actually calls for.
 
 After delivering this message, end your turn.
 

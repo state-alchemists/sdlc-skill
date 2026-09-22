@@ -291,13 +291,21 @@ State what is still unadopted and name it. Adoption is complete when every featu
 > {The before/after table.}
 >
 > Still unadopted: {list, or "nothing in scope"}.
->
-> Remaining work, each in a fresh session:
-> - {If scaffolding was missing:} Run `/sdlc-init`, then re-run `/sdlc-adopt`.
-> - {If no problem brief exists:} Run `/sdlc-plan` — a documented spec has no `AC-*` to cite until the brief exists.
-> - {If scope was partial:} Run `/sdlc-adopt` on `<next subsystem>`.
-> - {If deprecated EARS remains:} `/sdlc-quickfix <slug>` to restate specific requirements.
-> - {If code drifted in ways to undo rather than absorb:} `/sdlc-quickfix <slug>` to close the gap in the code instead.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff), turning whichever of these apply into checked-off items. Include only those the survey actually found — an adopted project with a problem brief, complete scope and current EARS has nothing to list, and should say so rather than emit an empty block.
+
+```
+Remaining work, in a fresh session:
+
+  [ ] /sdlc-init                    {only if scaffolding was missing; then re-run adopt}
+  [ ] /sdlc-plan                    {only if no problem brief exists — a documented
+                                     spec has no AC-* to cite until it does}
+  [ ] /sdlc-adopt <next-subsystem>  {only if scope was partial; name the subsystem}
+  [ ] /sdlc-quickfix <slug>         {only if deprecated EARS remains, or code drifted
+                                     in ways to undo rather than absorb — say which}
+```
+
+Add `/sdlc-spec <slug>` for any feature the survey found with source but no spec, since that is then a real next step. When two or more features lack specs, say they may be specified in parallel.
 
 After delivering this message, end your turn.
 
