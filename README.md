@@ -207,7 +207,15 @@ Specs are snapshots. When code changes outside the pipeline: `/sdlc-adopt` (docu
 
 ### F: Project From an Earlier Version of These Skills
 
-`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, re-keys tags, and completes the setup by deriving any steering document or `rules.md` that is missing, preserving git history throughout.
+**The trigger is where the artifacts are, not how old the project is.** An older project whose files already sit under `.sdlc/` needs one command; one still using the legacy layout needs two.
+
+| Project state | Run | What happens |
+|---|---|---|
+| Artifacts under `.sdlc/`, missing `rules.md` or a steering document | `/sdlc-init` | Treated as brownfield: refreshes the validator, keeps your documents, fills the gap. `/sdlc-adopt` is **not** needed — there is nothing to relocate. |
+| Artifacts at legacy paths (`docs/adr/`, root `rules.md`, `specs/`) | `/sdlc-init` → `/sdlc-adopt` | `/sdlc-init` installs scaffolding and stops, because writing steering documents beside your legacy ones would form a parallel tree. `/sdlc-adopt` relocates them and then completes the setup. |
+| Mixed — some under `.sdlc/`, some not | `/sdlc-init` → `/sdlc-adopt` | One legacy marker is enough. `/sdlc-adopt` relocates only the leftovers, then completes the setup. |
+
+`/sdlc-adopt` completes setup by running `/sdlc-init`'s own Phase 3b–5 against the relocated tree — the steps are defined once, in `/sdlc-init`, and not duplicated.
 
 ---
 

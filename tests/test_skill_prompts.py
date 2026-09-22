@@ -242,6 +242,34 @@ def case_adopt_is_the_last_command_of_the_legacy_journey():
         "sdlc-adopt's description omits completing setup, so the skill looks "
         "like a relocation tool"
     )
+    # 6. The setup steps live in exactly one file. Restating /sdlc-init's
+    #    Phase 3b-5 body inside sdlc-adopt is how the two copies start, and the
+    #    copy that goes stale is whichever one the model reads second. Adopt may
+    #    *name* what it defers to -- it names the phases and the sentinel -- but
+    #    it must not reproduce the instruction bodies themselves.
+    assert (
+        "Phase 3b" in adopt_text and "Phase 5" in adopt_text
+    ), "sdlc-adopt's setup tail no longer names the /sdlc-init phases it runs"
+    restated = [
+        "Templates come from `.sdlc/templates/`",
+        "Read the template, fill its `{{placeholders}}`",
+        "Re-read the freshly written steering documents first",
+        "Rules describe what must **always** be true and **never** happen",
+    ]
+    found = [s for s in restated if s in adopt_text.split("## Mode B")[0]]
+    assert not found, (
+        "sdlc-adopt restates /sdlc-init's setup instructions (%s) instead of deferring to that skill"
+        % found
+    )
+    # 7. /sdlc-init stops only where the parallel-tree hazard is live. A project
+    #    already under .sdlc/ has no hazard, and sending it to /sdlc-adopt makes
+    #    it run a relocation with nothing to relocate.
+    init_branches = init_text.split("### Phase 2")[0]
+    assert "already under `.sdlc/`" in init_branches, (
+        "sdlc-init has no branch for a project whose artifacts are already at "
+        "the canonical paths, so such a project is stopped and sent to "
+        "/sdlc-adopt for a relocation it does not need"
+    )
 
 
 def case_every_skill_reads_the_conventions():
