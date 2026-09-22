@@ -43,6 +43,7 @@ def main():
         case_legacy_detection_rule_is_identical_everywhere,
         case_every_skill_reads_the_conventions,
         case_every_transition_is_an_action_block,
+        case_adopt_is_the_last_command_of_the_legacy_journey,
         case_writing_skills_read_the_annotation_reference,
         case_templates_ask_for_a_date_not_a_date_format,
         case_shipped_config_is_valid_json,
@@ -165,6 +166,62 @@ def case_legacy_detection_rule_is_identical_everywhere():
     ), "the legacy-detection blocks have drifted apart: %s" % ", ".join(
         os.path.relpath(path, REPOSITORY_ROOT) for path in paths
     )
+
+
+def case_adopt_is_the_last_command_of_the_legacy_journey():
+    """A legacy project needs `/sdlc-init` then `/sdlc-adopt`, and must not be
+    sent back to `/sdlc-init` a third time.
+
+    `/sdlc-init` cannot finish setup on a legacy layout -- writing
+    `.sdlc/docs/product.md` beside the project's own `docs/product.md` would
+    create a parallel tree -- so it installs scaffolding and stops. The obvious
+    fix was a second `/sdlc-init` afterwards, which is what the docs said, and
+    it was wrong: it sent the user back to a skill whose legacy branch stops
+    again for the same reason. `/sdlc-adopt` relocates the documents, and once
+    they are under `.sdlc/` the parallel-tree objection is gone, so adopt is
+    where setup finishes.
+
+    Three things have to stay true together, and drifting any one of them
+    restores the three-command journey silently.
+    """
+    init_text = read_text(get_skill_path("sdlc-init"))
+    adopt_text = read_text(get_skill_path("sdlc-adopt"))
+
+    # 1. init's action block no longer lists a second init.
+    #    Assert on the block itself, not the whole file: the file legitimately
+    #    says "do not tell the user to re-run /sdlc-init", and a substring check
+    #    cannot tell a prohibition from an instruction.
+    blocks = re.findall(r"```\n(Next, in a fresh session:.*?)\n```", init_text, re.S)
+    assert blocks, "sdlc-init's legacy path carries no action block"
+    for block in blocks:
+        assert "/sdlc-init" not in block, (
+            "sdlc-init's action block sends the user back to /sdlc-init, so "
+            "setup needs three commands instead of two"
+        )
+    # 2. init still refuses to write steering documents on the legacy path,
+    #    and the reason is on the branch that acts on it. Checking the phrase
+    #    anywhere in the file is too weak: "parallel tree" also appears in the
+    #    transition message, so deleting the reason from the branch still left
+    #    the case green.
+    branch = [
+        line
+        for line in init_text.splitlines()
+        if line.lstrip().startswith("- **Legacy layout confirmed**")
+    ]
+    assert len(branch) == 1, "sdlc-init's legacy branch is missing or duplicated"
+    assert "parallel tree" in branch[0], (
+        "sdlc-init's legacy branch stopped explaining why it writes no steering "
+        "documents; without that the early stop looks like a bug to fix"
+    )
+    # 3. adopt completes setup rather than only filling a structure.
+    completion_markers = "Mode A tail"
+    assert completion_markers in adopt_text, (
+        "sdlc-adopt no longer carries the setup-completion step, so a legacy "
+        "project ends up adopted with no rules.md"
+    )
+    assert (
+        ".sdlc/rules.md" in adopt_text
+    ), "sdlc-adopt never mentions the constitution it is supposed to derive"
 
 
 def case_every_skill_reads_the_conventions():

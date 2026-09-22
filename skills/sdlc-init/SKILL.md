@@ -72,13 +72,13 @@ If the bundled files are unreachable from your runtime, say so and link the user
 Then deliver the action block (see CONVENTIONS.md § Session handoff), naming the markers that triggered the legacy path:
 
 ```
-Next, in a fresh session, in this order:
+Next, in a fresh session:
 
-  [ ] /sdlc-adopt      consolidate <the legacy paths you found> under .sdlc/
-  [ ] /sdlc-init       re-run after adopt to fill any steering gaps
+  [ ] /sdlc-adopt      relocates <the legacy paths you found> under .sdlc/,
+                       then completes setup — steering documents and rules.md
 ```
 
-Order matters — adopt needs the scaffolding this run installed, and init's second pass fills what adopt could not relocate.
+`/sdlc-adopt` is the last command in this sequence. It relocates your artifacts and then derives any steering document or rule that is missing, including `rules.md`, which is constitution and may not exist on a project that predates it. Do not tell the user to re-run `/sdlc-init` afterwards; saying so sends them back here for work adopt has already been given.
 
 ### Phase 3a: Greenfield Interview
 

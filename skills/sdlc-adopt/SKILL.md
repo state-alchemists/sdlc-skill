@@ -27,6 +27,7 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 ## Before you start
 
 - **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
+- **Completing setup, not just filling structure.** Adoption is not finished when the files have moved — it is finished when the project has the steering documents and constitution every later skill reads. Mode A's tail covers this. The distinction that decides who finishes the job: a project with **no scaffolding at all** needs `/sdlc-init` first (it creates the structure); a project with **scaffolding but incomplete setup** is this skill's job, and routing that user back to `/sdlc-init` would strand them.
 - **Annotation reference**: read `.sdlc/ANNOTATION.md` before Mode C — comment syntax and header placement per language, and the policy for files that cannot carry a comment.
 - **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.
 - **Preserve history**: `git mv` in a git repo; `mkdir -p` + `mv` outside one. Never copy-and-leave-the-original.
@@ -73,7 +74,8 @@ If none match, the project **has never used these skills**. Mode A has nothing t
 | Infra or SQL repo — `.tf`, k8s YAML, migrations — with no loader to tag | Mode B, then C on the manifests themselves |
 | Spec exists, but its code carries no `IMPLEMENTS:`/`COVERS:` | Mode C |
 | ADRs exist, but no code cites them | Mode C (optional — ask) |
-| Everything already under `.sdlc/`, test plans complete (folded into `spec.md`, or standalone where `CONVENTIONS.md` says so), tags keyed and complete | Nothing — report and stop |
+| `.sdlc/rules.md` absent, or `.sdlc/docs/{product,tech,test-strategy}.md` or root `AGENTS.md` absent | Mode A tail (Complete Setup) |
+| Everything already under `.sdlc/`, test plans complete (folded into `spec.md`, or standalone where `CONVENTIONS.md` says so), tags keyed and complete, steering documents and `rules.md` present | Nothing — report and stop |
 
 ### 1c. Measure the starting point
 
@@ -142,6 +144,36 @@ Accept a partial approval and run only the approved modes. If the user declines,
 6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first. Default to the uppercased slug, but only when that is a valid key (`[A-Z][A-Z0-9_-]*`) — a slug starting with a digit (`2fa` → `2FA`) is not one, and a tag built from it cannot be parsed, so choose a real key (`TWOFA`) and say why. Then across every tracked file (`git grep -l`), skipping anything vendored or generated: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
 
 Every scripted edit asserts its anchor before writing — a blind `str.replace` that matches nothing fails silently and reports success. Before starting Mode B or C, re-run `.sdlc/tools/sdlc-validate.py`: Mode A restructures the files the validator cross-references, so a regression is cheap to catch here and expensive to catch at Phase 4, after later modes have built on top of it.
+
+---
+
+## Mode A tail — Complete Setup
+
+Run this at the end of Mode A, **before** Mode B or C, and only when step 7 below finds a gap.
+
+Relocation puts the artifacts where the skills expect them; it does not finish the setup. `.sdlc/rules.md`, `.sdlc/docs/{product,tech,test-strategy}.md` and root `AGENTS.md` are what every later skill reads, and on a legacy project `/sdlc-init` could not write them — it would have put them beside the user's own documents, a parallel tree. With the documents now relocated, that objection is gone and the work is ordinary.
+
+7. **Detect the gap.** For each of `.sdlc/rules.md`, `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md` and `AGENTS.md`: present or absent. A relocated document is present and needs no more than a gap-fill.
+
+   If all five are present, say so and skip to Mode B. Most projects that ran a pre-`.sdlc/` version of these skills will have `docs/product.md` and friends but **no `rules.md`** — constitution was a later addition, so this is the common case.
+
+8. **Ask once, at the end of Mode A — not in the Phase 2 plan.** The layout is now real, so the user can see what is missing:
+
+   > Layout is done. Missing: {list}. Derive these now from the relocated documents and your manifests, or stop here and I will hand you the command?
+
+   This is a **separate approval**, deliberately. Phase 2 was approved against a tree that did not exist yet; asking there to generate five documents from an interview would be consent to work the user cannot yet picture. Accept a decline: report what is missing and end the turn. Never treat Mode A's approval as covering this.
+
+9. **Derive, then confirm — do not interview from scratch.** Read `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md`, the manifests, `README.md` and `.sdlc/CONVENTIONS.md`, then draft each missing document from what is already written. Present the draft and ask the user to correct it. Where a document genuinely has no source — product intent usually — ask, but ask **after** drafting, one question at a time, and only what the artifacts do not answer.
+
+   Templates come from `.sdlc/templates/`, which Phase 2 of `/sdlc-init` installed. A template the project has edited wins over the bundled one; on a legacy project that never ran the new `/sdlc-init`, the templates are freshly installed and unedited.
+
+10. **`rules.md` last, and from the documents.** Rules describe what must **always** be true and **never** happen, and the steering documents you just wrote usually imply them. Number `RULE-001`–`RULE-998` with `RULE-999` as the always-present Override Process sentinel. Never renumber an existing rule; continue from the highest non-sentinel ID.
+
+11. **Approval tiers.** Creating a document that does not exist is **Tier-2**, batched — present all of them together. **Modifying** an existing document, or an existing rule, is **Tier-1**: show a per-rule diff grouped `### Unchanged` / `### Added` / `### Modified — was / now` / `### RULE-999`, and write only the approved items. A relocated `product.md` is an existing document — gap-filling it is Tier-1.
+
+**Never invent project intent to fill a template.** A `product.md` that states goals the user never confirmed is worse than an absent one: every later skill treats it as settled. Where the artifacts are silent, ask; where the user does not know, say the section is open rather than writing a plausible answer.
+
+Do not re-derive what Mode B will cover. Steering documents describe the project; Mode B documents what the code does, feature by feature. They are not substitutes, and Mode A's tail does not write specs.
 
 ---
 
@@ -280,7 +312,7 @@ Run the project's test suite. Mode C only adds comments, so a failure means some
   validator                  0/0/1    0/0/0
 ```
 
-State what is still unadopted and name it. Adoption is complete when every feature in scope has a spec, every source and test file in scope carries its tags, the validator is clean, and the project's own tests pass — not when the validator stops complaining.
+State what is still unadopted and name it. Adoption is complete when every feature in scope has a spec, every source and test file in scope carries its tags, the validator is clean, the project's own tests pass, and the steering documents and `.sdlc/rules.md` are present — not when the validator stops complaining. The last clause is what makes `/sdlc-adopt` terminal: a project can pass every other check and still have no constitution for the next skill to read.
 
 ---
 
@@ -297,13 +329,16 @@ Then deliver the action block (see CONVENTIONS.md § Session handoff), turning w
 ```
 Remaining work, in a fresh session:
 
-  [ ] /sdlc-init                    {only if scaffolding was missing; then re-run adopt}
   [ ] /sdlc-plan                    {only if no problem brief exists — a documented
                                      spec has no AC-* to cite until it does}
   [ ] /sdlc-adopt <next-subsystem>  {only if scope was partial; name the subsystem}
   [ ] /sdlc-quickfix <slug>         {only if deprecated EARS remains, or code drifted
                                      in ways to undo rather than absorb — say which}
 ```
+
+**Do not list `/sdlc-init` here.** A project that reached this skill has scaffolding, so its setup gaps were Mode A's tail and are either done or were declined at step 8 — either way `/sdlc-init` is not the next command. If step 8 was declined, name what is still missing and say `/sdlc-init` is **not** the way to finish it (it would write beside, not over, the relocated documents); Mode A's tail can be run later instead.
+
+The `/sdlc-init` case that remains is the one this skill refused: **no scaffolding at all**, which is handled in the Phase 1 refusal, before Mode A ever runs.
 
 Add `/sdlc-spec <slug>` for any feature the survey found with source but no spec, since that is then a real next step. When two or more features lack specs, say they may be specified in parallel.
 
