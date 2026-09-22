@@ -221,6 +221,7 @@ DEFAULT_TEST_STEM_PATTERNS = [
     "*IT",
     "*ITCase",
     "*TestCase",
+    "*.tftest",
 ]
 DEFAULT_TEST_PATH_FRAGMENTS = [
     "src/test/",
@@ -428,7 +429,7 @@ CONFIG_LIST_FIELDS = {
         "source_overrides",
         "test_overrides",
     ),
-    "headings": ("test_plan", "outside_code"),
+    "headings": ("test_plan", "outside_code", "outside_code_functional"),
     "scan": ("skip_directories", "scan_directories"),
 }
 
@@ -490,6 +491,25 @@ TEST_PLAN_HEADING_PATTERN = re.compile(
 OUTSIDE_CODE_HEADING_PATTERN = re.compile(
     r"\boutside\b[^#]{0,32}\bcode\b|\bnot\b[^#]{0,32}\bin\s+code\b"
     r"|\bvalidated\b[^#]{0,32}\b(?:infra|infrastructure|externally|process)\b",
+    re.I,
+)
+# The functional-requirement exemption heading. Deliberately a SECOND heading
+# rather than a widening of the one above: exempting a REQ-* is a bigger claim
+# than exempting an NFR-*, because a functional requirement is what the code is
+# FOR. Sharing one heading would let a REQ-* be exempted by moving its line --
+# the cheapest way to turn a red gate green. Requiring its own heading makes the
+# act explicit, greppable in review, and impossible to do by accident.
+#
+# The vocabulary is narrowed to the words that state the claim, and the
+# phrasings chosen must NOT also match OUTSIDE_CODE_HEADING_PATTERN -- a heading
+# matching both would mark one section as an NFR exemption and a REQ-*
+# exemption at once, so an NFR on the functional list would silently stop being
+# tracked. "Requirements Validated Outside Code" and "Not Verified In Code"
+# both collide that way and are deliberately not matched here.
+FUNCTIONAL_OUTSIDE_CODE_HEADING_PATTERN = re.compile(
+    r"\bno\b[^#]{0,24}\bin-?code\b[^#]{0,24}\bverif"
+    r"|\bwithout\b[^#]{0,24}\b(?:no\s+)?in-?code\b[^#]{0,24}\bverif"
+    r"|\bwithout\b[^#]{0,32}\bverif",
     re.I,
 )
 # A fence opens with 3+ backticks or tildes and closes only on the same
@@ -820,7 +840,11 @@ def get_default_config():
             "source_overrides": [],
             "test_overrides": [],
         },
-        "headings": {"test_plan": [], "outside_code": []},
+        "headings": {
+            "test_plan": [],
+            "outside_code": [],
+            "outside_code_functional": [],
+        },
         "comments": {},
         "gate": {"enforce_tag_roles": True},
         "scan": {
@@ -1746,11 +1770,28 @@ def check_requirement_coverage(
         test_plan_location = spec["test_plan_location"]
 
         for requirement_id in sorted(spec["active_ids"]):
+            if requirement_id in spec["misplaced_exemptions"]:
+                report.warn(
+                    "exemption-heading",
+                    "%s:%s sits under the outside-code heading, which exempts "
+                    "NFR-* only. A functional requirement needs its own "
+                    "heading — '## Requirements With No In-Code Verification' — "
+                    "or a real test that COVERS it." % (feature_key, requirement_id),
+                    location,
+                )
             if requirement_id in spec["outside_code_nfrs"]:
                 report.info(
                     "outside-code",
                     "%s:%s validated outside code — exempt from "
                     "IMPLEMENTS/COVERS." % (feature_key, requirement_id),
+                    location,
+                )
+                continue
+            if requirement_id in spec["outside_code_requirements"]:
+                report.info(
+                    "outside-code",
+                    "%s:%s declared to have no in-code verification — exempt "
+                    "from IMPLEMENTS/COVERS." % (feature_key, requirement_id),
                     location,
                 )
                 continue
@@ -1912,8 +1953,11 @@ def parse_spec(text, config=None):
     requirement_texts = {}  # REQ id -> requirement text (active only)
     ac_citations = {}  # REQ id -> {AC ids it cites}
     outside_code_nfrs = set()
+    outside_code_requirements = set()  # REQ-* exempt via the functional heading
+    misplaced_exemptions = set()  # REQ-* under the NFR-only heading
 
     is_outside_code_section = False
+    is_functional_exemption_section = False
     current_heading = ""
     headings_by_id = {}
     for line_number, line in enumerate(text.splitlines(), 1):
@@ -1922,6 +1966,11 @@ def parse_spec(text, config=None):
             current_heading = stripped_line
             is_outside_code_section = is_matching_heading(
                 stripped_line, OUTSIDE_CODE_HEADING_PATTERN, headings["outside_code"]
+            )
+            is_functional_exemption_section = is_matching_heading(
+                stripped_line,
+                FUNCTIONAL_OUTSIDE_CODE_HEADING_PATTERN,
+                headings["outside_code_functional"],
             )
 
         definition_match = REQUIREMENT_LINE_PATTERN.match(line)
@@ -1935,6 +1984,15 @@ def parse_spec(text, config=None):
 
         if is_outside_code_section and requirement_id.startswith("NFR-"):
             outside_code_nfrs.add(requirement_id)
+        # A REQ-* under the NFR-only heading is the trap this check exists for:
+        # it used to be silently ignored, so the requirement looked exempt while
+        # still demanding IMPLEMENTS/COVERS somewhere else in the report.
+        if is_outside_code_section and requirement_id.startswith("REQ-"):
+            misplaced_exemptions.add(requirement_id)
+        if is_functional_exemption_section:
+            outside_code_requirements.add(requirement_id)
+            misplaced_exemptions.discard(requirement_id)
+
         if requirement_id in active_ids:
             # An ID repeated under the SAME heading is a copy-paste mistake. The
             # same ID under two headings is the documented pattern — an NFR
@@ -1970,6 +2028,8 @@ def parse_spec(text, config=None):
         "removed_ids": removed_ids,
         "requirement_texts": requirement_texts,
         "outside_code_nfrs": outside_code_nfrs,
+        "outside_code_requirements": outside_code_requirements,
+        "misplaced_exemptions": misplaced_exemptions,
         "relisted_nfrs": relisted_nfrs - outside_code_nfrs,
         "test_plan_text": test_plan_text,
         "test_ids": set(TEST_ID_PATTERN.findall(test_plan_text)),

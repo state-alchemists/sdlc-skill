@@ -66,7 +66,9 @@ Two kinds of file are never scanned at all. Documentation (`.md`, `.rst`, `.adoc
 
 A **comment is what the file's own syntax says it is**, not anything that looks like one. A Python docstring is a string, which is why `.sdlc/ANNOTATION.md` puts the `#` header *after* the module docstring rather than inside it.
 
-**Test files are recognised by path components and filename stems, never by substring**: a `tests`/`test`/`spec`/`__tests__`/`e2e`/`cypress` directory, a `src/test/`, `src/it/` or `src/integrationTest/` path fragment, or a stem like `test_*`, `*_test`, `*_spec`, `*.test`, `*.spec`, `*.cy`, `*Test`, `*Tests`, `*IT`. That covers Python, Go's colocated `*_test.go`, Maven's `src/test/java` and Failsafe's `*IT.java`, Jest's `*.test.ts` and `__tests__/`, RSpec's `spec/`, Cypress's `cypress/e2e/*.cy.ts`, Playwright, .NET's `*Tests.cs`, Gradle's `src/integrationTest/` and monorepo nesting — and it leaves `src/contest/models.py` and `src/latest_prices.py` as source, which substring matching would not. `features/` is deliberately *not* a default: `src/features/` is a component directory far more often than it is a Cucumber suite. Declare it in `test_directory_names` if yours is one.
+**Test files are recognised by path components and filename stems, never by substring**: a `tests`/`test`/`spec`/`__tests__`/`e2e`/`cypress` directory, a `src/test/`, `src/it/` or `src/integrationTest/` path fragment, or a stem like `test_*`, `*_test`, `*_spec`, `*.test`, `*.spec`, `*.cy`, `*.tftest`, `*Test`, `*Tests`, `*IT`. That covers Python, Go's colocated `*_test.go`, Maven's `src/test/java` and Failsafe's `*IT.java`, Jest's `*.test.ts` and `__tests__/`, RSpec's `spec/`, Cypress's `cypress/e2e/*.cy.ts`, Playwright, .NET's `*Tests.cs`, Gradle's `src/integrationTest/`, Terraform's `*.tftest.hcl` and monorepo nesting — and it leaves `src/contest/models.py` and `src/latest_prices.py` as source, which substring matching would not. `features/` is deliberately *not* a default: `src/features/` is a component directory far more often than it is a Cucumber suite. Declare it in `test_directory_names` if yours is one.
+
+A check is a test when **CI fails on it**, whatever its format. A policy file that gates the merge — OPA/Conftest `.rego`, a Checkov or tfsec rule set, a schema — carries `COVERS:` legitimately once its path resolves as a test; an advisory scan nobody fails on does not. See `.sdlc/ANNOTATION.md` for the IaC and SQL cases.
 
 Everything above is a **default**, not a requirement. `.sdlc/config.json` overrides it; the file is optional, and a project without one validates on the defaults. Every list **extends** the built-in list rather than replacing it, so the file stays short and keeps working when the defaults grow.
 
@@ -79,7 +81,11 @@ Everything above is a **default**, not a requirement. `.sdlc/config.json` overri
     "source_overrides": ["src/testing/*"],
     "test_overrides": ["tools/smoke/*"]
   },
-  "headings": { "test_plan": ["Rencana Pengujian"], "outside_code": [] },
+  "headings": {
+    "test_plan": ["Rencana Pengujian"],
+    "outside_code": [],
+    "outside_code_functional": []
+  },
   "comments": { ".myext": { "line": ["#"], "block": [["/*", "*/"]] } },
   "gate": { "enforce_tag_roles": true },
   "scan": {
@@ -93,9 +99,30 @@ Everything above is a **default**, not a requirement. `.sdlc/config.json` overri
 - `source_overrides` and `test_overrides` are globs, matched against the whole path or the basename, and win over every other rule. `source_overrides` wins over `test_overrides`.
 - `scan_directories` removes a name from the skip list — a project whose real code lives under `build/` needs it.
 - `headings` names a renamed or translated `## Test Plan` / `## NFRs Validated Outside Code` heading. The built-in match already accepts `Tests`, `Test Cases`, `Test Design`, `Testing` and common rewordings of the exemption heading; declare anything else here.
+- `headings.outside_code_functional` is a **separate** key from `outside_code`, because it exempts a different thing: `outside_code` covers `NFR-*` only, and a `REQ-*` listed under it is reported as a warning rather than exempted. The functional heading exempts `REQ-*`. Keep the two apart — a heading matching both patterns would mark one section as both kinds of exemption at once.
 - `comments` teaches the validator a file extension it does not know. An unknown extension falls back to a generous set of line-comment leaders rather than losing its tags.
 - `gate.enforce_tag_roles` is the **migration ramp**, and the only switch that weakens a check. Setting it to `false` — or passing `--relax-tag-roles` — makes a tag count wherever it sits and drops a misplaced one to a WARNING, which is how the validator behaved before this rule existed. Every run then reports `gate-relaxed` as a WARNING, so it is visible in the report and non-zero under `--strict`: it is a ramp for the first pass over an existing project, not a setting. The misplaced tags are still listed, so the worklist survives.
 - A malformed `config.json` is an **ERROR** naming the key. Silently ignoring a layout declaration would report a project's real tags as missing, and a `gate` value that is not `true`/`false` is an error rather than a silent "off".
+
+## Requirements validated outside code
+
+Two headings in `spec.md` exempt a requirement from `IMPLEMENTS:`/`COVERS:`. They are separate because they make different claims.
+
+| Heading | Exempts | Meaning |
+|---|---|---|
+| `## NFRs Validated Outside Code` | `NFR-*` only | a quality attribute checked by infra or process — a backup policy, an SLO |
+| `## Requirements With No In-Code Verification` | any ID, in practice `REQ-*` | a functional requirement no executable check can reach |
+
+Both work by the **presence of the heading**, never by the wording of the NFR table's "Validated By" cell. That was tried and removed: `process`, `manual` and `dashboard` are ordinary English words, and reading them as an exemption silently exempted work that was never verified at all.
+
+Two rules the validator enforces:
+
+- A `REQ-*` under the **NFR** heading is a **warning**, not an exemption. It used to be ignored in silence, which meant the requirement appeared exempt while still failing its coverage checks elsewhere in the report.
+- Every exempted requirement is still reported, as `outside-code`, on every run. The gap stays visible; it is exempted, not hidden.
+
+Prefer a real check. A policy file that gates the merge is a test, so most IaC requirements can carry `COVERS:` rather than an exemption — see `.sdlc/ANNOTATION.md`.
+
+`gate.enforce_tag_roles` / `--relax-tag-roles` is **orthogonal** to both headings. It loosens *where* a tag may sit; it never changes whether a requirement needs one, and it does not suppress the misplaced-heading warning.
 
 ## Feature slugs
 A feature directory name is the slug of the feature: lowercase; spaces/underscores to `-`; drop characters outside `[a-z0-9-]`; collapse repeated `-`; trim leading/trailing `-`. Slugs are stable — never rename once code references `.sdlc/specs/<slug>/`.

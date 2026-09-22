@@ -23,6 +23,10 @@
 *NFRs validated by infra or process, not application code. Being listed here is the only thing that exempts an NFR from `IMPLEMENTS:`/`COVERS:` — wording in the table's "Validated By" cell exempts nothing. Repeat the ID from the table above; the validator reads the repeat as the same NFR.*
 - `NFR-NNN`: {{NFR}} — validated by {{terraform module / WAF rule / SLO dashboard}}
 
+## Requirements With No In-Code Verification
+*Delete this section unless a functional requirement genuinely has no executable check — production paging, a manual review, a business process. This heading exempts `REQ-*` only, and lists a bigger claim than the NFR section above: a functional requirement is what the code exists FOR. Prefer a real test (including a policy check that gates the merge) whenever one can exist. Every requirement listed here still appears in the validator report, so the gap stays visible. Note the heading is matched by meaning — "Validated Outside Code" wording lands in the NFR section above, not this one.*
+- `REQ-NNN`: {{REQ}} — {{why no executable check can reach it, and what verifies it instead}}
+
 ## API Surface
 
 *Every endpoint, method, and shape. Real HTTP status codes, real field names.*

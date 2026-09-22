@@ -12,6 +12,7 @@ Exit 0 means every case passed; a failed assertion names the case.
 import importlib.util
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -104,6 +105,16 @@ def main():
         case_bad_gate_value_is_reported,
         case_unclosed_fence_in_a_spec_is_reported,
         case_unclosed_fence_in_a_brief_is_reported,
+        case_terraform_native_test_is_classified_as_a_test,
+        case_dot_tf_and_sql_files_are_scanned_as_source,
+        case_functional_requirement_without_in_code_verification_is_exempt,
+        case_requirement_under_the_nfr_heading_warns_and_does_not_exempt,
+        case_functional_heading_does_not_exempt_an_nfr_that_has_a_tag,
+        case_functional_and_nfr_exemption_headings_are_disjoint,
+        case_declared_functional_heading_in_config_resolves,
+        case_the_warning_names_a_heading_that_actually_exempts,
+        case_the_exemption_is_independent_of_the_role_gate,
+        case_functional_exemption_holds_under_a_relaxed_gate,
     ]
     failures = []
     for case in cases:
@@ -1243,6 +1254,244 @@ def case_unclosed_fence_in_a_brief_is_reported():
     ), "an unclosed fence in the brief hid every AC it defines"
 
 
+# --- SQL and IaC: executable checks outside a classic test runner -------------
+
+
+def case_terraform_native_test_is_classified_as_a_test():
+    """`.tftest.hcl` is Terraform's test runner; it exits non-zero on failure."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        extra_files={
+            os.path.join("modules", "db", "main.tf"): (
+                "# SPEC: .sdlc/specs/user-mgmt/spec.md\n"
+                "# IMPLEMENTS: USERMGMT:REQ-001\n"
+                'resource "aws_db_instance" "main" {}\n'
+            ),
+            os.path.join("modules", "db", "main.tftest.hcl"): (
+                '# COVERS: USERMGMT:REQ-001\nrun "plan" {}\n'
+            ),
+        },
+    )
+    assert not has_finding(
+        findings, check="tag-role"
+    ), "a .tftest.hcl file was not recognised as a test"
+
+
+def case_dot_tf_and_sql_files_are_scanned_as_source():
+    """`.tf` and `.sql` carry `#` and `--` headers; both are implementable code."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        extra_files={
+            os.path.join("terraform", "infra.tf"): (
+                "# IMPLEMENTS: USERMGMT:REQ-001\n"
+                'resource "aws_s3_bucket" "logs" {}\n'
+            ),
+            os.path.join("migrations", "0001_init.sql"): (
+                "-- IMPLEMENTS: USERMGMT:REQ-001\nCREATE TABLE t (id int);\n"
+            ),
+        },
+    )
+    assert not has_finding(
+        findings, check="tag-role"
+    ), "a tag in .tf or .sql was not read from a source file"
+
+
+# --- The functional exemption is a separate, deliberate heading ---------------
+
+
+def case_functional_requirement_without_in_code_verification_is_exempt():
+    """A REQ-* may be declared unverifiable in code, under its own heading."""
+    findings = get_spec_text_findings(
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n"
+        + "- `REQ-002` (AC-002): The system SHALL page on-call on repeat failure.\n\n"
+        + "## Requirements With No In-Code Verification\n\n"
+        + "- `REQ-002`: Paging is verified in production by the on-call review.\n\n"
+        + "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n",
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    assert not has_finding(
+        findings, check="trace-code", message="REQ-002"
+    ), "a REQ-* declared to have no in-code verification was still required in code"
+    assert not has_finding(
+        findings, check="trace-test", message="REQ-002"
+    ), "a REQ-* declared to have no in-code verification still required a test"
+    assert has_finding(
+        findings, check="outside-code", message="REQ-002"
+    ), "the functional exemption was not reported"
+
+
+def case_requirement_under_the_nfr_heading_warns_and_does_not_exempt():
+    """The NFR heading exempts NFR-* only. It used to ignore a REQ-* silently."""
+    findings = get_spec_text_findings(
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n\n"
+        + "## NFRs Validated Outside Code\n\n"
+        + "- `REQ-001`: Signup is verified by manual review.\n\n"
+        + "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n",
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    assert has_finding(
+        findings, check="exemption-heading", message="REQ-001"
+    ), "a REQ-* under the NFR-only heading was silently ignored"
+
+
+def case_functional_heading_does_not_exempt_an_nfr_that_has_a_tag():
+    """The exemption is scoped: it must not weaken the normal NFR path."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        nfr_rows=["| NFR-001 | Signup latency | p95 < 200ms | load test in CI |"],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    assert has_finding(
+        findings, check="trace-code", message="NFR-001"
+    ), "an NFR with no code tag was exempted by an unrelated heading"
+
+
+def case_functional_and_nfr_exemption_headings_are_disjoint():
+    """A heading matching both patterns exempts everything under it.
+
+    "Requirements Not Verified In Code" matched the NFR pattern and the
+    functional one, so one section would have marked its NFRs as outside-code
+    AND its REQs as unverified. A heading that means one thing must match one
+    pattern.
+    """
+    validator = load_validator()
+    headings = [
+        "## Requirements Validated Outside Code",
+        "## Requirements With No In-Code Verification",
+        "## Requirements Without In-Code Verification",
+        "## Requirements Not Verified In Code",
+        "## NFRs Validated Outside Code",
+    ]
+    for heading in headings:
+        matches_nfr = validator.is_matching_heading(
+            heading, validator.OUTSIDE_CODE_HEADING_PATTERN, []
+        )
+        matches_functional = validator.is_matching_heading(
+            heading, validator.FUNCTIONAL_OUTSIDE_CODE_HEADING_PATTERN, []
+        )
+        assert not (matches_nfr and matches_functional), (
+            "%r matches both exemption headings, so one section would be read as "
+            "an NFR exemption and a functional exemption at once" % heading
+        )
+
+
+def case_the_exemption_is_independent_of_the_role_gate():
+    """`--relax-tag-roles` loosens where a tag sits, never whether one is
+    required. A requirement must not become exempt by relaxing the gate."""
+    spec = (
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n"
+        + "- `REQ-002` (AC-002): The system SHALL page on-call.\n\n"
+        + "## NFRs Validated Outside Code\n\n"
+        + "- `REQ-002`: Verified by manual review.\n\n"
+        + "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n"
+    )
+    for label, config in (
+        ("default", None),
+        ("relaxed", {"gate": {"enforce_tag_roles": False}}),
+    ):
+        findings = get_spec_text_findings(
+            spec,
+            source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+            test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+            config=config,
+        )
+        assert not has_finding(
+            findings, check="outside-code", message="REQ-002"
+        ), "under the %s gate a REQ-* under the NFR heading was treated as exempt" % (
+            label,
+        )
+        assert has_finding(
+            findings, check="trace-code", message="REQ-002"
+        ), "under the %s gate REQ-002 stopped being required in code" % (label,)
+        assert has_finding(
+            findings, check="exemption-heading", message="REQ-002"
+        ), "under the %s gate the misplaced exemption stopped being reported" % (label,)
+
+
+def case_functional_exemption_holds_under_a_relaxed_gate():
+    """The exemption works the same whether or not tag roles are enforced."""
+    spec = (
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n"
+        + "- `REQ-002` (AC-002): The system SHALL page on-call.\n\n"
+        + "## Requirements With No In-Code Verification\n\n"
+        + "- `REQ-002`: Verified by the on-call review.\n\n"
+        + "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n"
+    )
+    for config in (None, {"gate": {"enforce_tag_roles": False}}):
+        findings = get_spec_text_findings(
+            spec,
+            source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+            test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+            config=config,
+        )
+        assert not has_finding(
+            findings, check="trace-code", message="REQ-002"
+        ), "the functional exemption did not hold with config=%r" % (config,)
+        assert has_finding(
+            findings, check="outside-code", message="REQ-002"
+        ), "the functional exemption stopped being reported with config=%r" % (config,)
+
+
+def case_declared_functional_heading_in_config_resolves():
+    """A project may rename the heading; the config key is what makes it legal."""
+    findings = get_spec_text_findings(
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n"
+        + "- `REQ-002` (AC-002): The system SHALL page on-call.\n\n"
+        + "## Verifikasi Manual\n\n"
+        + "- `REQ-002`: Verified by the on-call review.\n\n"
+        + "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n",
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        config={"headings": {"outside_code_functional": ["## Verifikasi Manual"]}},
+    )
+    assert not has_finding(
+        findings, check="trace-code", message="REQ-002"
+    ), "a project-declared functional exemption heading was not honoured"
+
+
+def case_the_warning_names_a_heading_that_actually_exempts():
+    """An error message that sends the user to a heading which does not work is
+    worse than no message: they follow it and the build stays red."""
+    validator = load_validator()
+    findings = get_spec_text_findings(
+        get_spec_header(DEFAULT_FEATURE_KEY)
+        + "## Requirements\n\n"
+        + "- `REQ-001` (AC-001): The system SHALL sign up users.\n\n"
+        + "## NFRs Validated Outside Code\n\n"
+        + "- `REQ-001`: Verified by manual review.\n\n"
+        + "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n",
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+    )
+    warning = get_finding_message(findings, check="exemption-heading")
+    assert warning, "a REQ-* under the NFR-only heading produced no warning"
+    quoted = re.findall(r"'(##[^']+)'", warning)
+    assert quoted, "the warning names no heading to use instead"
+    for heading in quoted:
+        assert validator.is_matching_heading(
+            heading, validator.FUNCTIONAL_OUTSIDE_CODE_HEADING_PATTERN, []
+        ), "the warning recommends %r, which does not match the functional heading" % (
+            heading,
+        )
+
+
 # --------------------------------------------------------------------------
 # Fixture helpers
 # --------------------------------------------------------------------------
@@ -1432,6 +1681,15 @@ def has_severity(findings, severity, check=None):
             continue
         return True
     return False
+
+
+def get_finding_message(findings, check=None):
+    """Return the first message for a check, or None when there is no finding."""
+    for _, finding_check, finding_message, _ in findings:
+        if check and finding_check != check:
+            continue
+        return finding_message
+    return None
 
 
 def load_validator():

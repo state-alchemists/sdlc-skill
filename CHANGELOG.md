@@ -66,6 +66,50 @@ dropping the bold from `**Feature Key:**` silently defaulted the key to the slug
 work, common aliases are recognised, and `headings` in `config.json` declares anything else —
 including a translated heading.
 
+### SQL and infrastructure as code
+
+An IaC manifest or a migration **is** the implementation in repositories built around one. The old
+guidance — "tag the code that loads the file" — assumed a loader that does not exist there, and left
+every such requirement to fail coverage.
+
+- **`.tftest.hcl` is a test.** Terraform's native test framework exits non-zero on failure, so a
+  requirement implemented in `.tf` can carry `COVERS:` from its own test file. It is a default stem
+  pattern, like `*_test.go`.
+- **A policy file that gates the merge is a test.** OPA/Conftest `.rego`, Checkov and tfsec rules,
+  kubeconform schemas, and SQL assertions that run after a migration all carry `COVERS:` once their
+  path resolves as a test. An advisory scan nobody fails on does not — that distinction is what
+  makes the claim mean something, and `ANNOTATION.md` states it.
+- **`.tf`, `.tfvars`, `.hcl`, `.yaml` and `.sql` are documented as source.** All five already
+  parsed; what was missing was the instruction that in these trees the manifest is the deliverable.
+  `.sql` also notes that one migration file legitimately carries one header for several statements.
+
+### Requirements validated outside code
+
+**Breaking for some projects.** A `REQ-*` listed under `## NFRs Validated Outside Code` now reports a
+WARNING. It was *silently ignored* before: the exemption did not apply, no message said so, and the
+requirement still failed `trace-code`/`trace-test` elsewhere in the same report. A project with a
+stray functional requirement under that heading will see a new warning on upgrade. The warning is
+correct — the requirement was never exempt — and names the heading to use instead.
+
+- **`## Requirements With No In-Code Verification`** is the new heading, and exempts `REQ-*`. It is
+  deliberately **not** the NFR heading widened: exempting a functional requirement is a bigger claim,
+  since the code exists to implement it, and sharing one heading would let a `REQ-*` be exempted by
+  moving its line — the cheapest way to turn a red gate green.
+- The two patterns are **disjoint by construction**, pinned by a test. A heading matching both would
+  mark one section as an NFR exemption and a functional exemption at once, so an NFR on the
+  functional list would silently stop being tracked. "Requirements Not Verified In Code" collides
+  this way and is not matched; "Validated Outside Code" phrasing lands in the NFR heading.
+- `headings.outside_code_functional` declares a renamed or translated heading, separate from
+  `headings.outside_code`.
+- Both exemptions stay visible: every exempted requirement is reported as `outside-code` on every
+  run, so an exemption is a recorded gap, not a deletion.
+- A project with **no tests at all** still has no project-wide off switch. Requirements stay red
+  until they have a real check or a declared exemption; `/sdlc-adopt` reports them as unadopted work.
+- **The exemption is independent of the role gate.** `--relax-tag-roles` / `gate.enforce_tag_roles`
+  loosen *where* a tag may sit; neither touches whether one is required. Relaxing the gate does not
+  exempt a requirement, and does not suppress the misplaced-heading warning. Pinned by test, so a
+  future change cannot quietly turn the migration ramp into an exemption switch.
+
 ### Genericity and process
 
 - **`src/` + `tests/` is no longer hardcoded** in the prompts (13 sites across 5 files). The
@@ -85,7 +129,7 @@ including a translated heading.
 
 ### Tests and CI
 
-- Validator regression suite: 24 → 67 cases. Each new case was verified to fail with its fix
+- Validator regression suite: 24 → 77 cases. Each new case was verified to fail with its fix
   reverted.
 - New `tests/test_skill_prompts.py`: static invariants over the prompts, which CI previously could
   not see at all. Nine cases, each pinning a prompt bug that actually shipped.
