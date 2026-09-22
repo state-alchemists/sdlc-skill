@@ -79,11 +79,11 @@ The gate was the differentiator. It no longer is, on its own — worth saying pl
 
 **4. Suspect links.** OpenFastTrace and the newer Git-native requirements tools version requirement IDs and flag a *covered* item whose source changed after coverage was claimed. Tags here are unversioned: reword a requirement and every tag pointing at it still validates clean. `/sdlc-adopt`'s drift report is the manual, per-feature version of that. This is the most valuable idea still on the table.
 
-**5. Automation hooks.** Kiro runs actions on file save. Here, the validator is a CI gate (`/sdlc-init` offers the snippet) and everything else is a human typing a slash command in a fresh session.
+**5. Automation hooks.** Kiro runs actions on file save. Here, the validator is a CI gate (`/sdlc-init` offers the snippet) and everything else is a human typing a slash command in a chat session.
 
 **6. Eval maturity.** Three golden cases, deterministic checks only, and grading still needs a human to produce the output to grade. For a product that *is* instructions to a model, the eval suite is the only instrument that can catch a prompt regression, and it cannot yet run unattended.
 
-**7. Packaging.** Competitors ship an installable CLI (`specify init`, `openspec archive`) or an IDE. This ships chat skills plus a bash installer; the workflow's context hygiene — one fresh session per phase — is a protocol the user has to remember rather than something the tool enforces.
+**7. Packaging.** Competitors ship an installable CLI (`specify init`, `openspec archive`) or an IDE. This ships chat skills plus a bash installer; the workflow's context hygiene — a fresh session per phase, required only for the review after implementation — is a protocol the user has to remember rather than something the tool enforces.
 
 ---
 

@@ -122,6 +122,7 @@ correct — the requirement was never exempt — and names the heading to use in
   told to treat validator errors as failures to fix, with a retry loop, and the cheapest fix was
   to delete the requirement. `/sdlc-quickfix` had this guard; `/sdlc-implement` did not.
 - **`SPEC:` is the header token everywhere** (was `GENERATED FROM SPEC:` in one skill).
+- **A fresh session is required only for `/sdlc-review`.** `/sdlc-spec` → `/sdlc-implement` used to end with "Next, in a fresh session", mandating a close-and-reopen for every feature. Implementation reads `spec.md` from disk, so nothing about it depends on the spec session's context; freshness matters only for review independence, so the handoff now offers the same session. `CONVENTIONS.md` § Session handoff defines required-vs-optional, and the review blocks keep their fresh-session requirement.
 - **Dates come from `date`**, not from memory or from a template's example.
 - **Parallel sessions have a documented protocol**: which files are single-writer, and a
   `.sdlc/keys/<KEY>` claim file that turns a Feature Key collision on separate branches into a

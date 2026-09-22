@@ -90,11 +90,13 @@ Present the spec as one **Tier-2** batch. Overwriting an existing `spec.md` is *
 Then deliver the action block (see CONVENTIONS.md § Session handoff):
 
 ```
-Next, in a fresh session:
+Next — this session or a fresh one, your call:
 
   [ ] /sdlc-implement <slug>      the spec is written; this resolves the
                                   expected trace-code / trace-test errors
 ```
+
+The implementer reads `spec.md` from disk, not this chat, so `/sdlc-implement` does not need a fresh session. Carry on here if the context still fits. One consequence, not a blocker: if you *review* in the session that implemented, the verdict is capped at COMMENT — the freshness rule keys off the implementation, not the spec. A fresh session before `/sdlc-review` keeps the verdict uncapped (see `.sdlc/CONVENTIONS.md` § Review independence).
 
 Add `/sdlc-spec <other-slug>` items only for features that already have a spec directory or appear in the problem brief as separate work — do not offer to specify something the brief does not describe. If other specs exist, say that both may be implemented in parallel under a worktree.
 

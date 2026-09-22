@@ -85,7 +85,7 @@ The fine print — EARS dialect, ID scheme, file roles, approval tiers, single-w
 
 ## Real-World Flows
 
-Each phase runs in a **fresh session** — artifacts on disk are the durable state, not chat history. This is not etiquette: `/sdlc-review` run in the session that implemented the feature is contaminated and its verdict is capped at COMMENT (see `.sdlc/CONVENTIONS.md` § Review independence).
+Phases are stateless — artifacts on disk are the durable state, not chat history — so a **fresh session is a hygiene preference, not a rule**, except where independence is the point. Only `/sdlc-review` requires one: run in the session that implemented the feature, its verdict is capped at COMMENT (see `.sdlc/CONVENTIONS.md` § Review independence). `/sdlc-spec` → `/sdlc-implement` can share a session — the implementer reads `spec.md` from disk.
 
 - **Greenfield:** `/sdlc-init` → `/sdlc-plan` → `/sdlc-spec feature` → `/sdlc-implement feature` → `/sdlc-review feature`. The next feature starts at `/sdlc-spec` — steering docs, requirements, and architecture already exist.
 - **Adding a feature:** only `/sdlc-spec` → `/sdlc-implement` → `/sdlc-review`. Features can run in parallel: each writes its own `.sdlc/specs/<slug>/`, and Feature Keys keep `REQ-*` IDs from colliding even in shared files. Use git worktrees for parallel *implementation*.
@@ -208,7 +208,7 @@ Writes are tiered to avoid approval fatigue (defined in `.sdlc/CONVENTIONS.md`):
 
 ## Context Management
 
-Phases are stateless: each runs in a **fresh session** and reads artifacts from disk, so chat history isn't part of the contract. Finish a phase, approve its artifacts, exit, start a new chat, run the next. If your runtime offers conversation persistence (zrb's `/save` and `/load`), use it freely between phases — a resumed session is still treated as the session that did the work, so a review there is capped at COMMENT.
+Phases are stateless: each reads artifacts from disk, so chat history isn't part of the contract. A **fresh session is the healthy default** — smaller context, fewer decisions to re-check — but it is not required between phases; the single required freshness is `/sdlc-review`, which must not run in the session that wrote the implementation. So `/sdlc-spec` and `/sdlc-implement` can run in one session when the context still fits, and you can also finish a phase, exit, and start a fresh chat for the next. If your runtime offers conversation persistence (zrb's `/save` and `/load`), use it freely between phases — a resumed session is still treated as the session that did the work, so a review there is capped at COMMENT.
 
 ---
 

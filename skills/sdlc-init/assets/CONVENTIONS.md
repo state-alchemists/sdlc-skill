@@ -191,9 +191,16 @@ For parallel *implementation*, use a git worktree per feature.
 
 ## Session handoff
 
-Every skill that completes a phase ends with an **action block**: a paste-ready todo list of what the user can do next, in a fresh session.
+Every skill that completes a phase ends with an **action block**: a paste-ready todo list of what the user can do next.
 
-The skills are stateless between sessions — each reads artifacts from disk, not chat history — so the transition message is the only place a user learns what comes next. Make it actionable rather than descriptive.
+The skills are stateless — each reads artifacts from disk, not chat history — so the transition message is the only place a user learns what comes next. Make it actionable rather than descriptive.
+
+**Fresh session: required or optional.** A transition message hands the user the next command; it does not mandate closing the chat. Freshness matters only where *independence* matters, and the only phase where that is true is the review:
+
+- **Required**: `/sdlc-review` must run in a session that did not write the implementation (see § Review independence). The blocks offering `/sdlc-review` after `/sdlc-implement` or `/sdlc-quickfix` state the fresh-session requirement and stay.
+- **Optional (context hygiene)**: everywhere else, a fresh session is the *healthier* default — smaller context, fewer decisions to re-check — but not a correctness gate. `/sdlc-spec` → `/sdlc-implement` may share a session: the implementer reads `spec.md` from disk, so the spec's authoring context is not a dependency.
+
+So a phrase like "Next, in a fresh session:" in an action block is a recommendation unless the phase it leads to is a review. When a block offers a non-review phase, its heading may say the same session is fine, and the only string that must stay load-bearing is the fresh-session note in front of `/sdlc-review`.
 
 **Three rules.**
 
