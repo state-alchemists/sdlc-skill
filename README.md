@@ -60,7 +60,7 @@ Then, **per project** that was set up by an older version — `/sdlc-init` first
 
 `/sdlc-init` never overwrites a template you have edited, always refreshes `.sdlc/tools/sdlc-validate.py` (an old copy carries fixed bugs), and shows a diff before replacing `.sdlc/CONVENTIONS.md`.
 
-**The order is always `/sdlc-init` → `/sdlc-adopt`, and `/sdlc-adopt` is the last command.** `/sdlc-adopt` fills a structure rather than creating one, so it needs the templates and validator that `/sdlc-init` installs. On a project still using the legacy layout, `/sdlc-init` installs that scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`, which relocates the documents and then completes the setup. A project can end up adopted with no `.sdlc/rules.md`, and every later skill reads that file, so `/sdlc-adopt` treats an absent constitution as unfinished work rather than a clean run.
+**The order is always `/sdlc-init` → `/sdlc-adopt`, and `/sdlc-adopt` is the last command.** `/sdlc-adopt` needs the templates and validator that `/sdlc-init` installs, and in return it finishes the setup `/sdlc-init` could not. On a project still using the legacy layout, `/sdlc-init` installs the scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`, which relocates the documents *and then* derives any steering document or `rules.md` that is still missing. That last step is what makes it terminal: a project can end up adopted with no `.sdlc/rules.md`, and every later skill reads that file, so `/sdlc-adopt` treats an absent constitution as unfinished work rather than a clean run.
 
 Manual install is the same pattern for any tool — copy the skill directories into `<dotdir>/skills/`:
 
@@ -142,9 +142,12 @@ Two layers: the **validator** covers traceability, EARS, and ID hygiene determin
 
 ### 7. `sdlc-adopt` — Brownfield Adoption
 
-Two modes, and it decides which your project needs:
+Two modes and a finishing step, and it decides which your project needs:
 - **Layout migration** — relocate legacy artifacts under `.sdlc/` with `git mv`, fold separate `test-plan.md` files into their specs, re-key unkeyed traceability tags. Idempotent.
 - **Document from code** — reverse-engineer a spec for code that has none, or that has drifted, with a drift report (`UNCHANGED` / `MODIFIED` / `ADDED` / `REMOVED-from-code`).
+- **Complete setup** — after migrating, derive any steering document or `.sdlc/rules.md` that is missing, so the project ends up not just relocated but initialised. Asked for as a separate approval, because the Change Plan is approved before the moved tree exists.
+
+This is the last command of the legacy journey: `/sdlc-init` installs scaffolding and stops, `/sdlc-adopt` finishes. See [Changing a requirement](#changing-a-requirement) for the delta workflow.
 
 ---
 
@@ -204,7 +207,15 @@ Specs are snapshots. When code changes outside the pipeline: `/sdlc-adopt` (docu
 
 ### F: Project From an Earlier Version of These Skills
 
-`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, re-keys tags, and completes the setup by deriving any steering document or `rules.md` that is missing, preserving git history throughout.
+**The trigger is where the artifacts are, not how old the project is.** An older project whose files already sit under `.sdlc/` needs one command; one still using the legacy layout needs two.
+
+| Project state | Run | What happens |
+|---|---|---|
+| Artifacts under `.sdlc/`, missing `rules.md` or a steering document | `/sdlc-init` | Treated as brownfield: refreshes the validator, keeps your documents, fills the gap. `/sdlc-adopt` is **not** needed — there is nothing to relocate. |
+| Artifacts at legacy paths (`docs/adr/`, root `rules.md`, `specs/`) | `/sdlc-init` → `/sdlc-adopt` | `/sdlc-init` installs scaffolding and stops, because writing steering documents beside your legacy ones would form a parallel tree. `/sdlc-adopt` relocates them and then completes the setup. |
+| Mixed — some under `.sdlc/`, some not | `/sdlc-init` → `/sdlc-adopt` | One legacy marker is enough. `/sdlc-adopt` relocates only the leftovers, then completes the setup. |
+
+`/sdlc-adopt` completes setup by running `/sdlc-init`'s own Phase 3b–5 against the relocated tree — the steps are defined once, in `/sdlc-init`, and not duplicated.
 
 ---
 

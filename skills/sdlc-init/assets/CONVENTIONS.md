@@ -20,6 +20,8 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 
 **Legacy fallback**: older projects keep steering docs at `docs/`, ADRs at `docs/adr/`, requirements at `requirements/`, rules at `rules.md`, and a separate test plan at `.sdlc/tests/<slug>/test-plan.md`. Skills read legacy locations if the canonical one is absent, but never write a parallel tree. Run `/sdlc-adopt` to consolidate.
 
+**Which command finishes setup depends on where the artifacts are, not how old the project is.** A project whose files already sit at the canonical paths is **initialised**, however old it is: `/sdlc-init` runs its brownfield path and fills any gap, including a missing `.sdlc/rules.md`, and nothing needs relocating. A project whose markers are at the legacy paths is **not yet initialised**: `/sdlc-init` installs scaffolding and stops — writing `.sdlc/docs/product.md` beside `docs/product.md` would form a parallel tree — and `/sdlc-adopt` relocates the artifacts, then completes the setup by running `/sdlc-init`'s Phase 3b–5 on the relocated tree. Mixed projects take the second path; one legacy marker is enough. Setup steps are defined once, in `/sdlc-init`; `/sdlc-adopt` does not restate them.
+
 <!-- legacy-detection:start -->
 A project is on the **legacy SDLC layout** when either of these holds:
 

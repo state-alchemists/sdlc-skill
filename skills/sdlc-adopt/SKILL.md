@@ -1,6 +1,6 @@
 ---
 name: sdlc-adopt
-description: Bring an existing project fully onto the SDLC layout so it reads as though it had been built with these skills from the first commit. Relocates legacy artifacts under .sdlc/ preserving git history, reverse-engineers specs from code that has none, and annotates source and tests with traceability tags and ADR references. Presents one change plan with risk levels and waits for approval before writing anything.
+description: Bring an existing project fully onto the SDLC layout so it reads as though it had been built with these skills from the first commit. Relocates legacy artifacts under .sdlc/ preserving git history, reverse-engineers specs from code that has none, annotates source and tests with traceability tags and ADR references, and completes the setup by deriving any steering document or rules.md that is missing. Presents one change plan with risk levels and waits for approval before writing anything; completing setup is asked for separately.
 disable-model-invocation: true
 user-invocable: true
 ---
@@ -26,8 +26,8 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 
 ## Before you start
 
-- **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
-- **Completing setup, not just filling structure.** Adoption is not finished when the files have moved — it is finished when the project has the steering documents and constitution every later skill reads. Mode A's tail covers this. The distinction that decides who finishes the job: a project with **no scaffolding at all** needs `/sdlc-init` first (it creates the structure); a project with **scaffolding but incomplete setup** is this skill's job, and routing that user back to `/sdlc-init` would strand them.
+- **Scaffolding first.** If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
+- **Completing setup means running `/sdlc-init`'s phases, not restating them.** Adoption is not finished when the files have moved — it is finished when the project has the steering documents and constitution every later skill reads. This skill does **not** author those: after relocating, it runs `/sdlc-init`'s Phase 3b–5 against the now-ordinary tree, so the steps exist in exactly one place. The distinction that decides who finishes the job: a project with **no scaffolding at all** needs `/sdlc-init` alone first (it creates the structure and can finish setup itself); a project whose artifacts are at **legacy paths** is this skill's job, because relocating them is what makes `/sdlc-init` able to finish.
 - **Annotation reference**: read `.sdlc/ANNOTATION.md` before Mode C — comment syntax and header placement per language, and the policy for files that cannot carry a comment.
 - **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.
 
@@ -73,7 +73,8 @@ If none match, the project **has never used these skills**. Mode A has nothing t
 | Source files with no spec covering them | Mode B, then C |
 | Spec exists, but its code carries no `IMPLEMENTS:`/`COVERS:` | Mode C |
 | ADRs exist, but no code cites them | Mode C (optional — ask) |
-| `.sdlc/rules.md` absent, or `.sdlc/docs/{product,tech,test-strategy}.md` or root `AGENTS.md` absent | Mode A tail (Complete Setup) |
+| `.sdlc/rules.md` absent, or `.sdlc/docs/{product,tech,test-strategy}.md` or root `AGENTS.md` absent, **and** legacy artifacts still to relocate | Mode A, then its tail |
+| Only `.sdlc/rules.md`, `.sdlc/docs/*` or `AGENTS.md` missing — **nothing left to relocate** | Nothing for this skill. Report the gap and hand the user `/sdlc-init`, which is already on its brownfield path and fills exactly this in Phase 5. Do not run Mode A to reach the tail. |
 | Everything already under `.sdlc/`, test plans complete (folded into `spec.md`, or standalone where `CONVENTIONS.md` says so), tags keyed and complete, steering documents and `rules.md` present | Nothing — report and stop |
 
 ### 1c. Measure the starting point
@@ -150,13 +151,13 @@ Every scripted edit asserts its anchor before writing — a blind `str.replace` 
 
 ## Mode A tail — Complete Setup
 
-Run this at the end of Mode A, **before** Mode B or C, and only when step 7 below finds a gap.
+Run this at the end of Mode A, **before** Mode B or C, and only when step 7 finds a gap.
 
-Relocation puts the artifacts where the skills expect them; it does not finish the setup. `.sdlc/rules.md`, `.sdlc/docs/{product,tech,test-strategy}.md` and root `AGENTS.md` are what every later skill reads, and on a legacy project `/sdlc-init` could not write them — it would have put them beside the user's own documents, a parallel tree. With the documents now relocated, that objection is gone and the work is ordinary.
+Relocation puts the artifacts where the skills expect them; it does not finish the setup. `.sdlc/rules.md`, `.sdlc/docs/{product,tech,test-strategy}.md` and root `AGENTS.md` are what every later skill reads, and on a legacy project `/sdlc-init` could not write them — it would have put them beside the user's own documents, a parallel tree. **With the documents relocated, that objection is gone.**
 
-7. **Detect the gap.** For each of `.sdlc/rules.md`, `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md` and `AGENTS.md`: present or absent. A relocated document is present and needs no more than a gap-fill.
+7. **Detect the gap.** For each of `.sdlc/rules.md`, `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md` and `AGENTS.md`: present or absent. A relocated document counts as present and needs no more than a gap-fill. If all five are present, say so and skip to Mode B.
 
-   If all five are present, say so and skip to Mode B. Most projects that ran a pre-`.sdlc/` version of these skills will have `docs/product.md` and friends but **no `rules.md`** — constitution was a later addition, so this is the common case.
+   Most projects that ran a pre-`.sdlc/` version of these skills have `docs/product.md` and friends but **no `rules.md`** — constitution was a later addition, so this is the common gap.
 
 8. **Ask once, at the end of Mode A — not in the Phase 2 plan.** The layout is now real, so the user can see what is missing:
 
@@ -164,17 +165,9 @@ Relocation puts the artifacts where the skills expect them; it does not finish t
 
    This is a **separate approval**, deliberately. Phase 2 was approved against a tree that did not exist yet; asking there to generate five documents from an interview would be consent to work the user cannot yet picture. Accept a decline: report what is missing and end the turn. Never treat Mode A's approval as covering this.
 
-9. **Derive, then confirm — do not interview from scratch.** Read `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md`, the manifests, `README.md` and `.sdlc/CONVENTIONS.md`, then draft each missing document from what is already written. Present the draft and ask the user to correct it. Where a document genuinely has no source — product intent usually — ask, but ask **after** drafting, one question at a time, and only what the artifacts do not answer.
+9. **Complete setup by running `/sdlc-init`'s Phases 3b, 4 and 5 on the relocated tree**, in this session. Read them from `/sdlc-init` and follow them — they are the only definition of how a steering document or a rule gets written, and this file does not repeat them, because two copies drift and the copy that is wrong is the one that gets read. Phase 3b derives the draft from the relocated documents and the manifests; Phase 4 writes the steering documents; Phase 5 writes `.sdlc/rules.md`. On a project that already has some of them this is a **gap-fill**, not a rewrite: only the missing documents are created.
 
-   Templates come from `.sdlc/templates/`, which Phase 2 of `/sdlc-init` installed. A template the project has edited wins over the bundled one; on a legacy project that never ran the new `/sdlc-init`, the templates are freshly installed and unedited.
-
-10. **`rules.md` last, and from the documents.** Rules describe what must **always** be true and **never** happen, and the steering documents you just wrote usually imply them. Number `RULE-001`–`RULE-998` with `RULE-999` as the always-present Override Process sentinel. Never renumber an existing rule; continue from the highest non-sentinel ID.
-
-11. **Approval tiers.** Creating a document that does not exist is **Tier-2**, batched — present all of them together. **Modifying** an existing document, or an existing rule, is **Tier-1**: show a per-rule diff grouped `### Unchanged` / `### Added` / `### Modified — was / now` / `### RULE-999`, and write only the approved items. A relocated `product.md` is an existing document — gap-filling it is Tier-1.
-
-**Never invent project intent to fill a template.** A `product.md` that states goals the user never confirmed is worse than an absent one: every later skill treats it as settled. Where the artifacts are silent, ask; where the user does not know, say the section is open rather than writing a plausible answer.
-
-Do not re-derive what Mode B will cover. Steering documents describe the project; Mode B documents what the code does, feature by feature. They are not substitutes, and Mode A's tail does not write specs.
+Do not re-derive what Mode B will cover. Steering documents describe the project; Mode B documents what the code does, feature by feature. They are not substitutes, and this tail does not write specs.
 
 ---
 
