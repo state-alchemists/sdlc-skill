@@ -36,7 +36,7 @@ Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `ar
 <!-- legacy-detection:end -->
 
 - Choose the branch:
-  - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. **Name the markers that triggered it**, so the user can say "that one is ours" and you can continue on the brownfield path instead. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`.
+  - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. **Name the markers that triggered it**, so the user can say "that one is ours" and you can continue on the brownfield path instead. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`, which relocates the artifacts and then completes the setup this branch left undone.
   - **Suspected but not confirmed** (a weak marker with no scheme reference) → say in one line what you found, then **continue on the brownfield path**. Writing `.sdlc/docs/architecture.md` beside a project's own `docs/architecture.md` is not a parallel tree; it is a project with two documents, which is the normal case.
   - **Greenfield** (no source beyond scaffolding, no meaningful README) → Phase 3a.
   - **Brownfield** (existing source, real README, manifests with real deps) → Phase 3b.

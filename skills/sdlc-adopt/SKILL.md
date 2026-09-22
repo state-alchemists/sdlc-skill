@@ -1,6 +1,6 @@
 ---
 name: sdlc-adopt
-description: Bring an existing project fully onto the SDLC layout so it reads as though it had been built with these skills from the first commit. Relocates legacy artifacts under .sdlc/ preserving git history, reverse-engineers specs from code that has none, and annotates source and tests with traceability tags and ADR references. Presents one change plan with risk levels and waits for approval before writing anything.
+description: Bring an existing project fully onto the SDLC layout so it reads as though it had been built with these skills from the first commit. Relocates legacy artifacts under .sdlc/ preserving git history, reverse-engineers specs from code that has none, annotates source and tests with traceability tags and ADR references, and completes the setup by deriving any steering document or rules.md that is missing. Presents one change plan with risk levels and waits for approval before writing anything; completing setup is asked for separately.
 disable-model-invocation: true
 user-invocable: true
 ---
@@ -26,7 +26,7 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 
 ## Before you start
 
-- **Scaffolding first.** This skill fills a structure; it does not create one. If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
+- **Scaffolding first.** If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
 - **Completing setup, not just filling structure.** Adoption is not finished when the files have moved — it is finished when the project has the steering documents and constitution every later skill reads. Mode A's tail covers this. The distinction that decides who finishes the job: a project with **no scaffolding at all** needs `/sdlc-init` first (it creates the structure); a project with **scaffolding but incomplete setup** is this skill's job, and routing that user back to `/sdlc-init` would strand them.
 - **Annotation reference**: read `.sdlc/ANNOTATION.md` before Mode C — comment syntax and header placement per language, and the policy for files that cannot carry a comment.
 - **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.

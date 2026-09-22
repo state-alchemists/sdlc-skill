@@ -222,6 +222,26 @@ def case_adopt_is_the_last_command_of_the_legacy_journey():
     assert (
         ".sdlc/rules.md" in adopt_text
     ), "sdlc-adopt never mentions the constitution it is supposed to derive"
+    # 4. No document may still claim adopt only fills a structure. The phrase
+    #    "fills a structure; it does not create one" survived the mode that
+    #    creates five documents, and it was repeated in README.md -- a model
+    #    reading top-down meets the contradiction before the correction.
+    for label, text in (
+        ("sdlc-adopt", adopt_text),
+        ("README.md", read_text("README.md")),
+    ):
+        assert "fills a structure" not in text and "does not create one" not in text, (
+            "%s still says /sdlc-adopt only fills a structure, contradicting the "
+            "setup it now completes" % label
+        )
+    # 5. adopt's frontmatter description is its public contract -- it is what a
+    #    runtime shows when choosing a skill -- so it has to mention the
+    #    terminal step too.
+    frontmatter = adopt_text.split("---")[1]
+    assert "rules.md" in frontmatter, (
+        "sdlc-adopt's description omits completing setup, so the skill looks "
+        "like a relocation tool"
+    )
 
 
 def case_every_skill_reads_the_conventions():
