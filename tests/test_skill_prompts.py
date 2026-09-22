@@ -42,6 +42,7 @@ def main():
         case_no_skill_still_says_generated_from_spec,
         case_legacy_detection_rule_is_identical_everywhere,
         case_every_skill_reads_the_conventions,
+        case_every_transition_is_an_action_block,
         case_writing_skills_read_the_annotation_reference,
         case_templates_ask_for_a_date_not_a_date_format,
         case_shipped_config_is_valid_json,
@@ -111,6 +112,37 @@ def case_no_skill_still_says_generated_from_spec():
     assert (
         not offenders
     ), "these files still use the retired header token: %s" % ", ".join(offenders)
+
+
+def case_every_transition_is_an_action_block():
+    """A skill that is stateless between sessions has exactly one place to tell
+    the user what comes next: its transition message.
+
+    The failure this guards is drift back to prose. "run /sdlc-spec <feature>
+    (e.g. `User Auth` -> slug `user-auth`)" asks the user to apply the kebab-case
+    rule correctly, by hand, at the moment of highest friction — when the skill
+    already resolved the slug and could have printed it. So: no skill may ship a
+    placeholder in its transition, and every skill must point at the shared
+    convention that defines the block's shape.
+    """
+    handoff_reference = "Session handoff"
+    assert handoff_reference in read_text(
+        os.path.join(ASSETS_DIRECTORY, "CONVENTIONS.md")
+    ), "CONVENTIONS.md no longer defines the session handoff block"
+
+    offenders = []
+    for skill_name, path in get_skill_paths():
+        text = read_text(path)
+        if handoff_reference not in text:
+            offenders.append("%s never references the handoff convention" % skill_name)
+            continue
+        # `<slug>` is legitimate as an instruction to the model; it is not
+        # legitimate as something the user is told to paste.
+        if "To continue:" in text:
+            offenders.append(
+                "%s still ships a prose 'To continue:' transition" % skill_name
+            )
+    assert not offenders, "; ".join(offenders)
 
 
 def case_legacy_detection_rule_is_identical_everywhere():

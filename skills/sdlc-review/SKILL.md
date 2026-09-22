@@ -87,10 +87,31 @@ Write `.sdlc/reviews/<slug>/report-<TIMESTAMP>.md` from `.sdlc/templates/review-
 
 ## Phase Transition
 
-Tell the user based on the verdict:
+Tell the user based on the verdict, then deliver the action block (see CONVENTIONS.md § Session handoff). Review is the end of the feature loop, so the block is normally empty or a PR step — do not invent a next skill.
+
 - **APPROVE**: "Verdict APPROVE — `<slug>` is ready for PR. Report: `.sdlc/reviews/<slug>/report-<ts>.md`."
+
+```
+Next:
+  [ ] open the PR for <slug>            the feature loop is complete
+  [ ] /sdlc-spec <other-slug>           {only if another feature is still
+                                        unspecified — list at most one per line}
+```
+
 - **REQUEST CHANGES**: "Verdict REQUEST CHANGES. Either fix manually using the report and re-run `/sdlc-review <slug>` in a fresh session, or start a fresh session and run `/sdlc-implement <slug>` with the report as input, then re-review."
+
+```
+Next, in a fresh session — pick one:
+
+  [ ] /sdlc-review <slug>       fix the report by hand, then re-review
+  [ ] /sdlc-implement <slug>    re-implement with the report as input
+```
+
 - **COMMENT**: "Verdict COMMENT — non-blocking; `<slug>` can proceed to PR with the noted caveats. Report: `.sdlc/reviews/<slug>/report-<ts>.md`."
+
+Then name any outstanding work the review itself surfaced as an item: an Override Log entry the user needs to record for a known rule violation, or a FAIL check the user intends to accept rather than fix. State which — do not leave it implicit in the report.
+
+Do not add `/sdlc-spec` for a new feature unless the survey found one that is genuinely unspecified.
 
 After delivering this message, end your turn.
 
