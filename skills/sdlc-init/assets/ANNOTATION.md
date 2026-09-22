@@ -90,6 +90,32 @@ An extension in neither table falls back to a generous set of line-comment leade
 4. `.jsonc`, `.json5` and `.yaml` **do** support comments — tag them normally.
 5. `.ipynb` is JSON on disk but a cell's source is text: put the header at the top of the **first code cell**. Never hand-edit the notebook JSON.
 
+## Infrastructure as code, and SQL
+
+An IaC manifest is not always configuration *for* code. In a Terraform, Kubernetes or migration repository it **is** the implementation — there is no loader to tag instead, and rule 1 above does not apply. Tag the manifest.
+
+| File | Leader | Where the header goes |
+|---|---|---|
+| `.tf`, `.tfvars` | `#` | **P0** — top of the file, above the first `terraform`/`resource` block |
+| `.hcl` | `#` | P0 |
+| `.yaml`, `.yml` (k8s, Ansible, CI) | `#` | P0 — above the first document. `---` may precede it |
+| `.sql` | `--` | **P8** — after any tool directive (`-- +goose Up`, `-- migrate:up`) |
+
+A `.sql` migration file usually holds several statements behind one ID. That is correct: the header claims the file's requirement, not each statement.
+
+### Which file is the test?
+
+`COVERS:` needs a file that **fails a build**. Whether a check is a test is decided by what CI does with it, not by its format:
+
+- **Terraform tests** (`.tftest.hcl`) are tests. The validator recognises them by stem, like `*_test.go`.
+- **Policy checks** that gate the merge — OPA/Conftest `.rego`, Checkov and tfsec rules, kubeconform schemas — are tests. Tag them with `COVERS:` and declare their path under `layout.test_overrides` in `.sdlc/config.json`. **Use `**/*.rego`, not `**/policy/*.rego`**: a `.rego` glob that requires a `policy/` segment stops matching at the repository root, so a top-level `policy/` silently reclassifies as source and its `COVERS:` becomes a `tag-role` error. `conftest` already matches the default stem patterns and needs no declaration.
+- **A SQL assertion or schema-diff script** that runs after a migration is a test. Tag it.
+- **An advisory scan nobody fails on** is not a test. Tagging it would claim a gate that does not exist.
+
+Terratest is Go: it is a test only as `_test.go` under the normal rules, not as a `.tf` file that shells out.
+
+A requirement that no executable check can reach — production paging, a manual on-call review — belongs under the exemption heading in `spec.md`, not here. See `.sdlc/CONVENTIONS.md` § Requirements validated outside code.
+
 ## Generated and vendored files
 
 **Never annotate a file you do not own.** A file is not yours when any of these holds:

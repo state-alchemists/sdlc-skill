@@ -243,6 +243,8 @@ def validate_login(...): ...
 
 NFRs validated **outside code** (WAF rules, SLO dashboards, infra) are listed under "NFRs Validated Outside Code" in the spec; the validator exempts them rather than expecting a fake `IMPLEMENTS:` line. That heading is the only thing that exempts an NFR — what the "Validated By" cell *says* exempts nothing, and neither does naming CI, because CI is where validation runs, not what performs it.
 
+A **functional** requirement with no executable check uses a different heading — "Requirements With No In-Code Verification" — which exempts `REQ-*`. It is separate because it claims more: a functional requirement is what the code exists for. A `REQ-*` under the NFR heading is a WARNING, not an exemption. Both kinds stay visible in every report as `outside-code`, and the IaC-friendly answer is usually a real check rather than an exemption, because a policy file that gates the merge is a test.
+
 A requirement's `(AC-NNN)` citation is checked against `problem-brief.md` when one exists, so an AC renumbered upstream surfaces as an error instead of rotting. Unkeyed legacy tags (`@sdlc REQ-003`) warn **and** leave their requirement untraced — they do not satisfy coverage until re-keyed.
 
 ```bash
@@ -252,7 +254,7 @@ python3 .sdlc/tools/sdlc-validate.py --strict --json # CI gate, machine-readable
 python3 .sdlc/tools/sdlc-validate.py --exclude 'docs/*.md'
 ```
 
-`ERROR` (missing `IMPLEMENTS`/`COVERS`, a tag in the wrong kind of file, dangling tags, duplicate or recycled IDs, key collisions, unknown `AC-*` citations, a test-plan row pointing at a retired requirement, an unusable Feature Key, an unknown `--feature` slug, an unusable `.sdlc/config.json`), `WARNING` (unkeyed legacy tags, EARS problems, test-plan gaps in either direction, a file skipped while scanning), `INFO` (legacy layout, outside-code NFRs). Exit `0` clean, `1` warnings with `--strict`, `2` errors.
+`ERROR` (missing `IMPLEMENTS`/`COVERS`, a tag in the wrong kind of file, dangling tags, duplicate or recycled IDs, key collisions, unknown `AC-*` citations, a test-plan row pointing at a retired requirement, an unusable Feature Key, an unknown `--feature` slug, an unusable `.sdlc/config.json`), `WARNING` (unkeyed legacy tags, EARS problems, test-plan gaps in either direction, a file skipped while scanning, a `REQ-*` sitting under the NFR-only exemption heading), `INFO` (legacy layout, requirements exempt as validated outside code). Exit `0` clean, `1` warnings with `--strict`, `2` errors.
 
 ### What counts as a tag
 
