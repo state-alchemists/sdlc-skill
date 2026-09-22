@@ -30,9 +30,12 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 - **Completing setup, not just filling structure.** Adoption is not finished when the files have moved — it is finished when the project has the steering documents and constitution every later skill reads. Mode A's tail covers this. The distinction that decides who finishes the job: a project with **no scaffolding at all** needs `/sdlc-init` first (it creates the structure); a project with **scaffolding but incomplete setup** is this skill's job, and routing that user back to `/sdlc-init` would strand them.
 - **Annotation reference**: read `.sdlc/ANNOTATION.md` before Mode C — comment syntax and header placement per language, and the policy for files that cannot carry a comment.
 - **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.
-- **Preserve history**: `git mv` in a git repo; `mkdir -p` + `mv` outside one. Never copy-and-leave-the-original.
+
+## Invariants
+
 - **Never rewrite meaning in Mode A**: it relocates files and mechanically re-keys tags. Restating requirements is Mode B's job.
 - **Never invent compliance**: where code does not do something, say so. An adopted spec that overstates the code is worse than no spec.
+- **Preserve history**: `git mv` in a git repo; `mkdir -p` + `mv` outside one. Never copy-and-leave-the-original.
 - **Idempotent**: safe to re-run. A project already adopted reports "nothing to do" and stops.
 - **Uncommitted work**: if `git status` is dirty, say so in Phase 2 and recommend committing first. Mode C edits source files; mixing that with unrelated work makes the diff unreadable.
 
@@ -66,12 +69,8 @@ If none match, the project **has never used these skills**. Mode A has nothing t
 | Finding | Needs |
 |---------|-------|
 | Legacy artifacts confirmed by 1a | Mode A |
-| `.sdlc/tests/<slug>/test-plan.md` beside a `spec.md`, and `CONVENTIONS.md` doesn't keep them separate | Mode A (fold) |
-| `requirements.md` + `design.md`, no `spec.md` | Mode A (move) then Mode B (merge) |
 | Unkeyed tags (`@sdlc REQ-003`, `IMPLEMENTS: REQ-`) | Mode A (re-key) |
-| Deprecated EARS (`ALWAYS SHALL`, uppercase `AS … THEN`, uppercase `UNLESS`, `WHERE … THEN`) | Mode B, or `/sdlc-quickfix` |
 | Source files with no spec covering them | Mode B, then C |
-| Infra or SQL repo — `.tf`, k8s YAML, migrations — with no loader to tag | Mode B, then C on the manifests themselves |
 | Spec exists, but its code carries no `IMPLEMENTS:`/`COVERS:` | Mode C |
 | ADRs exist, but no code cites them | Mode C (optional — ask) |
 | `.sdlc/rules.md` absent, or `.sdlc/docs/{product,tech,test-strategy}.md` or root `AGENTS.md` absent | Mode A tail (Complete Setup) |
@@ -136,6 +135,8 @@ Accept a partial approval and run only the approved modes. If the user declines,
 
 ## Mode A — Layout Migration
 
+Also the mode for two in-place fixups that are not moves: a **`test-plan.md` beside a `spec.md`** to fold (step 4, unless `CONVENTIONS.md` keeps them separate), and **unkeyed tags** to re-key (step 6). A `requirements.md` + `design.md` pair with no `spec.md` is moved here first, then merged in Mode B.
+
 1. Create destinations (`mkdir -p`, or let `git mv` do it).
 2. `git mv <src> <dst>` per file, or per directory where the whole directory relocates.
 3. Remove now-empty legacy directories.
@@ -180,6 +181,10 @@ Do not re-derive what Mode B will cover. Steering documents describe the project
 ## Mode B — Document from Code
 
 Produces **spec-from-code**: what the code does, not what the team intended. A user review pass is mandatory.
+
+Best-effort by nature: tests are the highest-signal source of intent, so code without tests yields thinner specs. **Do not pad a thin spec to look complete** — where a subsystem has no tests the spec is legitimately thinner, and a small requirement set is a finding, not a gap. The output is a **snapshot** — drift is closed by hand, so re-run after major refactors.
+
+Two findings route here from Phase 1b: **deprecated EARS** (`ALWAYS SHALL`, uppercase `AS … THEN`, uppercase `UNLESS`, `WHERE … THEN`) and an **infra or SQL repo** — `.tf`, k8s YAML, migrations — where no loader exists to tag, so Mode C annotates the manifests themselves.
 
 ### B1: Scope
 
@@ -244,6 +249,8 @@ Append to any spec written here:
 ## Mode C — Annotate the Code
 
 What makes a project read as SDLC-native: the link from code back to the requirement and the decision it serves. Runs only on features that have a `spec.md`.
+
+Mode C makes that link visible; it does not verify the code fulfils the requirement. That is `/sdlc-review`.
 
 **Comments and headers only. Never logic, never formatting, never imports.** If a file needs restructuring to be taggable, do not restructure it — note it and move on.
 
@@ -329,6 +336,8 @@ Then deliver the action block (see CONVENTIONS.md § Session handoff), turning w
 ```
 Remaining work, in a fresh session:
 
+  [ ] /sdlc-init                    {only if the Phase 1 refusal fired — no scaffolding
+                                     at all. It is never listed after Mode A runs.}
   [ ] /sdlc-plan                    {only if no problem brief exists — a documented
                                      spec has no AC-* to cite until it does}
   [ ] /sdlc-adopt <next-subsystem>  {only if scope was partial; name the subsystem}
@@ -336,20 +345,11 @@ Remaining work, in a fresh session:
                                      in ways to undo rather than absorb — say which}
 ```
 
-**Do not list `/sdlc-init` here.** A project that reached this skill has scaffolding, so its setup gaps were Mode A's tail and are either done or were declined at step 8 — either way `/sdlc-init` is not the next command. If step 8 was declined, name what is still missing and say `/sdlc-init` is **not** the way to finish it (it would write beside, not over, the relocated documents); Mode A's tail can be run later instead.
-
-The `/sdlc-init` case that remains is the one this skill refused: **no scaffolding at all**, which is handled in the Phase 1 refusal, before Mode A ever runs.
+**`/sdlc-init` is listed only in the one case this skill refused** — a project with no scaffolding at all, which is handled in Phase 1, before Mode A ever runs. It is **never** listed after Mode A. A project that reached Mode A has scaffolding, so its setup gaps were Mode A's tail: they were either filled or declined at step 8, and either way `/sdlc-init` is not the next command. If step 8 was declined, name what is still missing and say `/sdlc-init` is **not** the way to finish it — it would write beside the relocated documents, not over them, producing the parallel tree Mode A's tail exists to avoid. Mode A's tail can be run later instead.
 
 Add `/sdlc-spec <slug>` for any feature the survey found with source but no spec, since that is then a real next step. When two or more features lack specs, say they may be specified in parallel.
 
 After delivering this message, end your turn.
-
-## Caveats
-
-- Mode B is best-effort. Tests are the highest-signal source of intent; code without tests yields thinner specs.
-- Its output is a **snapshot**. Drift is closed manually — re-run after major refactors.
-- Mode C makes the link visible; it does not verify the code fulfils the requirement. That is `/sdlc-review`.
-- In an infra or SQL project, Mode C has no loader to fall back on: the manifest is the implementation and is annotated directly. Where a requirement's only check is a policy scan nobody fails on, that is **not** a test — say so and use the exemption heading rather than tagging it as covered.
 
 ## Error Recovery
 

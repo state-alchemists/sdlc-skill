@@ -14,11 +14,16 @@ judgement items below are human-graded.
 
 ## Mode B — documented from code
 
+Best-effort is expected, not a failure: where a subsystem has no tests the spec is
+legitimately thinner, and the requirement set may be small. What is *not* acceptable is a
+requirement the code does not support.
+
 | Check | Pass criteria |
 |-------|---------------|
 | Spec reflects the code | Requirements describe what `src/auth/` actually does, not what it should do |
 | No invented citations | Requirements carry no `(AC-NNN)` when no problem brief exists |
 | Drift report written | States `UNCHANGED` / `MODIFIED` / `ADDED` / `REMOVED-from-code` per finding |
+| Snapshot marked | The appended `*Documented from code at …*` line carries the scope and source commit |
 
 ## Mode C — annotation
 
@@ -33,9 +38,10 @@ judgement items below are human-graded.
 | Suite still passes | Mode C added comments only; the test suite runs green |
 | Project's own docs untouched | `src/auth/README.md` is byte-identical |
 
-## Reporting
+Governs all modes:
 
 | Check | Pass criteria |
 |-------|---------------|
 | Change Plan preceded writes | One plan, with risk levels, approved before anything was written |
 | Before/after counts given | Source files carrying `IMPLEMENTS:`, tests carrying `COVERS:`, features with a spec |
+| No mode invented | The report only claims Modes A/B/C; a mode the project did not need is reported as "nothing to do", not skipped silently |
