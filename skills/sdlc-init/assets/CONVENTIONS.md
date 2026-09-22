@@ -222,6 +222,14 @@ Both may run at once: each writes only its own .sdlc/specs/<slug>/ and key.
 
 A single-item block is fine and common. Do not pad it to look substantial.
 
+## Review independence
+
+A review verdict is only worth its independence: an APPROVE from a session that wrote the code it is checking is a false pass. This rule is defined here, once; every skill that offers or receives `/sdlc-review` references this section rather than restating it.
+
+- `/sdlc-review` asks, before reading anything, whether this session wrote the implementation — via `/sdlc-implement <slug>`, `/sdlc-quickfix <slug>`, or `/sdlc-adopt` Mode C — or resumed one with `/save`/`/load`. If it did, or the user cannot rule it out, the review is **in-session**: the report records the contamination and the verdict is **capped at COMMENT**. A legitimate REQUEST CHANGES is still possible; only approval is impossible.
+- `/sdlc-quickfix`'s Phase 5 inline review is in-session by design and **never independent**. An independent verdict on a quickfix means `/sdlc-review <slug>` in a fresh session.
+- A session resumed with conversation persistence (`/save`/`/load`) counts as the session that wrote the code — its context carried over.
+
 ## Dates and timestamps
 
 Dates come from the system clock, never from memory and never from an example. Run the command once at the start of the phase that needs it and reuse the value:

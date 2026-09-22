@@ -66,7 +66,7 @@ INSTRUCTIONS:
 
 ### Phase 5: Inline Review
 
-The quickfix path skips `/sdlc-review` — too small for a separate pass. Audit inline:
+The quickfix path skips `/sdlc-review` — too small for a separate pass — so this review is in-session by design and **never independent** (see `.sdlc/CONVENTIONS.md` § Review independence). An independent verdict on a quickfix needs `/sdlc-review` in a fresh session. Audit inline:
 1. `git diff` shows only the files named in the report.
 2. Run the test suite yourself.
 3. Run `python3 .sdlc/tools/sdlc-validate.py --feature <slug>` — confirm new tags are key-namespaced and resolve.

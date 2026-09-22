@@ -117,6 +117,8 @@ Next, in a fresh session:
   [ ] /sdlc-review <slug>      verify the code against the spec
 ```
 
+The fresh session is what makes the review independent: run `/sdlc-review <slug>` here and its verdict is capped at COMMENT (see `.sdlc/CONVENTIONS.md` § Review independence).
+
 If the spec's own Test Plan or the implementation left anything unimplementable, list that as an unchecked item too — a declined retry is work, not a footnote. Do not offer `/sdlc-spec` for new features here; implementation does not produce requirements.
 
 After delivering this message, end your turn.

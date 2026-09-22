@@ -48,6 +48,9 @@ def main():
         case_templates_ask_for_a_date_not_a_date_format,
         case_shipped_config_is_valid_json,
         case_annotation_covers_every_hazard_that_broke_a_file,
+        case_review_asks_for_independence_confirmation,
+        case_review_caps_verdict_without_fresh_context,
+        case_review_handoffs_reference_the_rule,
     ]
     failures = []
     for case in cases:
@@ -337,6 +340,75 @@ def case_annotation_covers_every_hazard_that_broke_a_file():
     assert (
         re.search(r"`\.css`|\.css", text) and "not a CSS comment" in text
     ), "ANNOTATION.md does not warn that // is not a CSS comment"
+
+
+def case_review_asks_for_independence_confirmation():
+    """A review verdict inherits the independence of the session that ran it.
+
+    `/sdlc-review` is Tier-3: nothing pauses to ask whether the review is the
+    same session that wrote the code. The fix is a mandatory question at the
+    start of the review — an APPROVE from a session that created what it is
+    reviewing is a self-declared pass. The gate must survive as a question, so
+    the assertion is on the question and the contamination sources it names.
+    """
+    text = read_text(get_skill_path("sdlc-review"))
+    assert "independence gate" in text, (
+        "sdlc-review no longer runs an independence gate before reviewing"
+    )
+    assert "this session" in text, (
+        "sdlc-review's independence gate does not ask about this session"
+    )
+    for source in ("/sdlc-implement", "/sdlc-quickfix", "Mode C"):
+        assert source in text, (
+            "sdlc-review's independence gate omits a contamination source: %s"
+            % source
+        )
+
+
+def case_review_caps_verdict_without_fresh_context():
+    """A contaminated review may criticise but must not approve.
+
+    The validator-fallback path already caps the verdict — "an APPROVE with no
+    deterministic pass is a false pass" — and a review that ran in the
+    implementing session is the same shape of false pass. The cap has to be a
+    rule in the skill and visible on the artifact it produces, or the verdict
+    is a self-declared APPROVE again.
+    """
+    review_text = read_text(get_skill_path("sdlc-review"))
+    assert "cap the verdict at COMMENT" in review_text, (
+        "sdlc-review no longer caps an in-session verdict at COMMENT"
+    )
+    report_template = read_text(
+        os.path.join(TEMPLATES_DIRECTORY, "review-report.md")
+    )
+    assert "## Review Context" in report_template, (
+        "the review report template does not record the context the verdict "
+        "depends on"
+    )
+    conventions = read_text(os.path.join(ASSETS_DIRECTORY, "CONVENTIONS.md"))
+    assert re.search(r"^## Review independence", conventions, re.M), (
+        "CONVENTIONS.md no longer defines the review-independence rule, so "
+        "the skills can drift a copy each"
+    )
+
+
+def case_review_handoffs_reference_the_rule():
+    """Every skill that hands the user to `/sdlc-review` states the fresh
+    session is for independence — and points at the rule, not a copy of it.
+
+    sdlc-implement's action block and sdlc-quickfix's inline review are the two
+    places a user actually learns the discipline. If the consequence (verdict
+    capped) is left to the review itself, the fresh-session note reads as
+    etiquette, which is exactly the drift this rule exists to prevent. The
+    assertion is on the shared `Review independence` anchor so the rule lives
+    in one file and the references cannot fork."""
+    for skill_name in ("sdlc-implement", "sdlc-quickfix"):
+        text = read_text(get_skill_path(skill_name))
+        assert "Review independence" in text, (
+            "%s hands off to the review without referencing the independence "
+            "rule, so a user learns the fresh-session cost only from the report"
+            % skill_name
+        )
 
 
 # --------------------------------------------------------------------------

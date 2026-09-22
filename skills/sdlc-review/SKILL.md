@@ -15,12 +15,18 @@ Two layers: a **deterministic** pass (the validator covers traceability, EARS, a
 - **Conventions**: read `.sdlc/CONVENTIONS.md`.
 - **Template**: fill `.sdlc/templates/review-report.md`.
 - **Argument → slug**: slugify to locate `.sdlc/specs/<slug>/`. If missing, ask.
-- **Fresh context is the point**: the judgement pass must not inherit assumptions from the implementation conversation.
+- **Fresh context is the point**: the judgement pass must not inherit assumptions from the implementation conversation — and a review that runs in the session that wrote the code is contaminated, not fresh (see `.sdlc/CONVENTIONS.md` § Review independence).
 - Reviews are **Tier-3** — the report is the deliverable, not a source mutation. No approval needed to write it.
 
 ## Workflow
 
-### Phase 1: Input Discovery
+### Phase 1: Independence Gate and Input Discovery
+
+**Run the independence gate first, before reading anything** (see `.sdlc/CONVENTIONS.md` § Review independence):
+
+> Did this session write the implementation for `<slug>` — via `/sdlc-implement <slug>`, `/sdlc-quickfix <slug>`, or `/sdlc-adopt` Mode C — or resume one with `/save`/`/load`?
+
+If it did, or the user cannot rule it out, this is an **in-session review**: record it for the report and cap the verdict at COMMENT.
 
 Read `.sdlc/rules.md` (every violation is a FAIL unless the Override Log records an exception), `.sdlc/CONVENTIONS.md`, `.sdlc/specs/<slug>/spec.md` (source of truth — read the Feature Key and the `## Test Plan` section), `.sdlc/requirements/entity-dictionary.md`, `.sdlc/docs/architecture.md`, and `.sdlc/docs/adr/*.md`.
 
@@ -84,6 +90,8 @@ Write `.sdlc/reviews/<slug>/report-<TIMESTAMP>.md` from `.sdlc/templates/review-
 - **REQUEST CHANGES** — any validator ERROR, any FAIL check, or any rule violation without an Override Log entry.
 - **COMMENT** — no blockers, but validator WARNINGs, PARTIALs, or style notes exist.
 - **APPROVE** — all checks PASS and the validator is clean.
+
+**Independence cap** — a contaminated review (Phase 1) cannot APPROVE: record the review context in the report and **cap the verdict at COMMENT**. An APPROVE from a session that wrote the code is a false pass; REQUEST CHANGES stays reachable.
 
 ## Phase Transition
 
