@@ -187,6 +187,39 @@ That grep cannot see a spec on another, unmerged branch. So when you choose a ke
 
 For parallel *implementation*, use a git worktree per feature.
 
+## Session handoff
+
+Every skill that completes a phase ends with an **action block**: a paste-ready todo list of what the user can do next, in a fresh session.
+
+The skills are stateless between sessions — each reads artifacts from disk, not chat history — so the transition message is the only place a user learns what comes next. Make it actionable rather than descriptive.
+
+**Three rules.**
+
+**Paste-ready, not illustrative.** Never write `/sdlc-implement <slug>` and leave the user to substitute. Write the literal command with the slug the skill already resolved:
+
+```
+/sdlc-implement user-auth
+```
+
+A placeholder forces the user to apply the kebab-case rule correctly, unverified, at the moment of highest friction. The skill computed the slug; it states it.
+
+**Only what the artifacts support.** List a command because the artifacts in front of you justify it, not because it exists. A `/sdlc-review` on a feature with no code yet is noise, and noise teaches the user to skip the block. If a spec directory is empty, review is not a next step.
+
+**Name the parallel opportunity.** When two or more specs exist, say so — `/sdlc-spec` can run in parallel for different features, and so can `/sdlc-implement` under a worktree. What must stay single-writer is listed above. This is the one thing a user cannot infer from the artifacts, so the block is where it belongs.
+
+**Shape.** One block, items justified by observed state:
+
+```
+Next, in a fresh session — pick any order:
+
+  [ ] /sdlc-spec billing-export        from the brief you just wrote
+  [ ] /sdlc-spec audit-log             independent, safe to run in parallel
+
+Both may run at once: each writes only its own .sdlc/specs/<slug>/ and key.
+```
+
+A single-item block is fine and common. Do not pad it to look substantial.
+
 ## Dates and timestamps
 
 Dates come from the system clock, never from memory and never from an example. Run the command once at the start of the phase that needs it and reuse the value:

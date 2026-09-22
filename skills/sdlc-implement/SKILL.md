@@ -108,7 +108,16 @@ For parallel feature work, run the delegation inside an isolated git worktree on
 ## Phase Transition
 
 > Implementation complete for `<slug>`. The files listed below carry key-namespaced `IMPLEMENTS:`/`COVERS:` headers and `@sdlc {KEY}:REQ-*` tags. Suite passes ({N} tests); validator: {summary}.
-> To continue: exit this chat, start a fresh session, and run `/sdlc-review <slug>`.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff):
+
+```
+Next, in a fresh session:
+
+  [ ] /sdlc-review <slug>      verify the code against the spec
+```
+
+If the spec's own Test Plan or the implementation left anything unimplementable, list that as an unchecked item too — a declined retry is work, not a footnote. Do not offer `/sdlc-spec` for new features here; implementation does not produce requirements.
 
 After delivering this message, end your turn.
 

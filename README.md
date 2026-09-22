@@ -50,16 +50,17 @@ A project with no test files will now fail, which is the point: it used to pass.
 python3 .sdlc/tools/sdlc-validate.py --relax-tag-roles   # green build, full worklist
 ```
 
-Then, **per project** that was set up by an older version — always `/sdlc-init` first, then `/sdlc-adopt`:
+Then, **per project** that was set up by an older version — `/sdlc-init` first, then `/sdlc-adopt`:
 
 ```
 /sdlc-init     # refreshes the validator, installs .sdlc/templates/, keeps your documents
-/sdlc-adopt    # folds .sdlc/tests/<slug>/test-plan.md into each spec.md, re-keys tags
+/sdlc-adopt    # relocates legacy artifacts, folds test plans, re-keys tags,
+               # then derives any steering document or rules.md you are missing
 ```
 
 `/sdlc-init` never overwrites a template you have edited, always refreshes `.sdlc/tools/sdlc-validate.py` (an old copy carries fixed bugs), and shows a diff before replacing `.sdlc/CONVENTIONS.md`.
 
-**The order is always `/sdlc-init` → `/sdlc-adopt`**, on every kind of project. `/sdlc-adopt` fills a structure rather than creating one, so it needs the templates and validator that `/sdlc-init` installs. On a project still using the legacy layout, `/sdlc-init` installs that scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`. Re-run `/sdlc-init` afterwards to fill the gaps.
+**The order is always `/sdlc-init` → `/sdlc-adopt`, and `/sdlc-adopt` is the last command.** `/sdlc-adopt` fills a structure rather than creating one, so it needs the templates and validator that `/sdlc-init` installs. On a project still using the legacy layout, `/sdlc-init` installs that scaffolding and stops there — it writes no steering documents, because those would form a parallel tree beside your existing ones — and routes you to `/sdlc-adopt`, which relocates the documents and then completes the setup. A project can end up adopted with no `.sdlc/rules.md`, and every later skill reads that file, so `/sdlc-adopt` treats an absent constitution as unfinished work rather than a clean run.
 
 Manual install is the same pattern for any tool — copy the skill directories into `<dotdir>/skills/`:
 
@@ -137,7 +138,7 @@ Two layers: the **validator** covers traceability, EARS, and ID hygiene determin
 
 ### 6. `sdlc-quickfix` — Delta Path
 
-`ADDED/MODIFIED/REMOVED` delta against an existing spec, implemented in one shot with an inline review, then **promoted into `spec.md`** so the spec never drifts behind the code. Promotion is the recommendation, not a default that happens on silence — editing an existing spec is Tier-1 and it asks. Use this skill instead of fragmenting a one-line fix into a new spec directory.
+`ADDED/MODIFIED/REMOVED` delta against an existing spec, implemented in one shot with an inline review, then **promoted into `spec.md`** so the spec never drifts behind the code. Promotion is the recommendation, not a default that happens on silence — editing an existing spec is Tier-1 and it asks. Use this skill instead of fragmenting a one-line fix into a new spec directory. This is the command for changing a `REQ-*` — see [Changing a requirement](#changing-a-requirement).
 
 ### 7. `sdlc-adopt` — Brownfield Adoption
 
@@ -203,7 +204,7 @@ Specs are snapshots. When code changes outside the pipeline: `/sdlc-adopt` (docu
 
 ### F: Project From an Earlier Version of These Skills
 
-`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, and re-keys tags, preserving git history. Re-run `/sdlc-init` to fill any remaining gaps.
+`/sdlc-init` refreshes the validator and installs the templates without touching your documents — on a legacy layout it stops right there. Then `/sdlc-adopt` consolidates legacy paths under `.sdlc/`, folds `test-plan.md` into `spec.md`, re-keys tags, and completes the setup by deriving any steering document or `rules.md` that is missing, preserving git history throughout.
 
 ---
 
@@ -255,6 +256,28 @@ python3 .sdlc/tools/sdlc-validate.py --exclude 'docs/*.md'
 ```
 
 `ERROR` (missing `IMPLEMENTS`/`COVERS`, a tag in the wrong kind of file, dangling tags, duplicate or recycled IDs, key collisions, unknown `AC-*` citations, a test-plan row pointing at a retired requirement, an unusable Feature Key, an unknown `--feature` slug, an unusable `.sdlc/config.json`), `WARNING` (unkeyed legacy tags, EARS problems, test-plan gaps in either direction, a file skipped while scanning, a `REQ-*` sitting under the NFR-only exemption heading), `INFO` (legacy layout, requirements exempt as validated outside code). Exit `0` clean, `1` warnings with `--strict`, `2` errors.
+
+### Changing a requirement
+
+Which command runs depends on **where** the change lands, not on how small it is:
+
+| You are changing | Run | Why |
+|---|---|---|
+| A `REQ-*` — its text, or adding and removing one | `/sdlc-quickfix <slug>` | 1–3 EARS requirements, one already-specified feature, no new architecture |
+| The feature's shape — new architecture, or more than a few requirements | `/sdlc-spec <slug>` | The change outgrows a delta; `quickfix` recommends this itself when scope exceeds 1–3 EARS items |
+| An `AC-*`/`US-*`/`NFR-*` in `problem-brief.md` | `/sdlc-plan` | The brief is **project-level**, and a single-writer artifact |
+
+The last row is the one that surprises people. `problem-brief.md` is owned by `/sdlc-init` and `/sdlc-plan`; `quickfix` and `spec` **must not** extend it, because two sessions each appending "the next free `AC-*`" collide on exactly the IDs the scheme declares immutable. A `REQ-*` change is per-feature and safe to do in any session; an `AC-*` change is project-level and wants a session of its own.
+
+**IDs are immutable — never renumber, never recycle.** Modifying a requirement keeps its ID and edits its text; the tags pointing at it stay valid, which is the point. Removing one retires it **in place**, and the marker must come first, directly after the `(AC-NNN)` citation if there is one:
+
+```
+- `REQ-004` (AC-012): REMOVED (2026-03-01) — superseded by REQ-009.
+```
+
+The validator recognises a retirement only when the text **begins** with `REMOVED ({date}) — {reason}`. Any word in front — `Deprecated. REMOVED (…)` — leaves the requirement **active**, and you get coverage errors for something you thought you had deleted. Retiring also means stripping its ID from every `IMPLEMENTS:` header and deleting its `@sdlc` tags: a tag left pointing at a retired ID is a `dangling-tag` ERROR naming the file.
+
+**The gate does not check that the code still matches the words.** Reword a `REQ-*` and the validator stays green while the implementation is stale — tags are unversioned, so a tag on `REQ-003` satisfies it whoever the text describes. Changing a number inside a requirement means changing it in the code, the tests, and the test-plan row's prose too; the validator only catches the first of the three. That is what `/sdlc-review` and `/sdlc-adopt`'s drift report are for.
 
 ### What counts as a tag
 
@@ -408,6 +431,6 @@ For [zrb](https://github.com/state-alchemists/zrb), `zrb_init.py` exposes `zrb s
 - **The validator is structural, not semantic** — it checks IDs, tags, and EARS shape, not whether a requirement is *correctly* implemented. That is the review sub-agent's job.
 - **The validator never runs your tests** — a `COVERS:` tag on a skipped or empty test satisfies coverage. It checks that a test *exists and claims the requirement*, not that it asserts anything.
 - **A tag on commented-out code is indistinguishable from a tag on live code** — delete the tag when you delete the implementation.
-- **Tags are unversioned** — reword a requirement and every tag pointing at it still validates. Drift of that kind is caught by `/sdlc-adopt`'s drift report, per feature and on demand, not per link and automatically.
+- **Tags are unversioned** — reword a requirement and every tag pointing at it still validates. Drift of that kind is caught by `/sdlc-adopt`'s drift report, per feature and on demand, not per link and automatically. So changing a requirement's *meaning* is a manual three-part edit — spec text, code, and the test-plan row's prose — of which the validator checks only the first; see [Changing a requirement](#changing-a-requirement).
 - **Evals grade deterministic checks only** — no LLM-as-judge, and grading still needs a human to produce the `--actual` output. Only the validator tests and case linting run unattended.
 - **Specs are snapshots** — re-sync is manual. Shared by every SDD tool.

@@ -86,7 +86,19 @@ Present the spec as one **Tier-2** batch. Overwriting an existing `spec.md` is *
 ## Phase Transition
 
 > Spec complete for `<slug>` (Feature Key `{{KEY}}`): `.sdlc/specs/<slug>/spec.md`, including its test plan.
-> To continue: exit this chat, start a fresh session, and run `/sdlc-implement <slug>`.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff):
+
+```
+Next, in a fresh session:
+
+  [ ] /sdlc-implement <slug>      the spec is written; this resolves the
+                                  expected trace-code / trace-test errors
+```
+
+Add `/sdlc-spec <other-slug>` items only for features that already have a spec directory or appear in the problem brief as separate work — do not offer to specify something the brief does not describe. If other specs exist, say that both may be implemented in parallel under a worktree.
+
+Expected right now: `--feature <slug>` reports `trace-code`/`trace-test` because no code exists. Say that plainly so the user does not read the errors as a failure.
 
 After delivering this message, end your turn.
 

@@ -68,7 +68,24 @@ Present all four documents as **one Tier-2 batch**. Resolve Tier-1 conflicts (AC
 ## Phase Transition
 
 > Planning is complete: `.sdlc/requirements/problem-brief.md`, `.sdlc/requirements/entity-dictionary.md`, `.sdlc/docs/adr/ADR-*.md`, and `.sdlc/docs/architecture.md`.
-> To continue: exit this chat, start a fresh session, and run `/sdlc-spec <feature>` (e.g. `User Auth` → slug `user-auth`) to specify your first feature.
+
+Then deliver the action block (see CONVENTIONS.md § Session handoff). Derive the feature list from the brief you just wrote — one row per coherent feature, using the user story names. Do not invent features that are not in it.
+
+Example shape, where the brief yielded three features:
+
+```
+Next, in a fresh session — the features in the brief you just approved:
+
+  [ ] /sdlc-spec user-auth
+  [ ] /sdlc-spec billing-export
+  [ ] /sdlc-spec audit-log
+
+These may run in parallel: each writes only its own .sdlc/specs/<slug>/
+and its key. Do not run two /sdlc-plan sessions at once — the brief is
+single-writer.
+```
+
+If the brief yielded one feature, list one and say so. Name any feature that will need splitting before it can be specified.
 
 After delivering this message, end your turn.
 
