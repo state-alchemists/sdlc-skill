@@ -1,0 +1,1 @@
+../../skills/sdlc-init/assets/tools/sdlc-validate.py

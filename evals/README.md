@@ -21,13 +21,11 @@ evals/
         rubric.md           # human-readable PASS / FAIL / PARTIAL criteria
         checks.json         # machine-checkable assertions (optional)
         expected/           # reference output tree (optional)
-    sdlc-spec/
-      email-verification/   # happy path (canonical EARS, folded test plan, PBT, outside-code NFR)
-    sdlc-quickfix/
-      login-error-message/  # edge case (small delta, promote-by-default)
+    sdlc-spec/email-verification/             # canonical EARS, folded test plan, PBT, outside-code NFR
+    sdlc-implement/go-layout-no-src/          # colocated Go tests, no src/ + tests/ assumption
+    sdlc-quickfix/login-error-message/        # small delta, promote-by-default
+    sdlc-adopt/legacy-layout-migration/       # relocation + setup completion
 ```
-
-Each case is **self-contained**: `input.md` (what was said to / read by the skill), `rubric.md` (the full criteria a grader checks), an optional `checks.json` (the deterministic subset the runner grades), and an optional `expected/` tree.
 
 All graded paths use the canonical layout: artifacts under `.sdlc/` (steering docs `.sdlc/docs/`, requirements `.sdlc/requirements/`, specs `.sdlc/specs/<slug>/spec.md` (test plan included as its `## Test Plan` section), rules `.sdlc/rules.md`, templates `.sdlc/templates/`, validator `.sdlc/tools/sdlc-validate.py`), with `AGENTS.md` at the repo root.
 
@@ -49,11 +47,20 @@ All graded paths use the canonical layout: artifacts under `.sdlc/` (steering do
 
 | Field | Meaning |
 |-------|---------|
-| `type` | `file_exists` \| `contains_regex` \| `absent_regex` \| `min_matches` |
+| `type` | see below |
 | `target_file` | path relative to the `--actual` output directory |
-| `pattern` | regex (for the three regex types) |
-| `min_count` | integer threshold (for `min_matches`) |
-| `severity` | `error` (FAIL → case FAILs) or `warning` (FAIL → case PARTIAL) |
+| `pattern` | regex (for the four regex types) |
+| `min_count` / `max_count` | integer threshold (for `min_matches` / `max_matches`) |
+| `severity` | `error` (default; FAIL → case FAILs) or `warning` (FAIL → case PARTIAL) |
+
+| Type | Passes when |
+|------|-------------|
+| `file_exists` / `file_absent` | `target_file` exists / does not exist |
+| `contains_regex` | `target_file` exists and `pattern` is found |
+| `absent_regex` | `target_file` exists and `pattern` is not found (a missing file fails — use `file_absent` for absence) |
+| `min_matches` / `max_matches` | `target_file` has at least `min_count` / at most `max_count` matches |
+
+Unknown keys, bad severities and invalid regexes are lint errors.
 
 ## Running
 
@@ -77,6 +84,3 @@ python3 evals/run.py --case sdlc-spec/email-verification --actual DIR  # one cas
 4. Write `rubric.md` as the full checklist: required IDs/sections present, forbidden content absent (e.g. deprecated EARS dialect, hallucinated entities), numeric thresholds.
 5. Encode the deterministic subset in `checks.json` so `run.py` grades it in CI. Good deterministic checks: `file_exists` for each artifact at its `.sdlc/` path, `absent_regex` for the deprecated EARS dialect (`ALWAYS\s+SHALL|\bUNLESS\b|\bAS\b.+\bTHEN\b`), `contains_regex` for `Feature Key`, `min_matches` for REQ IDs.
 
-## Why this matters
-
-Without evals: a prompt tweak that improves one case but regresses three goes unnoticed; contributors can't tell whether their changes help or hurt; the plugin has no answer to "is this skill any good?"

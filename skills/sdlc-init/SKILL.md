@@ -22,27 +22,15 @@ Installs the `.sdlc/` scaffolding every other skill depends on, then writes the 
 ### Phase 1: Project Discovery
 
 - List the repo root and whatever source directories it actually has. Read `README.md` and any manifest (`pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`, `pom.xml`, ...) — in parallel. The manifest is what tells you the layout; record anything surprising in `.sdlc/config.json` in Phase 2.
-- **Detect layout — by content, never by directory name.** A `docs/` directory is not evidence of anything; most projects have one.
+- **Detect a legacy layout** with the rule in this skill's `assets/CONVENTIONS.md` § Legacy layout (not yet installed on a first run). By content, never by directory name.
 
-<!-- legacy-detection:start -->
-A project is on the **legacy SDLC layout** when either of these holds:
-
-1. **A conclusive marker exists** — `docs/adr/ADR-*.md`; a root `rules.md` containing `RULE-`; `specs/<slug>/spec.md` (or `requirements.md` + `design.md`); `requirements/problem-brief.md` or `requirements/entity-dictionary.md`; or `docs/product.md`, `docs/tech.md` or `docs/test-strategy.md` — names this project writes and almost nothing else does.
-2. **A weak marker exists and its own text cross-references the scheme** — `docs/architecture.md` containing `.sdlc/`, `ADR-<n>`, `RULE-<n>`, `US-<n>`, `AC-<n>`, `NFR-<n>` or `Feature Key`.
-
-**`docs/architecture.md` on its own is not evidence.** MkDocs, Docusaurus and Diátaxis all emit that filename by default; far more projects have one than have ever run `/sdlc-init`. Treating it as a marker made `/sdlc-init` refuse to write steering documents on projects that had never used these skills.
-
-Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — and the near-miss that bites is the lowercase collision, not the uppercase one.
-<!-- legacy-detection:end -->
 
 - Choose the branch:
   - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. **Name the markers that triggered it**, so the user can say "that one is ours" and you can continue on the brownfield path instead. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`, which relocates the artifacts and then completes the setup this branch left undone.
-  - **Legacy markers found, but they are already under `.sdlc/`** → **not this branch.** A project whose artifacts are at their canonical `.sdlc/` paths is on the brownfield path, however old it is: `docs/product.md` at `.sdlc/docs/product.md` is exactly where this skill would write it, so there is nothing to relocate and no parallel tree to avoid. Treat it as **Brownfield** and run every phase — Phase 5 fills a missing `.sdlc/rules.md`, which is the usual gap on a project set up before constitution existed. Do not route such a project to `/sdlc-adopt`; it has nothing to migrate.
-  - **Suspected but not confirmed** (a weak marker with no scheme reference) → say in one line what you found, then **continue on the brownfield path**. Writing `.sdlc/docs/architecture.md` beside a project's own `docs/architecture.md` is not a parallel tree; it is a project with two documents, which is the normal case.
+  - **Artifacts already under `.sdlc/`** → **not this branch**, however old the project is: there is nothing to relocate. Treat it as **Brownfield** and run every phase — Phase 5 fills a missing `.sdlc/rules.md`, the usual gap on a project set up before the constitution existed. Do not route it to `/sdlc-adopt`.
+  - **Weak marker, no scheme reference** → say in one line what you found and continue on the brownfield path. `.sdlc/docs/architecture.md` beside the project's own `docs/architecture.md` is two documents, not a parallel tree.
   - **Greenfield** (no source beyond scaffolding, no meaningful README) → Phase 3a.
   - **Brownfield** (existing source, real README, manifests with real deps) → Phase 3b.
-
-  The test is **where the artifacts are**, not how old the project is. Legacy markers under `.sdlc/` mean a full run; legacy markers at `docs/`, `specs/` or the repo root mean Phase 2 then `/sdlc-adopt`.
 
 ### Phase 2: Install Scaffolding
 
@@ -92,7 +80,8 @@ Ask these **one at a time**:
 | What is the product name and what problem does it solve? | product.md — Problem Statement |
 | Who are the target users and what are their primary goals? | product.md — Target Users |
 | What does success look like — functionally, non-functionally, for the business? | product.md — Success Criteria |
-| What is explicitly in scope, and explicitly out of scope? | product.md — Scope |
+| What is explicitly in scope, and explicitly out of scope — and why is each out-of-scope item left out? | product.md — Scope |
+| What do people use today instead — another product, a spreadsheet, or nothing? | product.md — Alternatives & Positioning |
 | Who are the key stakeholders and what is each one's interest? | product.md — Key Stakeholders |
 | What technology stack do you plan to use? | tech.md |
 | Any architectural constraints or non-negotiables? | tech.md |
@@ -103,7 +92,7 @@ Ask these **one at a time**:
 
 The repo has signal — extract before asking. Derive each section from manifests, README, source layout, and CI config, then **present the derived draft** and ask the user to confirm, correct, and fill gaps.
 
-- **Product** (problem / users / scope / stakeholders): mostly intent, not artifact. Confirm the name, draft the problem statement from the README, **interview** the rest.
+- **Product** (problem / users / scope / alternatives / stakeholders): mostly intent, not artifact. Confirm the name, draft the problem statement from the README, **interview** the rest. Alternatives come from the user or from a README comparison with sources — never from your own guess.
 - **Tech** (stack / constraints / dependencies): derivable from manifests. Confirm rather than interview.
 - **Test strategy** (levels / tools / CI gates / environments): partly derivable from `.github/workflows/`, `.gitlab-ci.yml`, and test directories. Confirm what exists, interview what is missing.
 

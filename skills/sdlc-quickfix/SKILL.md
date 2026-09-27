@@ -19,7 +19,7 @@ For changes that do not justify the full pipeline. Uses an `ADDED/MODIFIED/REMOV
 - **Template**: fill `.sdlc/templates/quickfix.md`.
 - **Argument → slug**: slugify to locate `.sdlc/specs/<slug>/`. If missing, ask.
 - **Required input**: no existing `spec.md` for the feature? There is nothing to delta against — tell the user to run `/sdlc-spec <feature>` (new feature) or `/sdlc-adopt` (existing code, no spec).
-- **ID rules**: continue numbering from the highest existing ID; never renumber or recycle. A removed requirement keeps its ID and its text **begins** `REMOVED ({date}) — {reason}`, directly after the `(AC-NNN)` citation if it has one — anything else between the ID and `REMOVED` leaves it active.
+- **ID rules**: `.sdlc/CONVENTIONS.md` § ID & traceability scheme — continue from the highest ID, never renumber or recycle, retire with the exact `REMOVED` form.
 - **Retry cap**: 2 re-delegations.
 
 ## Workflow

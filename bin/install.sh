@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPEC: .sdlc/specs/installer/spec.md
+# IMPLEMENTS: INST:REQ-001, INST:REQ-002, INST:REQ-003, INST:REQ-004, INST:REQ-005, INST:REQ-006, INST:REQ-007, INST:REQ-008
 # install.sh — Install sdlc-skill skills into AI coding tool skill directories.
 #
 # Default behaviour (no flags): installs into whichever tool directories
@@ -13,7 +15,7 @@
 #   bin/install.sh --all                        # alias for --tools all
 #   bin/install.sh --dir .claude/skills         # a project-scoped directory
 #   bin/install.sh --uninstall --tools all      # remove sdlc-* from all tools
-#   bin/install.sh --dry-run --tools cursor     # preview without changing anything
+#   bin/install.sh --dry-run --tools claude     # preview without changing anything
 
 set -euo pipefail
 
@@ -67,9 +69,9 @@ known_tool() { tool_dir "$1" > /dev/null 2>&1; }
 
 # Ordered list for usage display and --tools all.
 #
-# Paths marked (confirmed) were checked against the tool's own documentation.
-# The rest follow the <dotdir>/skills/ convention the Agent Skills spec
-# established and were inherited from OpenSpec's supported-tools table.
+# zrb, claude, agents, codex, opencode, github-copilot and gemini were checked
+# against each tool's own docs; the rest follow the <dotdir>/skills/ convention
+# inherited from OpenSpec's supported-tools table.
 TOOL_IDS=(
     zrb claude agents codex opencode windsurf github-copilot
     gemini amazon-q cline codebuddy continue crush factory iflow
@@ -101,16 +103,18 @@ keep_legacy=0
 want_tool=()
 want_dir=()
 
-# Check whether a tool ID is in the want_tool set.
-want() {
-    local id="$1" x
-    # `${a[@]}` on an empty array is an unbound-variable error under bash 3.2.
-    [[ "${#want_tool[@]}" -gt 0 ]] || return 1
-    for x in "${want_tool[@]}"; do
-        [[ "$x" == "$id" ]] && return 0
+# True when $1 equals any later argument.
+in_list() {
+    local needle="$1" x
+    shift
+    for x in "$@"; do
+        [[ "$x" == "$needle" ]] && return 0
     done
     return 1
 }
+
+# `${a[@]}` on an empty array is an unbound-variable error under bash 3.2.
+want() { [[ "${#want_tool[@]}" -gt 0 ]] && in_list "$1" "${want_tool[@]}"; }
 
 usage() {
     cat <<'EOF'
@@ -250,23 +254,14 @@ installed_skills_in() {
     find "${target}" -maxdepth 1 -mindepth 1 -type d -name 'sdlc-*' | sort
 }
 
-# True when this repo still ships a skill by that name.
-is_shipped() {
-    local name="$1" skill
-    for skill in "${skills[@]}"; do
-        [[ "$(basename "${skill}")" == "${name}" ]] && return 0
-    done
-    return 1
-}
+shipped_names=()
+for skill in "${skills[@]}"; do shipped_names+=("$(basename "${skill}")"); done
 
-# True when this repo used to ship a skill by that name.
-is_retired() {
-    local name="$1" retired
-    for retired in "${RETIRED_SKILLS[@]}"; do
-        [[ "${retired}" == "${name}" ]] && return 0
-    done
-    return 1
-}
+is_shipped() { in_list "$1" "${shipped_names[@]}"; }
+
+# True when this repo ships, or used to ship, a skill by that name. Anything
+# else in the sdlc-* namespace belongs to the user and is never removed.
+is_ours() { is_shipped "$1" || in_list "$1" "${RETIRED_SKILLS[@]}"; }
 
 install_to() {
     local target="$1"
@@ -279,7 +274,7 @@ install_to() {
         name="$(basename "${dest}")"
         if is_shipped "${name}"; then
             continue
-        elif is_retired "${name}"; then
+        elif is_ours "${name}"; then
             run rm -rf "${dest}"
             log "  removed ${name} (no longer shipped)"
         else
@@ -307,7 +302,7 @@ uninstall_from() {
     while IFS= read -r dest; do
         [[ -n "${dest}" ]] || continue
         name="$(basename "${dest}")"
-        if ! is_shipped "${name}" && ! is_retired "${name}"; then
+        if ! is_ours "${name}"; then
             log "  kept ${name} (not ours — left untouched)"
             continue
         fi
@@ -336,9 +331,7 @@ sweep_superseded_dirs() {
         while IFS= read -r dest; do
             [[ -n "${dest}" ]] || continue
             name="$(basename "${dest}")"
-            if ! is_shipped "${name}" && ! is_retired "${name}"; then
-                continue
-            fi
+            is_ours "${name}" || continue
             if [[ "${swept}" -eq 0 ]]; then
                 log "Superseded: ${dir} (an earlier version installed here)"
                 swept=1

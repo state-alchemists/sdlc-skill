@@ -8,7 +8,7 @@ user-invocable: true
 
 > **Execution model**: you execute the Workflow below — reading files, interviewing the user, generating artifacts, getting approval before writing. Lines that say "run `/sdlc-<other>`" are instructions **for the user**; only the user starts the next skill. Deliver the Phase Transition message, then stop.
 
-Turns the product vision into the two things every feature spec cites: **requirements** (problem brief + entity dictionary) and **architecture** (ADRs + architecture document). Formerly `sdlc-requirements` + `sdlc-architect` — they read the same inputs and neither needs a session of its own.
+Turns the product vision into the two things every feature spec cites: **requirements** (problem brief + entity dictionary) and **architecture** (ADRs + architecture document).
 
 ## Before you start
 
@@ -40,6 +40,8 @@ Acceptance criteria and NFRs must be precise enough to become EARS requirements 
 
 Extract every domain noun in the brief. Entity names are PascalCase, fields snake_case; each field gets a type, constraints (required, unique, min/max, regex, FK), and a description.
 
+Relationships go in the template's Mermaid `erDiagram`, the only place they are stated.
+
 **Merge, don't overwrite**: untouched entities stay verbatim; new entities append; new fields append to an existing entity. A **conflicting** field definition (different type or constraints) is a **Tier-1** decision — surface it and ask which wins.
 
 ### Phase 4: Architecture Decision Records
@@ -52,7 +54,7 @@ Each ADR cites the `RULE-*` it implements and states how adherence is verified.
 
 ### Phase 5: Architecture Document
 
-Fill `.sdlc/templates/architecture.md` into `.sdlc/docs/architecture.md`. Its Key Decisions table indexes the ADRs from Phase 4. Include only environments that actually exist per `test-strategy.md`.
+Fill `.sdlc/templates/architecture.md` into `.sdlc/docs/architecture.md`. Its Key Decisions table indexes the ADRs from Phase 4. Pick the Structure view from the project's shape in `tech.md` using the template's table (C4 containers only for separately running programs), and name the view you chose when presenting. Diagrams are Mermaid, drawn only from what the tables state; add a Key Flows sequence diagram only for a flow across parts that a reader could get wrong. Include only environments that actually exist per `test-strategy.md`.
 
 ### Phase 6: Validation
 
@@ -62,6 +64,7 @@ Before writing, cross-check:
 - Acceptance criteria and NFRs are testable (no subjective language).
 - User stories read "As a {user}, I want {goal} so that {reason}".
 - Every ADR cites its rules and its verification mechanism.
+- Every entity in the `erDiagram` has a table above it, and every Mermaid block renders.
 
 Present all four documents as **one Tier-2 batch**. Resolve Tier-1 conflicts (AC rewordings, entity conflicts, ADR supersessions) first, individually.
 
@@ -100,4 +103,4 @@ Interrupted mid-phase: list `.sdlc/requirements/` and `.sdlc/docs/adr/` to see w
 | `problem-brief.md` | `.sdlc/requirements/` | PRD: user stories, `AC-*`, `NFR-*` sources |
 | `entity-dictionary.md` | `.sdlc/requirements/` | Domain entities, fields, constraints |
 | `ADR-*.md` | `.sdlc/docs/adr/` | Architecture Decision Records |
-| `architecture.md` | `.sdlc/docs/` | C4 overview, data flow, deployment |
+| `architecture.md` | `.sdlc/docs/` | System context, a structure view fitted to the project, key-flow sequences, deployment |

@@ -26,8 +26,8 @@ Order is fixed: **A → B → C.** B writes to paths A creates; C cites IDs B de
 
 ## Before you start
 
-- **Scaffolding first.** If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init` — then re-run this skill. Do not improvise templates. On a legacy-layout project `/sdlc-init` installs the scaffolding and stops there, writing no steering documents, precisely so this skill has what it needs; it is always safe to run first.
-- **Completing setup means running `/sdlc-init`'s phases, not restating them.** Adoption is not finished when the files have moved — it is finished when the project has the steering documents and constitution every later skill reads. This skill does **not** author those: after relocating, it runs `/sdlc-init`'s Phase 3b–5 against the now-ordinary tree, so the steps exist in exactly one place. The distinction that decides who finishes the job: a project with **no scaffolding at all** needs `/sdlc-init` alone first (it creates the structure and can finish setup itself); a project whose artifacts are at **legacy paths** is this skill's job, because relocating them is what makes `/sdlc-init` able to finish.
+- **Scaffolding first.** If `.sdlc/templates/` or `.sdlc/tools/sdlc-validate.py` is missing, stop after Phase 1 and tell the user to run `/sdlc-init`, then re-run this skill. Do not improvise templates. (On a legacy layout `/sdlc-init` installs scaffolding and deliberately stops.)
+- **Completing setup means running `/sdlc-init`'s Phase 3b–5, not restating them** — see the Mode A tail and `.sdlc/CONVENTIONS.md` § Legacy layout for who finishes setup when.
 - **Annotation reference**: read `.sdlc/ANNOTATION.md` before Mode C — comment syntax and header placement per language, and the policy for files that cannot carry a comment.
 - **Conventions win**: read `.sdlc/CONVENTIONS.md` first, before classifying anything. Where it sets its own canonical layout — e.g. test plans kept as a standalone file rather than folded into `spec.md` — that overrides every default below, including the fold in Mode A step 4.
 
@@ -47,22 +47,10 @@ Read-only. List, only where they exist: the repo root, `docs/`, `docs/adr/`, `re
 
 ### 1a. Is this an SDLC project at all?
 
-**Classify by content, never by directory name.** A `docs/` directory is not evidence of anything — most projects have one.
+Apply `.sdlc/CONVENTIONS.md` § Legacy layout — by content, never by directory name.
 
-<!-- legacy-detection:start -->
-A project is on the **legacy SDLC layout** when either of these holds:
 
-1. **A conclusive marker exists** — `docs/adr/ADR-*.md`; a root `rules.md` containing `RULE-`; `specs/<slug>/spec.md` (or `requirements.md` + `design.md`); `requirements/problem-brief.md` or `requirements/entity-dictionary.md`; or `docs/product.md`, `docs/tech.md` or `docs/test-strategy.md` — names this project writes and almost nothing else does.
-2. **A weak marker exists and its own text cross-references the scheme** — `docs/architecture.md` containing `.sdlc/`, `ADR-<n>`, `RULE-<n>`, `US-<n>`, `AC-<n>`, `NFR-<n>` or `Feature Key`.
-
-**`docs/architecture.md` on its own is not evidence.** MkDocs, Docusaurus and Diátaxis all emit that filename by default; far more projects have one than have ever run `/sdlc-init`. Treating it as a marker made `/sdlc-init` refuse to write steering documents on projects that had never used these skills.
-
-Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — and the near-miss that bites is the lowercase collision, not the uppercase one.
-<!-- legacy-detection:end -->
-
-Any `@sdlc`, `IMPLEMENTS:` or `COVERS:` tag anywhere is also conclusive — it is prior SDLC use by definition. And `docs/adr/0007-some-title.md` is not `docs/adr/ADR-0007-some-title.md`: do not "helpfully" treat a project's own `ARCHITECTURE.md` or `DESIGN.md` as a mis-capitalised SDLC artifact.
-
-If none match, the project **has never used these skills**. Mode A has nothing to migrate — say so plainly and do not propose moving anything. A project's own `docs/` belongs to that project. Moving it produces a `.sdlc/` that advertises an adoption that did not happen, which is worse than leaving it alone. Go to Mode B and C only.
+Do not "helpfully" treat a project's own `ARCHITECTURE.md` or `DESIGN.md` as a mis-capitalised SDLC artifact. If none match, the project **has never used these skills**. Mode A has nothing to migrate — say so plainly and do not propose moving anything. A project's own `docs/` belongs to that project. Moving it produces a `.sdlc/` that advertises an adoption that did not happen, which is worse than leaving it alone. Go to Mode B and C only.
 
 ### 1b. Classify what needs doing
 
@@ -143,7 +131,7 @@ Also the mode for two in-place fixups that are not moves: a **`test-plan.md` bes
 3. Remove now-empty legacy directories.
 4. **Fold test plans, unless `CONVENTIONS.md` keeps them separate** — then skip this step; the validator may cross-reference `UT-*`/`IT-*`/`E2E-*` IDs against that standalone file, and folding breaks it. Otherwise: append each `test-plan.md` to its feature's `spec.md` under `## Test Plan`, demoting its headings one level (`## Unit Tests` → `### Unit Tests`). Keep every ID verbatim — `COVERS:` headers reference them. Then `git rm` the old file.
 5. **Repoint every reference**, including the non-markdown ones from the risk register. Re-grep after the move to prove none remain.
-6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first. Default to the uppercased slug, but only when that is a valid key (`[A-Z][A-Z0-9_-]*`) — a slug starting with a digit (`2fa` → `2FA`) is not one, and a tag built from it cannot be parsed, so choose a real key (`TWOFA`) and say why. Then across every tracked file (`git grep -l`), skipping anything vendored or generated: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
+6. **Re-key tags**. For each feature read its Feature Key from `spec.md`; if absent, add one as a Tier-1 spec edit presented first, following `.sdlc/CONVENTIONS.md` § ID & traceability scheme (a digit-led slug needs an explicit key). Then across every tracked file (`git grep -l`), skipping anything vendored or generated: `@sdlc REQ-NNN` → `@sdlc <KEY>:REQ-NNN`, and the same for `IMPLEMENTS:` and `COVERS:`.
 
 Every scripted edit asserts its anchor before writing — a blind `str.replace` that matches nothing fails silently and reports success. Before starting Mode B or C, re-run `.sdlc/tools/sdlc-validate.py`: Mode A restructures the files the validator cross-references, so a regression is cheap to catch here and expensive to catch at Phase 4, after later modes have built on top of it.
 
@@ -165,7 +153,7 @@ Relocation puts the artifacts where the skills expect them; it does not finish t
 
    This is a **separate approval**, deliberately. Phase 2 was approved against a tree that did not exist yet; asking there to generate five documents from an interview would be consent to work the user cannot yet picture. Accept a decline: report what is missing and end the turn. Never treat Mode A's approval as covering this.
 
-9. **Complete setup by running `/sdlc-init`'s Phases 3b, 4 and 5 on the relocated tree**, in this session. Read them from `/sdlc-init` and follow them — they are the only definition of how a steering document or a rule gets written, and this file does not repeat them, because two copies drift and the copy that is wrong is the one that gets read. Phase 3b derives the draft from the relocated documents and the manifests; Phase 4 writes the steering documents; Phase 5 writes `.sdlc/rules.md`. On a project that already has some of them this is a **gap-fill**, not a rewrite: only the missing documents are created.
+9. **Complete setup by running `/sdlc-init`'s Phases 3b, 4 and 5 on the relocated tree**, in this session. Read and follow them there — they are the only definition of how a steering document or rule is written. Phase 3b derives the draft from the relocated documents and manifests; Phase 4 writes the steering documents; Phase 5 writes `.sdlc/rules.md`. Where some exist, this is a **gap-fill**: only missing documents are created.
 
 Do not re-derive what Mode B will cover. Steering documents describe the project; Mode B documents what the code does, feature by feature. They are not substitutes, and this tail does not write specs.
 
@@ -195,19 +183,11 @@ On (a), after writing `spec.md`, ask whether to delete the old files. On (b), wa
 
 ### B3: Extract behaviour
 
-For each public function, class, handler or endpoint: the **trigger**, **inputs**, **outputs and side effects**, **failure modes**, and **invariants** (what tests assert as always true). Translate into canonical EARS:
-
-| Observation | EARS form |
-|-------------|-----------|
-| Constraint enforced on every path | The `<system>` SHALL `<response>`. |
-| Triggered by an action or event | WHEN `<trigger>`, the `<system>` SHALL `<response>`. |
-| Holds while in a state | WHILE `<state>`, the `<system>` SHALL `<response>`. |
-| Behind a flag or optional feature | WHERE `<feature included>`, the `<system>` SHALL `<response>`. |
-| Error, guard, invalid input | IF `<condition>`, THEN the `<system>` SHALL `<response>`. |
+For each public function, class, handler or endpoint: the **trigger**, **inputs**, **outputs and side effects**, **failure modes**, and **invariants** (what tests assert as always true). Translate each observation into canonical EARS using the "Use for" column of `.sdlc/CONVENTIONS.md` § Canonical EARS dialect.
 
 Continue numbering from existing IDs. Never recycle — a requirement that vanished from code is marked in the drift report and its number retired.
 
-**Citations**: requirements documented from code have no `AC-*` to cite until a problem brief exists, so write them without a citation rather than inventing one. The validator checks citations only against a brief that exists, so an uncited requirement is clean; a fabricated `AC-042` is an ERROR.
+**Citations**: with no problem brief yet, write requirements without a citation — never invent one (a fabricated `AC-042` is an ERROR; see `.sdlc/CONVENTIONS.md` § ID & traceability scheme).
 
 **Record the source of each requirement** (`file:line`). Mode C needs it to place tags, and a reviewer needs it to check your reading.
 
@@ -245,7 +225,7 @@ What makes a project read as SDLC-native: the link from code back to the require
 
 Mode C makes that link visible; it does not verify the code fulfils the requirement. That is `/sdlc-review`.
 
-**Comments and headers only. Never logic, never formatting, never imports.** If a file needs restructuring to be taggable, do not restructure it — note it and move on.
+Follow `.sdlc/ANNOTATION.md` § The rule that matters most: comments and headers only — never logic, formatting or imports.
 
 ### C1: Place traceability tags
 
@@ -265,14 +245,9 @@ def validate_login(...): ...
 
 Follow `.sdlc/ANNOTATION.md` for comment syntax and header placement. It is the shared rule, and it covers the cases these three Python examples do not — PHP, CSS, XML, single-file components, formats with no comment syntax, and generated files.
 
-**Never annotate a file you do not own.** Before touching any file, apply the exclusion test in `.sdlc/ANNOTATION.md`: the vendored and generated globs in `.sdlc/config.json`, the standard vendor directories, a `DO NOT EDIT` / `@generated` / `Code generated by` marker in the first five lines, or `linguist-generated` in `.gitattributes`. A header on a generated file is wiped by the next regeneration and the validator then reports the requirement as untraced. Tag the generator's input or the hand-written wrapper instead. **Count and list every file you skipped, and repeat that list in the Phase 4 report** — a silent skip looks identical to a missed file.
+**Never annotate a file you do not own** — apply `.sdlc/ANNOTATION.md` § Generated and vendored files before touching any file. **Count and list every file you skipped, and repeat that list in the Phase 4 report** — a silent skip looks identical to a missed file. In an infrastructure or SQL repository the manifest itself is the implementation (`.sdlc/ANNOTATION.md` § Infrastructure as code).
 
-Every `REQ-*` and `NFR-*` must land in at least one source header and one test header, or the validator errors. Two ways out, and they are different claims:
-
-- An NFR under **"NFRs Validated Outside Code"** needs no tag — the validator exempts it, and a fake `IMPLEMENTS:` line is a lie it cannot catch.
-- A functional requirement no executable check can reach — production paging, a manual review, a business process — goes under **"Requirements With No In-Code Verification"** in the spec, which exempts `REQ-*`. Do not reach for this because a tag is inconvenient: a policy file that gates the merge is a test, so most IaC requirements can carry `COVERS:` instead. If no test exists and none can, say which of the two it is and let the user decide.
-
-**In an infrastructure or SQL repository, the manifest is the implementation.** There is no loader to tag, so the `.tf` / `.yaml` / `.sql` file carries `IMPLEMENTS:` — see `.sdlc/ANNOTATION.md`. Place the header where that file's leader allows: `#` at the top for `.tf`, `.tfvars`, `.hcl` and k8s YAML, `--` after any tool directive (`-- +goose Up`) for `.sql`. A `.sql` migration may hold several statements behind one header; that claims the file's requirement, not each statement.
+Every `REQ-*` and `NFR-*` needs a source and a test header, or one of the two exemption headings in `.sdlc/CONVENTIONS.md` § Requirements validated outside code — never a fake `IMPLEMENTS:` line, which the validator cannot catch. Do not reach for an exemption because a tag is inconvenient. If no test exists and none can, say which exemption applies and let the user decide.
 
 ### C2: Cite the decisions
 
@@ -338,7 +313,7 @@ Remaining work, in a fresh session:
                                      in ways to undo rather than absorb — say which}
 ```
 
-**`/sdlc-init` is listed only in the one case this skill refused** — a project with no scaffolding at all, which is handled in Phase 1, before Mode A ever runs. It is **never** listed after Mode A. A project that reached Mode A has scaffolding, so its setup gaps were Mode A's tail: they were either filled or declined at step 8, and either way `/sdlc-init` is not the next command. If step 8 was declined, name what is still missing and say `/sdlc-init` is **not** the way to finish it — it would write beside the relocated documents, not over them, producing the parallel tree Mode A's tail exists to avoid. Mode A's tail can be run later instead.
+**`/sdlc-init` is never listed after Mode A** — only when Phase 1 refused a project with no scaffolding. If step 8 was declined, name what is still missing and point to re-running this skill's Mode A tail, not `/sdlc-init`.
 
 Add `/sdlc-spec <slug>` for any feature the survey found with source but no spec, since that is then a real next step. When two or more features lack specs, say they may be specified in parallel.
 

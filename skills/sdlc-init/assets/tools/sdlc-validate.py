@@ -3,9 +3,7 @@
 
 Installed into a project at `.sdlc/tools/sdlc-validate.py` by `/sdlc-init`.
 Run it by hand, from a skill ("validate -> fix -> repeat"), or as a CI gate.
-Stdlib only; Python 3.8+.
-
-This file is the only copy — skills install it, none of them embed it.
+Stdlib only; Python 3.8+. This file is the only copy.
 
 USAGE
     python3 sdlc-validate.py [--root DIR] [--feature SLUG] [--strict] [--json]
@@ -13,79 +11,62 @@ USAGE
 
     --root DIR     Project root to scan (default: current directory).
     --feature SLUG Restrict FINDINGS to one feature. Every spec is still parsed,
-                   so another feature's tags resolve instead of reporting as
-                   dangling; only that feature's tags and requirements are
-                   reported on. A slug with no spec is an ERROR, not a clean
-                   run -- otherwise a typo buys a passing gate.
-    --strict       Make warnings exit non-zero too.
-    --json         Emit a machine-readable JSON report instead of text.
-    --exclude GLOB Skip files matching this glob when scanning for tags
-                   (repeatable). Fenced code blocks in Markdown are skipped
-                   already, so documented examples need no exclusion.
+                   so other features' tags resolve. An unknown slug is an ERROR.
+    --strict       Warnings exit non-zero too.
+    --json         Machine-readable report.
+    --exclude GLOB Skip matching files when scanning for tags (repeatable).
     --relax-tag-roles
-                   Migration ramp for a project arriving from the lenient
-                   validator: a tag counts wherever it sits, and a misplaced one
-                   is a WARNING rather than an ERROR. Every run then says the
-                   gate is relaxed, and says it as a warning, so --strict still
-                   sees it. `gate.enforce_tag_roles: false` in
-                   .sdlc/config.json is the same switch, for CI.
+                   Migration ramp: a tag counts wherever it sits and a misplaced
+                   one is a WARNING. Same as `gate.enforce_tag_roles: false`.
 
 EXIT CODES
-    0  clean (no errors; warnings allowed unless --strict)
-    1  warnings present and --strict
-    2  errors present
+    0 clean   1 warnings under --strict   2 errors
 
-ID & TRACEABILITY SCHEME (see .sdlc/CONVENTIONS.md)
-    - Each spec.md declares `**Feature Key:** KEY` (uppercase, globally unique).
-    - Requirement IDs are per-feature (REQ-001, NFR-001, UT-001, ...) and made
-      globally unambiguous by the key.
-    - The test plan lives in spec.md under `## Test Plan`. A separate
-      `.sdlc/tests/<slug>/test-plan.md` is read as a legacy fallback.
-    - Source headers:  IMPLEMENTS: KEY:REQ-001, KEY:NFR-002
-    - Test headers:    COVERS: KEY:REQ-002, KEY:UT-005, KEY:IT-001
-    - Inline tags:     @sdlc KEY:REQ-003, KEY:REQ-004
-    - Legacy (unkeyed) tags such as `@sdlc REQ-003` are reported as a WARNING
-      and do NOT satisfy coverage — the requirement they mean to cover still
-      reports as untraced until the tag is re-keyed. Run /sdlc-adopt to re-key.
+TAGS (see .sdlc/CONVENTIONS.md)
+    Source:  IMPLEMENTS: KEY:REQ-001, KEY:NFR-002
+    Test:    COVERS: KEY:REQ-002, KEY:UT-005
+    Inline:  @sdlc KEY:REQ-003
+    A tag counts only inside a real comment, and it must open that comment.
+    IMPLEMENTS counts only from a SOURCE file, COVERS only from a TEST file.
+    DOC files (.md, .rst, .txt, .json, ...) are never scanned. A file is TEST
+    by path component or filename stem (`tests/`, `*_test.go`, `src/test/`),
+    never by substring; everything else is SOURCE. `.sdlc/config.json`
+    overrides all of it.
 
-CHECKS
-    1  Feature key uniqueness ........................... ERROR
-    2  Traceability: code coverage (IMPLEMENTS) ......... ERROR
-    3  Traceability: test coverage (COVERS) ............. ERROR
-    4  Dangling tag (references a non-existent ID) ...... ERROR
-    5  Unkeyed tag ...................................... WARNING
-    6  Duplicate active ID within a feature ............. ERROR
-    7  Recycled removed ID .............................. ERROR
-    8  EARS syntax (deprecated dialect / no SHALL) ...... WARNING
-    9  Test-plan coverage of spec ....................... WARNING
-   10  Legacy layout detected (by content, not name) .... INFO
-   11  Missing test plan ................................ WARNING
-   12  Requirement cites an AC the brief does not define  ERROR
-   13  Planned test id that no test file COVERS ......... WARNING
-   14  --feature names a slug with no spec .............. ERROR
-   15  Tag in the wrong kind of file (role) ............. ERROR
-   16  Unusable .sdlc/config.json ....................... ERROR
-   17  File skipped while scanning for tags ............. WARNING
-   18  Test-plan row citing a REMOVED or unknown ID ..... ERROR
-   19  Unclosed code fence in a spec or brief ........... WARNING
-   20  Tag-role enforcement relaxed ..................... WARNING
-
-FILE ROLES
-    Every scanned file is SOURCE, TEST, or DOC.
-      - DOC  is never scanned. Documentation (.md, .rst, .adoc, ...) shows the
-             tag format rather than claiming coverage, and prose or data
-             (.txt, .csv, .json, ...) implements nothing at all.
-      - TEST is decided by path COMPONENTS and filename STEMS -- `tests/`,
-             `test_*.py`, `*_test.go`, `src/test/java/`, `*.spec.ts`, and so on
-             -- never by substring, so `src/contest/` stays source.
-      - SOURCE is everything else.
-    `IMPLEMENTS:` only counts from a SOURCE file, `COVERS:` only from a TEST
-    file, and a tag only counts inside a real comment. Without those three
-    rules a single file carrying both headers, with no test suite at all,
-    validated clean.
-
-    Override any of it in `.sdlc/config.json` (see CONVENTIONS.md).
+FINDINGS (check id — severity)
+    config ............... ERROR unusable config / WARNING unknown key
+    gate-relaxed ......... WARNING  tag-role enforcement is off
+    legacy-layout ........ INFO     artifacts at pre-.sdlc/ paths
+    no-specs ............. INFO
+    unknown-feature ...... ERROR    --feature names a slug with no spec
+    read ................. ERROR    spec unreadable
+    unclosed-fence ....... WARNING  in a spec or the brief
+    feature-key .......... ERROR invalid / INFO defaulted from the slug
+    key-unique ........... ERROR
+    dup-id ............... ERROR    ID defined twice under one heading
+    recycled-id .......... ERROR    ID both REMOVED and active
+    nfr-relisted ......... INFO     NFR repeated outside an exemption heading
+    ears ................. WARNING
+    missing-test-plan .... WARNING
+    legacy-test-plan ..... INFO     separate test-plan.md
+    unkeyed-tag .......... WARNING  and does not satisfy coverage
+    dangling-tag ......... ERROR
+    tag-role ............. ERROR (WARNING when relaxed)
+    exemption-heading .... WARNING  REQ-* under the NFR-only heading
+    outside-code ......... INFO     exempted requirement, reported every run
+    trace-code/trace-test  ERROR    requirement with no IMPLEMENTS / COVERS
+    plan-coverage ........ WARNING  REQ-* with no test-plan row
+    plan-stale-row ....... ERROR    plan row cites a REMOVED ID
+    plan-unknown-row ..... ERROR    plan row cites an undefined ID
+    plan-test-uncovered .. WARNING  planned test id nothing COVERS
+    ac-citation .......... ERROR    requirement cites an AC the brief lacks
+    ac-uncited ........... INFO     brief AC no active requirement cites
+                                    (whole-project runs only)
+    skipped-file ......... WARNING oversized/unreadable / INFO binary
 """
+
+# SPEC: .sdlc/specs/validator/spec.md
+# IMPLEMENTS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:NFR-001
 
 import argparse
 import collections
@@ -96,319 +77,92 @@ import re
 import sys
 
 ERROR, WARNING, INFO = "ERROR", "WARNING", "INFO"
+EXIT_CLEAN, EXIT_WARNINGS, EXIT_ERRORS = 0, 1, 2
 
 TraceabilityTag = collections.namedtuple(
     "TraceabilityTag", "feature_key requirement_id kind relative_path role"
 )
 
-EXIT_CLEAN, EXIT_WARNINGS, EXIT_ERRORS = 0, 1, 2
-
-# Directories and extensions never scanned for traceability tags.
-SKIPPED_DIRECTORIES = {
-    ".git",
-    ".sdlc",
-    "node_modules",
-    "dist",
-    "build",
-    "__pycache__",
-    ".venv",
-    "venv",
-    ".mypy_cache",
-    ".pytest_cache",
-    "target",
-    ".next",
-    "coverage",
-    ".tox",
-}
-SKIPPED_EXTENSIONS = {
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".pdf",
-    ".zip",
-    ".gz",
-    ".tar",
-    ".lock",
-    ".ico",
-    ".woff",
-    ".woff2",
-    ".ttf",
-    ".eot",
-    ".mp4",
-    ".mp3",
-    ".bin",
-    ".so",
-    ".dll",
-    ".dylib",
-    ".class",
-    ".jar",
-    ".wasm",
-    ".pyc",
-}
+SKIPPED_DIRECTORIES = set(
+    ".git .sdlc node_modules dist build __pycache__ .venv venv .mypy_cache"
+    " .pytest_cache target .next coverage .tox".split()
+)
+SKIPPED_EXTENSIONS = set(
+    ".png .jpg .jpeg .gif .pdf .zip .gz .tar .lock .ico .woff .woff2 .ttf .eot"
+    " .mp4 .mp3 .bin .so .dll .dylib .class .jar .wasm .pyc".split()
+)
 MAX_SCANNED_BYTES = 2 * 1024 * 1024
-MARKDOWN_EXTENSIONS = {".md", ".markdown"}
 
-# Documentation carries examples of the tag format, never coverage. Tags in these
-# files are ignored silently rather than reported, so a README may show the
-# format freely.
-DOCUMENTATION_EXTENSIONS = {
-    ".md",
-    ".markdown",
-    ".rst",
-    ".adoc",
-    ".asciidoc",
-    ".org",
-}
-# Prose and data implement nothing, so a tag in one claims nothing. The fallback
-# leader set otherwise let `# IMPLEMENTS: KEY:REQ-001` in a notes.txt satisfy
-# code coverage -- CONVENTIONS.md says a .txt file is not a claim, and this is
-# what makes that true. `.jsonc` and `.json5` stay scannable: they are
-# configuration formats that really do carry comments.
-UNTAGGABLE_EXTENSIONS = {
-    ".txt",
-    ".text",
-    ".log",
-    ".csv",
-    ".tsv",
-    ".json",
-    ".jsonl",
-    ".ndjson",
-    ".geojson",
-}
+# Never scanned. Documentation shows the tag format rather than claiming it;
+# prose and data implement nothing. `.jsonc`/`.json5` carry real comments, so
+# they stay scannable.
+DOCUMENTATION_EXTENSIONS = set(".md .markdown .rst .adoc .asciidoc .org".split())
+UNTAGGABLE_EXTENSIONS = set(
+    ".txt .text .log .csv .tsv .json .jsonl .ndjson .geojson".split()
+)
 UNSCANNED_EXTENSIONS = DOCUMENTATION_EXTENSIONS | UNTAGGABLE_EXTENSIONS
 
-# --- File roles -----------------------------------------------------------
-# Every scanned code file is SOURCE or TEST; documentation is DOC and ignored.
-# A tag in a code file always belongs somewhere, so there is no fourth
-# "unclassifiable" role: the report is always which kind of file it belongs in.
+# Every scanned file is SOURCE or TEST; DOC files are skipped before reading.
 ROLE_SOURCE, ROLE_TEST, ROLE_DOC = "source", "test", "doc"
+EXPECTED_ROLE_BY_KIND = {"IMPLEMENTS": ROLE_SOURCE, "COVERS": ROLE_TEST}
 
-# Matched on path COMPONENTS and filename STEMS, never on substrings -- so
-# `src/contest/models.py` and `src/latest_prices.py` stay source.
-# `e2e` and `cypress` are here because a browser suite is a test suite: without
-# them a Cypress or Playwright project met the role rule with a wall of errors
-# on files that were tests all along. `features` is deliberately absent --
-# `src/features/` is a component directory in more projects than it is a
-# Cucumber suite, and a wrong default fails a source file instead.
-DEFAULT_TEST_DIRECTORY_NAMES = [
-    "tests",
-    "test",
-    "spec",
-    "specs",
-    "__tests__",
-    "testing",
-    "e2e",
-    "cypress",
-    "integration-tests",
-    "integration_tests",
-]
-DEFAULT_TEST_STEM_PATTERNS = [
-    "test_*",
-    "*_test",
-    "*_tests",
-    "*_spec",
-    "*.test",
-    "*.spec",
-    "*Test",
-    "*Tests",
-    "*Spec",
-    "*Specs",
-    "conftest",
-    "*.cy",
-    "*.e2e",
-    "*_e2e",
-    "*IT",
-    "*ITCase",
-    "*TestCase",
-    "*.tftest",
-]
-DEFAULT_TEST_PATH_FRAGMENTS = [
-    "src/test/",
-    "src/it/",
-    "src/androidTest/",
-    "src/integrationTest/",
-    "src/functionalTest/",
-]
+# Matched on path COMPONENTS and filename STEMS, never substrings, so
+# `src/contest/` stays source. `features` is deliberately absent: `src/features/`
+# is a component directory more often than a Cucumber suite.
+DEFAULT_TEST_DIRECTORY_NAMES = (
+    "tests test spec specs __tests__ testing e2e cypress"
+    " integration-tests integration_tests".split()
+)
+DEFAULT_TEST_STEM_PATTERNS = (
+    "test_* *_test *_tests *_spec *.test *.spec *Test *Tests *Spec *Specs"
+    " conftest *.cy *.e2e *_e2e *IT *ITCase *TestCase *.tftest".split()
+)
+DEFAULT_TEST_PATH_FRAGMENTS = (
+    "src/test/ src/it/ src/androidTest/ src/integrationTest/"
+    " src/functionalTest/".split()
+)
 
-# --- Comment syntax -------------------------------------------------------
-# A tag counts only inside a real comment, which separates a claim from a string
-# literal or a line of prose.
-#
-# An extension may carry several leaders: `.m` is both Objective-C and MATLAB,
-# and accepting both loses fewer real tags than picking one.
+# A tag counts only inside a real comment. An extension may carry several
+# leaders (`.m` is Objective-C and MATLAB): accepting both loses fewer tags.
 LINE_COMMENT_EXTENSIONS_BY_LEADER = {
-    "#": (
-        ".py",
-        ".rb",
-        ".sh",
-        ".bash",
-        ".zsh",
-        ".fish",
-        ".pl",
-        ".pm",
-        ".r",
-        ".yaml",
-        ".yml",
-        ".toml",
-        ".tf",
-        ".tfvars",
-        ".ex",
-        ".exs",
-        ".jl",
-        ".nim",
-        ".cr",
-        ".conf",
-        ".cmake",
-        ".mk",
-        ".pp",
-        ".rake",
-        ".tcl",
-        ".awk",
-        ".ps1",
-        ".gemspec",
-        ".dockerfile",
-    ),
-    "//": (
-        ".js",
-        ".jsx",
-        ".mjs",
-        ".cjs",
-        ".ts",
-        ".tsx",
-        ".go",
-        ".rs",
-        ".java",
-        ".c",
-        ".h",
-        ".cpp",
-        ".hpp",
-        ".cc",
-        ".hh",
-        ".cs",
-        ".swift",
-        ".kt",
-        ".kts",
-        ".scala",
-        ".dart",
-        ".php",
-        ".proto",
-        ".gradle",
-        ".groovy",
-        ".sol",
-        ".zig",
-        ".m",
-        ".mm",
-        ".scss",
-        ".less",
-        ".jsonc",
-        ".json5",
-        ".v",
-        ".sv",
-        ".glsl",
-        ".hlsl",
-    ),
-    "--": (
-        ".sql",
-        ".hs",
-        ".lhs",
-        ".lua",
-        ".elm",
-        ".adb",
-        ".ads",
-        ".vhd",
-        ".vhdl",
-        ".applescript",
-    ),
-    ";": (
-        ".lisp",
-        ".cl",
-        ".clj",
-        ".cljs",
-        ".cljc",
-        ".el",
-        ".scm",
-        ".rkt",
-        ".ini",
-        ".asm",
-        ".s",
-    ),
-    "%": (".tex", ".sty", ".erl", ".hrl", ".prolog"),
-    "!": (".f", ".f90", ".f95", ".f03", ".f08"),
-    "'": (".vb", ".vbs", ".bas"),
-    '"': (".vim", ".vimrc"),
-    "REM ": (".bat", ".cmd"),
+    "#": ".py .rb .sh .bash .zsh .fish .pl .pm .r .yaml .yml .toml .tf .tfvars"
+    " .ex .exs .jl .nim .cr .conf .cmake .mk .pp .rake .tcl .awk .ps1 .gemspec"
+    " .dockerfile",
+    "//": ".js .jsx .mjs .cjs .ts .tsx .go .rs .java .c .h .cpp .hpp .cc .hh .cs"
+    " .swift .kt .kts .scala .dart .php .proto .gradle .groovy .sol .zig .m .mm"
+    " .scss .less .jsonc .json5 .v .sv .glsl .hlsl",
+    "--": ".sql .hs .lhs .lua .elm .adb .ads .vhd .vhdl .applescript",
+    ";": ".lisp .cl .clj .cljs .cljc .el .scm .rkt .ini .asm .s",
+    "%": ".tex .sty .erl .hrl .prolog",
+    "!": ".f .f90 .f95 .f03 .f08",
+    "'": ".vb .vbs .bas",
+    '"': ".vim .vimrc",
+    "REM ": ".bat .cmd",
 }
 BLOCK_COMMENT_EXTENSIONS_BY_PAIR = {
-    ("/*", "*/"): (
-        ".js",
-        ".jsx",
-        ".mjs",
-        ".cjs",
-        ".ts",
-        ".tsx",
-        ".go",
-        ".rs",
-        ".java",
-        ".c",
-        ".h",
-        ".cpp",
-        ".hpp",
-        ".cc",
-        ".hh",
-        ".cs",
-        ".swift",
-        ".kt",
-        ".kts",
-        ".scala",
-        ".dart",
-        ".php",
-        ".css",
-        ".scss",
-        ".less",
-        ".proto",
-        ".sol",
-        ".groovy",
-        ".gradle",
-        ".m",
-        ".mm",
-        ".v",
-        ".sv",
-        ".glsl",
-        ".hlsl",
-    ),
-    ("<!--", "-->"): (
-        ".html",
-        ".htm",
-        ".xhtml",
-        ".xml",
-        ".xsl",
-        ".xslt",
-        ".svg",
-        ".vue",
-        ".svelte",
-        ".astro",
-        ".plist",
-        ".resx",
-    ),
-    ("=begin", "=end"): (".rb",),
-    ("{-", "-}"): (".hs", ".lhs", ".elm"),
-    ("--[[", "]]"): (".lua",),
+    ("/*", "*/"): ".js .jsx .mjs .cjs .ts .tsx .go .rs .java .c .h .cpp .hpp .cc"
+    " .hh .cs .swift .kt .kts .scala .dart .php .css .scss .less .proto .sol"
+    " .groovy .gradle .m .mm .v .sv .glsl .hlsl",
+    ("<!--", "-->"): ".html .htm .xhtml .xml .xsl .xslt .svg .vue .svelte .astro"
+    " .plist .resx",
+    ("=begin", "=end"): ".rb",
+    ("{-", "-}"): ".hs .lhs .elm",
+    ("--[[", "]]"): ".lua",
 }
-# Used when an extension appears in neither table. Deliberately broad so an
-# unlisted language keeps its tags; prose still fails, carrying no leader.
+# For an extension in neither table: broad, so an unlisted language keeps its
+# tags. Prose still fails, carrying no leader.
 FALLBACK_LINE_COMMENT_LEADERS = ("#", "//", "--", ";", "%", "!")
 
-# Continuation markers a comment body may open with: the `*` of a javadoc line,
-# a doubled leader, box-drawing dashes. Stripped before the tag is matched.
+# Continuation markers a comment body may open with (javadoc `*`, doubled
+# leaders, box-drawing dashes), stripped before the tag is matched.
 COMMENT_CONTINUATION_PATTERN = re.compile(r"^[\s*#/\-!;%]*")
 
 
 def get_inverted_extension_table(extensions_by_marker):
-    """Invert {marker: (ext, ...)} into {ext: [marker, ...]} for lookup by file."""
+    """Invert {marker: "ext ext ..."} into {ext: [marker, ...]}."""
     markers_by_extension = {}
     for marker, extensions in extensions_by_marker.items():
-        for extension in extensions:
+        for extension in extensions.split():
             markers_by_extension.setdefault(extension, []).append(marker)
     return markers_by_extension
 
@@ -428,35 +182,28 @@ CONFIG_LIST_FIELDS = {
         "test_path_fragments",
         "source_overrides",
         "test_overrides",
+        "generated_globs",
+        "vendored_globs",
     ),
     "headings": ("test_plan", "outside_code", "outside_code_functional"),
     "scan": ("skip_directories", "scan_directories"),
 }
 
-# The template writes the key in bold, but a spec that drops the asterisks still
-# declares one. An unrecognised declaration falls back to the uppercased slug,
-# so the pattern accepts both forms.
-FEATURE_KEY_PATTERN = re.compile(
-    r"^\s*(?:[-*+]\s*)?(?:\*\*|__)?Feature Key(?:\*\*|__)?\s*:\s*"
-    r"(?:\*\*|`)?\s*([A-Z][A-Z0-9_-]*)",
-    re.M,
+# The template bolds the key, but a spec that drops the asterisks still
+# declares one. The LINE pattern captures whatever was written, valid or not,
+# so a malformed key reports as malformed rather than missing.
+_FEATURE_KEY_PREFIX = (
+    r"^\s*(?:[-*+]\s*)?(?:\*\*|__)?Feature Key(?:\*\*|__)?\s*:\s*(?:\*\*|`)?\s*"
 )
-# What was written on the Feature Key line, valid or not, so a malformed key
-# reports as malformed instead of as missing.
-FEATURE_KEY_LINE_PATTERN = re.compile(
-    r"^\s*(?:[-*+]\s*)?(?:\*\*|__)?Feature Key(?:\*\*|__)?\s*:\s*"
-    r"(?:\*\*|`)?\s*(\S+)",
-    re.M,
-)
+FEATURE_KEY_PATTERN = re.compile(_FEATURE_KEY_PREFIX + r"([A-Z][A-Z0-9_-]*)", re.M)
+FEATURE_KEY_LINE_PATTERN = re.compile(_FEATURE_KEY_PREFIX + r"(\S+)", re.M)
 FEATURE_KEY_TOKEN_PATTERN = re.compile(r"^[A-Z][A-Z0-9_-]*$")
 # An ID token, optionally key-prefixed: KEY:REQ-001 or REQ-001.
 TAG_TOKEN_PATTERN = re.compile(
     r"\b(?:([A-Z][A-Z0-9_-]*):)?((?:REQ|NFR|UT|IT|E2E|PBT)-\d+)\b"
 )
-# A requirement or NFR definition line in spec.md. The ID needs both a list or
-# table marker and a definition punctuator after it -- `:`, an `(AC-NNN)`
-# citation, or a table cell boundary. Prose that merely names an ID, such as
-# `- REQ-001 was the hardest one to get right`, defines nothing and is skipped.
+# A definition needs a list/table marker before the ID and `:`, `(AC-NNN)` or a
+# cell boundary after it. `- REQ-001 was hard` names an ID; it defines nothing.
 REQUIREMENT_LINE_PATTERN = re.compile(
     r"^\s*(?:[-*+]|\|)\s*`?((?:REQ|NFR)-\d+)`?\s*(?=[:(|]|$)(.*)$"
 )
@@ -465,47 +212,34 @@ REQUIREMENT_ID_PATTERN = re.compile(r"\b((?:REQ|NFR)-\d+)\b")
 AC_CITATION_PATTERN = re.compile(r"\b(AC-\d+)\b")
 # The `(AC-NNN)` citation sits immediately after the ID, before the prose.
 CITATION_PATTERN = re.compile(r"^\s*\(([^)]*)\)")
-# The brief DEFINES an AC on a list or table line; it MENTIONS one anywhere.
-# Matching mentions let `- AC-777 was DELETED in March` define AC-777, so the
-# citation check waved through exactly the renumbering it exists to catch.
+# The brief DEFINES an AC on a list or table line; a mention elsewhere does not.
 AC_DEFINITION_PATTERN = re.compile(
     r"^\s*(?:[-*+]|\|)\s*(?:\[[ xX]\]\s*)?`?(AC-\d+)`?\s*(?=[:(|]|$)", re.M
 )
-# Anchored to the START of a comment body. The unanchored forms these replace
-# counted `# This file does NOT IMPLEMENTS: KEY:REQ-001` and `# REIMPLEMENTS:`
-# as real coverage, and matched inside string literals and plain prose.
+# Anchored to the START of a comment body, so `# does NOT IMPLEMENTS: X` and
+# `# REIMPLEMENTS:` are not claims.
 ANCHORED_TAG_PATTERNS_BY_KIND = {
     "IMPLEMENTS": re.compile(r"^IMPLEMENTS:\s*(.+)"),
     "COVERS": re.compile(r"^COVERS:\s*(.+)"),
     "@sdlc": re.compile(r"^@sdlc\s+(.+)"),
 }
-# Templates are project-owned and meant to be edited, so the heading is matched
-# by meaning rather than by literal text. Anything outside this set goes in
-# `headings.test_plan` in .sdlc/config.json.
+# Headings are matched by meaning, since templates are project-owned. Anything
+# else goes in `headings.*` in .sdlc/config.json.
 TEST_PLAN_HEADING_PATTERN = re.compile(
     r"^#{2,4}\s+(?:Test Plan|Tests|Test Cases|Test Design|Testing|Test Strategy)\b",
     re.M | re.I,
 )
-# Likewise the exemption heading: what matters is that it says the NFR is
-# validated somewhere other than the code, not the exact wording.
+# The NFR exemption heading ("NFRs Validated Outside Code" and rewordings).
 OUTSIDE_CODE_HEADING_PATTERN = re.compile(
     r"\boutside\b[^#]{0,32}\bcode\b|\bnot\b[^#]{0,32}\bin\s+code\b"
     r"|\bvalidated\b[^#]{0,32}\b(?:infra|infrastructure|externally|process)\b",
     re.I,
 )
-# The functional-requirement exemption heading. Deliberately a SECOND heading
-# rather than a widening of the one above: exempting a REQ-* is a bigger claim
-# than exempting an NFR-*, because a functional requirement is what the code is
-# FOR. Sharing one heading would let a REQ-* be exempted by moving its line --
-# the cheapest way to turn a red gate green. Requiring its own heading makes the
-# act explicit, greppable in review, and impossible to do by accident.
-#
-# The vocabulary is narrowed to the words that state the claim, and the
-# phrasings chosen must NOT also match OUTSIDE_CODE_HEADING_PATTERN -- a heading
-# matching both would mark one section as an NFR exemption and a REQ-*
-# exemption at once, so an NFR on the functional list would silently stop being
-# tracked. "Requirements Validated Outside Code" and "Not Verified In Code"
-# both collide that way and are deliberately not matched here.
+# The functional (REQ-*) exemption heading. A separate heading, because
+# exempting what the code is FOR is a bigger claim than exempting an NFR, and a
+# shared heading would let a REQ-* be exempted by moving its line. It must stay
+# disjoint from the NFR pattern (pinned by a test): a heading matching both
+# would silently stop tracking an NFR listed under it.
 FUNCTIONAL_OUTSIDE_CODE_HEADING_PATTERN = re.compile(
     r"\bno\b[^#]{0,24}\bin-?code\b[^#]{0,24}\bverif"
     r"|\bwithout\b[^#]{0,24}\b(?:no\s+)?in-?code\b[^#]{0,24}\bverif"
@@ -513,19 +247,14 @@ FUNCTIONAL_OUTSIDE_CODE_HEADING_PATTERN = re.compile(
     re.I,
 )
 # A fence opens with 3+ backticks or tildes and closes only on the same
-# character, at least as long, with no info string. Tracking the opener rather
-# than toggling a flag lets a fenced block contain a shorter fence.
+# character, at least as long, with no info string.
 CODE_FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})[ \t]*(\S*)")
 
-# EARS keywords are uppercase by convention (see CONVENTIONS.md), so these match
-# case-SENSITIVELY. Otherwise the ordinary English words "as" and "unless"
-# inside a canonical requirement ("IF a file is uploaded as a draft, THEN ...")
-# read as the deprecated dialect. Leading-keyword patterns are anchored to the
-# start of the requirement for the same reason.
+# EARS keywords are uppercase, so these match case-SENSITIVELY: the English
+# words "as" and "unless" inside a canonical requirement are not keywords.
 SHALL_PATTERN = re.compile(r"\bSHALL\b")
 LOWERCASE_SHALL_PATTERN = re.compile(r"\bshall\b")
 LOWERCASE_EARS_KEYWORD_PATTERN = re.compile(r"^(when|while|where|if)\b")
-
 DEPRECATED_EARS_PATTERNS = [
     (
         re.compile(r"\bALWAYS\s+SHALL\b"),
@@ -536,19 +265,15 @@ DEPRECATED_EARS_PATTERNS = [
         "UNLESS -> 'IF NOT ..., THEN ... SHALL ...' (or WHERE)",
     ),
 ]
-# The two THEN dialects need a predicate, not a regex: `WHERE the audit module
-# is included, IF the record is deleted, THEN ...` is the canonical composite
-# CONVENTIONS.md endorses, and a regex for `WHERE ... THEN` flagged it.
+# A predicate, not a regex: `WHERE <feature>, IF <cond>, THEN ...` is the
+# canonical composite, and a `WHERE ... THEN` regex flagged it.
 DEPRECATED_LEADING_THEN_HINTS = [
     ("WHERE", "WHERE ... THEN (state-driven) -> 'WHILE ..., the <system> SHALL ...'"),
     ("AS", "AS ... THEN -> 'IF ..., THEN ... SHALL ...'"),
 ]
-
-# A quoted span is copy the system emits, not vocabulary the requirement uses.
-# Blanked to a space so word boundaries survive.
-QUOTED_SPAN_PATTERN = re.compile("`[^`]*`|\"[^\"]*\"|'[^']*'|\u201c[^\u201d]*\u201d")
-
-# An uppercase opener that is not one of these is not an EARS keyword.
+# A quoted span is copy the system emits, not requirement vocabulary. Blanked
+# to a space so word boundaries survive.
+QUOTED_SPAN_PATTERN = re.compile("`[^`]*`|\"[^\"]*\"|'[^']*'|“[^”]*”")
 EARS_LEADING_KEYWORDS = frozenset(("WHEN", "WHILE", "WHERE", "IF", "THEN"))
 NON_EARS_KEYWORD_HINTS = {
     "AFTER": "WHEN",
@@ -565,69 +290,24 @@ NON_EARS_KEYWORD_HINTS = {
 FIRST_WORD_PATTERN = re.compile(r"^\s*([A-Z][A-Z0-9-]{1,})\b")
 # The main clause needs a subject between the trigger and SHALL.
 EARS_MAIN_CLAUSE_PATTERN = re.compile(r"(?:^|,)\s*(?:THEN\s+)?(\S.*?)\bSHALL\b")
-# Unverifiable words. A requirement that uses one cannot be tested, which is the
-# whole point of writing it in EARS.
+# Unverifiable words: a requirement using one cannot be tested.
 VAGUE_TERMS = frozenset(
-    (
-        "fast",
-        "slow",
-        "quick",
-        "quickly",
-        "responsive",
-        "user-friendly",
-        "easy",
-        "intuitive",
-        "simple",
-        "robust",
-        "scalable",
-        "efficient",
-        "reliable",
-        "performant",
-        "seamless",
-        "appropriate",
-        "reasonable",
-        "adequate",
-        "sufficient",
-        "optimal",
-        "flexible",
-        "lightweight",
-    )
+    "fast slow quick quickly responsive user-friendly easy intuitive simple robust"
+    " scalable efficient reliable performant seamless appropriate reasonable"
+    " adequate sufficient optimal flexible lightweight".split()
 )
 VAGUE_TERM_PATTERN = re.compile(r"\b(%s)\b" % "|".join(sorted(VAGUE_TERMS)), re.I)
 
-# An NFR is exempt from IMPLEMENTS/COVERS by exactly one route: being listed
-# under the spec's "NFRs Validated Outside Code" heading. Matching words in the
-# "Validated By" cell was tried and removed -- "process", "manual" and
-# "dashboard" are ordinary English, so "load test in the checkout process"
-# silently exempted a load test. Declaring the exemption is cheap; guessing it
-# is not.
-
-# A requirement is retired only when its text BEGINS with REMOVED (the
-# documented form is `REQ-NNN (AC-NNN): REMOVED ({date}) -- {reason}`). A
-# substring test would retire any requirement that merely mentions a removed
-# thing. The optional group keeps the `(AC-NNN)` citation the spec template
-# prescribes -- without it, retiring a requirement the documented way left it
-# active forever.
-# Applied to the requirement text, which get_requirement_text has already
-# stripped of its ID, citation and separator. Only a leading marker retires a
-# requirement; one that merely mentions a removed thing stays active.
+# Retired only when the requirement text (already stripped of ID, citation and
+# separator) BEGINS with REMOVED; one that merely mentions a removed thing stays
+# active.
 REMOVED_MARKER_PATTERN = re.compile(r"^[`*_\s]*REMOVED\b")
 
-# Legacy artifacts are recognised by CONTENT, case-sensitively, never by
-# directory name: most projects have a docs/ directory and it is evidence of
-# nothing, and `ARCHITECTURE.md` is a project's own document while
-# `architecture.md` is the one /sdlc-init writes. A near-miss is a miss.
-# `product.md`, `tech.md` and `test-strategy.md` are names this project writes
-# and almost nobody else does. `architecture.md` is a name MkDocs, Docusaurus
-# and Diataxis all produce by default, so on its own it is evidence of nothing
-# -- and treating it as evidence made /sdlc-init refuse to write steering
-# documents on projects that had never run these skills at all.
+# Legacy artifacts are recognised by exact, case-sensitive file name, never by
+# directory name. `architecture.md` is a default of MkDocs, Docusaurus and
+# Diataxis, so it counts only when its own text cross-references the scheme.
 UNAMBIGUOUS_LEGACY_STEERING_NAMES = {"product.md", "tech.md", "test-strategy.md"}
 CORROBORATED_LEGACY_STEERING_NAMES = {"architecture.md"}
-LEGACY_STEERING_DOCUMENT_NAMES = (
-    UNAMBIGUOUS_LEGACY_STEERING_NAMES | CORROBORATED_LEGACY_STEERING_NAMES
-)
-# A weak name counts only when its own text cross-references the scheme.
 LEGACY_SCHEME_REFERENCE_PATTERN = re.compile(
     r"\.sdlc/|\bADR-\d|\bRULE-\d|\bUS-\d|\bAC-\d|\bNFR-\d|\bFeature Key\b"
 )
@@ -651,15 +331,13 @@ def main(argv=None):
         action="append",
         default=[],
         metavar="GLOB",
-        help="skip files matching this glob when scanning for " "tags (repeatable)",
+        help="skip files matching this glob when scanning for tags (repeatable)",
     )
     parser.add_argument(
         "--relax-tag-roles",
         action="store_true",
-        help="migration ramp: count IMPLEMENTS:/COVERS: from "
-        "any file and report a misplaced tag as a WARNING "
-        "instead of an ERROR (same switch as "
-        "gate.enforce_tag_roles in .sdlc/config.json)",
+        help="migration ramp: count IMPLEMENTS:/COVERS: from any file and report "
+        "a misplaced tag as a WARNING (same as gate.enforce_tag_roles: false)",
     )
     arguments = parser.parse_args(argv)
 
@@ -694,10 +372,8 @@ def validate_project(
 ):
     """Run every check over the project at `root` and return the filled Report.
 
-    `only_feature` narrows what is REPORTED, not what is parsed. Every spec is
-    read, so the keys and ids of the other features stay resolvable — scoping
-    the parse instead made every other feature's tags report as dangling, which
-    turned a single-feature review into a wall of false errors.
+    `only_feature` narrows what is REPORTED, not what is parsed, so the keys
+    and ids of the other features stay resolvable.
     """
     report = report or Report()
     config = load_config(root, report) if config is None else config
@@ -705,9 +381,8 @@ def validate_project(
         config["gate"]["enforce_tag_roles"] = False
     is_enforcing_roles = config["gate"]["enforce_tag_roles"]
     if not is_enforcing_roles:
-        # A WARNING, not an INFO: a relaxed gate has to be visible in every
-        # report and non-zero under --strict, or the ramp quietly becomes the
-        # permanent setting and the gate is back to proving nothing.
+        # A WARNING so the ramp stays visible and fails --strict, rather than
+        # quietly becoming the permanent setting.
         report.warn(
             "gate-relaxed",
             "Tag-role enforcement is OFF: IMPLEMENTS:/COVERS: count "
@@ -727,9 +402,8 @@ def validate_project(
         )
         return report
     if only_feature and only_feature not in spec_paths_by_slug:
-        # An ERROR, not an INFO: /sdlc-review runs `--feature <slug> --strict` and
-        # maps a clean validator to APPROVE, so a mistyped or re-derived slug used
-        # to buy a green review for a feature that was never checked at all.
+        # An ERROR: /sdlc-review maps a clean run to APPROVE, so a mistyped slug
+        # must not pass.
         report.error(
             "unknown-feature",
             "No spec found for feature '%s' (looked in .sdlc/specs/ "
@@ -767,18 +441,18 @@ def validate_project(
     check_requirement_coverage(
         root, reported_specs, spec_paths_by_slug, tags, report, is_enforcing_roles
     )
-    check_ac_citations(root, reported_specs, spec_paths_by_slug, report)
+    check_ac_citations(
+        root, reported_specs, spec_paths_by_slug, report, not only_feature
+    )
     return report
 
 
 def load_config(root, report):
     """Return the project configuration, merged over the built-in defaults.
 
-    Absent config is the normal case -- the defaults cover conventional layouts,
-    so the validator works on a project that has never seen `.sdlc/config.json`.
-    Config is an override, never a prerequisite. Malformed config is an ERROR
-    naming the key rather than a silent fallback, because silently ignoring a
-    layout declaration would report a project's real tags as missing.
+    Absent config is normal: the defaults cover conventional layouts. Malformed
+    config is an ERROR naming the key, since silently ignoring a layout
+    declaration would report a project's real tags as missing.
     """
     config = get_default_config()
     config_path = os.path.join(root, CONFIG_RELATIVE_PATH)
@@ -787,47 +461,35 @@ def load_config(root, report):
 
     raw_text = read_file_text(config_path)
     if raw_text is None:
-        report.error(
-            "config", "Could not read %s." % CONFIG_RELATIVE_PATH, CONFIG_RELATIVE_PATH
-        )
+        report_config(report, "Could not read the file.")
         return config
     try:
         declared = json.loads(raw_text)
     except ValueError as error:
-        report.error(
-            "config",
-            "%s is not valid JSON: %s" % (CONFIG_RELATIVE_PATH, error),
-            CONFIG_RELATIVE_PATH,
-        )
+        report_config(report, "The file is not valid JSON: %s" % error)
         return config
     if not isinstance(declared, dict):
-        report.error(
-            "config",
-            "%s must hold a JSON object." % CONFIG_RELATIVE_PATH,
-            CONFIG_RELATIVE_PATH,
-        )
+        report_config(report, "Must hold a JSON object.")
         return config
 
     for section_name, section in sorted(declared.items()):
         if section_name not in config:
-            report.warn(
-                "config",
-                "Unknown section '%s' in %s -- known sections "
-                "are %s."
-                % (section_name, CONFIG_RELATIVE_PATH, ", ".join(sorted(config))),
-                CONFIG_RELATIVE_PATH,
+            report_config(
+                report,
+                "Unknown section '%s' -- known sections are %s."
+                % (section_name, ", ".join(sorted(config))),
+                report.warn,
             )
-            continue
-        if not isinstance(section, dict):
-            report.error(
-                "config",
-                "Section '%s' in %s must be an object."
-                % (section_name, CONFIG_RELATIVE_PATH),
-                CONFIG_RELATIVE_PATH,
-            )
-            continue
-        merge_config_section(config, section_name, section, report)
+        elif not isinstance(section, dict):
+            report_config(report, "Section '%s' must be an object." % section_name)
+        else:
+            merge_config_section(config, section_name, section, report)
     return config
+
+
+def report_config(report, message, announce=None):
+    """Report a config problem, located at .sdlc/config.json (ERROR by default)."""
+    (announce or report.error)("config", message, CONFIG_RELATIVE_PATH)
 
 
 def get_default_config():
@@ -839,6 +501,8 @@ def get_default_config():
             "test_path_fragments": list(DEFAULT_TEST_PATH_FRAGMENTS),
             "source_overrides": [],
             "test_overrides": [],
+            "generated_globs": [],
+            "vendored_globs": [],
         },
         "headings": {
             "test_plan": [],
@@ -856,86 +520,62 @@ def get_default_config():
 
 
 def merge_config_section(config, section_name, section, report):
-    """Merge one declared section into `config`, reporting anything unusable."""
+    """Merge one declared section into `config`, reporting anything unusable.
+
+    Lists EXTEND the defaults, so a config stays short and keeps working when
+    the defaults grow.
+    """
     for key, value in sorted(section.items()):
+        name = "%s.%s" % (section_name, key)
         if section_name == "comments":
             merge_comment_declaration(config, key, value, report)
         elif key in CONFIG_LIST_FIELDS.get(section_name, ()):
-            if is_list_of_strings(value):
-                config[section_name][key] = config[section_name][key] + [
-                    item for item in value if item not in config[section_name][key]
-                ]
-            else:
-                report.error(
-                    "config",
-                    "%s.%s in %s must be a list of strings."
-                    % (section_name, key, CONFIG_RELATIVE_PATH),
-                    CONFIG_RELATIVE_PATH,
-                )
-        elif section_name == "gate" and key == "enforce_tag_roles":
+            if not is_list_of_strings(value):
+                report_config(report, "%s must be a list of strings." % name)
+                continue
+            current = config[section_name][key]
+            current.extend(item for item in value if item not in current)
+        elif name == "gate.enforce_tag_roles":
             if isinstance(value, bool):
                 config["gate"]["enforce_tag_roles"] = value
             else:
-                report.error(
-                    "config",
-                    "gate.enforce_tag_roles in %s must be "
-                    "true or false." % CONFIG_RELATIVE_PATH,
-                    CONFIG_RELATIVE_PATH,
-                )
-        elif section_name == "scan" and key == "max_file_bytes":
+                report_config(report, "%s must be true or false." % name)
+        elif name == "scan.max_file_bytes":
             if isinstance(value, int) and not isinstance(value, bool) and value > 0:
                 config["scan"]["max_file_bytes"] = value
             else:
-                report.error(
-                    "config",
-                    "scan.max_file_bytes in %s must be a "
-                    "positive integer." % CONFIG_RELATIVE_PATH,
-                    CONFIG_RELATIVE_PATH,
-                )
+                report_config(report, "%s must be a positive integer." % name)
         else:
-            report.warn(
-                "config",
-                "Unknown key '%s.%s' in %s."
-                % (section_name, key, CONFIG_RELATIVE_PATH),
-                CONFIG_RELATIVE_PATH,
-            )
+            report_config(report, "Unknown key '%s'." % name, report.warn)
 
 
 def merge_comment_declaration(config, extension, declaration, report):
     """Record a project-declared comment syntax for one file extension."""
-    location = CONFIG_RELATIVE_PATH
     if not extension.startswith("."):
-        report.error(
-            "config",
-            "Comment key '%s' in %s must be a file extension "
-            "starting with a dot." % (extension, location),
-            location,
+        report_config(
+            report,
+            "Comment key '%s' must be a file extension starting with a dot."
+            % extension,
         )
         return
     if not isinstance(declaration, dict):
-        report.error(
-            "config",
-            "comments['%s'] in %s must be an object with "
-            "'line' and/or 'block'." % (extension, location),
-            location,
+        report_config(
+            report,
+            "comments['%s'] must be an object with 'line' and/or 'block'." % extension,
         )
         return
     line_leaders = declaration.get("line", [])
     block_pairs = declaration.get("block", [])
     if not is_list_of_strings(line_leaders):
-        report.error(
-            "config",
-            "comments['%s'].line in %s must be a list of "
-            "strings." % (extension, location),
-            location,
+        report_config(
+            report, "comments['%s'].line must be a list of strings." % extension
         )
         return
     if not is_list_of_pairs(block_pairs):
-        report.error(
-            "config",
-            "comments['%s'].block in %s must be a list of "
-            "[open, close] string pairs." % (extension, location),
-            location,
+        report_config(
+            report,
+            "comments['%s'].block must be a list of [open, close] string pairs."
+            % extension,
         )
         return
     config["comments"][extension] = {
@@ -960,7 +600,7 @@ def is_list_of_pairs(value):
 
 
 def check_legacy_layout(root, report):
-    """Check 10 — report SDLC artifacts still sitting at pre-`.sdlc/` paths."""
+    """legacy-layout — report SDLC artifacts still sitting at pre-`.sdlc/` paths."""
     for label, legacy_path, canonical_path in get_legacy_artifacts(root):
         if os.path.exists(os.path.join(root, canonical_path)):
             continue
@@ -975,8 +615,7 @@ def check_legacy_layout(root, report):
 def get_legacy_artifacts(root):
     """Yield (label, legacy_path, canonical_path) per legacy artifact found.
 
-    Matched on the exact file names /sdlc-init writes, never on the name of the
-    directory holding them.
+    Matched on the exact file names /sdlc-init writes.
     """
     if has_legacy_steering_documents(root):
         yield "steering docs", "docs", os.path.join(".sdlc", "docs")
@@ -1005,10 +644,8 @@ def get_legacy_artifacts(root):
 def has_legacy_steering_documents(root):
     """True when `docs/` holds steering documents this project actually wrote.
 
-    An unambiguous name is enough on its own. A weak name -- `architecture.md`,
-    which half the documentation generators in the world emit -- counts only
-    when its text cross-references the scheme, so an ordinary project's
-    `docs/architecture.md` is not mistaken for a legacy SDLC layout.
+    A weak name (`architecture.md`) counts only when its text cross-references
+    the scheme.
     """
     entry_names = set(get_entry_names(root, "docs"))
     if UNAMBIGUOUS_LEGACY_STEERING_NAMES & entry_names:
@@ -1044,10 +681,10 @@ def get_entry_names(root, relative_path):
 def check_spec_hygiene(
     root, spec_paths_by_slug, report, reported_slugs=None, config=None
 ):
-    """Checks 1, 6, 7, 8 — parse every spec and validate keys, IDs, and EARS.
+    """Parse every spec and validate keys, IDs, and EARS.
 
-    Every spec is parsed so that its key and ids stay resolvable, but a spec
-    outside `reported_slugs` (the --feature scope) contributes no findings.
+    A spec outside `reported_slugs` (the --feature scope) is parsed so its key
+    and ids resolve, but contributes no findings.
 
     Returns (specs_by_slug, slug_by_key).
     """
@@ -1074,7 +711,6 @@ def check_spec_hygiene(
             )
         feature_key = resolve_feature_key(spec, slug, location, spec_report)
 
-        # Check 1: feature key uniqueness.
         if feature_key in slug_by_key and slug_by_key[feature_key] != slug:
             spec_report.error(
                 "key-unique",
@@ -1085,7 +721,6 @@ def check_spec_hygiene(
         else:
             slug_by_key[feature_key] = slug
 
-        # Check 6: an ID defined active more than once.
         for requirement_id in sorted(set(spec["duplicate_ids"])):
             spec_report.error(
                 "dup-id",
@@ -1093,7 +728,6 @@ def check_spec_hygiene(
                 location,
             )
 
-        # Check 7: an ID marked REMOVED that is also still active.
         recycled_ids = spec["removed_ids"] & set(spec["active_ids"])
         for requirement_id in sorted(recycled_ids):
             spec_report.error(
@@ -1111,12 +745,10 @@ def check_spec_hygiene(
                 location,
             )
 
-        # Check 8: EARS dialect.
         check_ears_syntax(spec["requirement_texts"], location, spec_report)
 
-        # Check 11 — must happen here, not during the coverage pass: a legacy
-        # test plan's UT-/IT- ids are legitimate COVERS targets, so they have to
-        # be known before tags are resolved.
+        # Here, not in the coverage pass: a legacy test plan's UT-/IT- ids are
+        # COVERS targets, so they must be known before tags are resolved.
         resolve_test_plan(root, slug, spec, location, spec_report)
 
         specs_by_slug[slug] = spec
@@ -1126,10 +758,8 @@ def check_spec_hygiene(
 def resolve_feature_key(spec, slug, location, report):
     """Return the spec's Feature Key, defaulting from the slug, and report it.
 
-    The default is only usable when it is a valid key. A slug that starts with a
-    digit (`2fa` -> `2FA`) is not: the tag parser cannot read `2FA:REQ-001` as
-    key-prefixed, so it reads a bare `REQ-001` instead and the feature can never
-    satisfy traceability no matter what is written in the source.
+    The slug default is only usable when it is a valid key: `2FA:REQ-001` does
+    not parse as key-prefixed, so a digit-led slug could never be traced.
     """
     if spec["feature_key"]:
         return spec["feature_key"]
@@ -1164,11 +794,10 @@ def resolve_feature_key(spec, slug, location, report):
 
 
 def resolve_test_plan(root, slug, spec, spec_location, report):
-    """Check 11 — locate the feature's test plan and record it on the spec.
+    """Locate the feature's test plan and record it on the spec.
 
-    The plan belongs in the spec's own `## Test Plan` section. A project
-    migrated from the two-file layout keeps it at `.sdlc/tests/<slug>/test-plan.md`;
-    that is read as a fallback so its test IDs stay valid COVERS targets.
+    Falls back to the legacy `.sdlc/tests/<slug>/test-plan.md` so its test IDs
+    stay valid COVERS targets.
     """
     spec["test_plan_location"] = spec_location
     if spec["test_plan_text"]:
@@ -1199,10 +828,9 @@ def resolve_test_plan(root, slug, spec, spec_location, report):
 
 
 def check_ears_syntax(requirement_texts, location, report):
-    """Check 8 — every requirement uses canonical EARS with an uppercase SHALL.
+    """ears — every requirement uses canonical EARS with an uppercase SHALL.
 
-    Uppercase is what makes a keyword a keyword, so the SHALL test is
-    case-sensitive: `the system shall charge the card` is prose, not EARS.
+    Case-sensitive: `the system shall charge the card` is prose, not EARS.
     """
     for requirement_id, raw_text in sorted(requirement_texts.items()):
         text = get_unquoted_text(raw_text)
@@ -1351,14 +979,17 @@ def get_non_ears_leading_keyword(text):
 def collect_traceability_tags(root, config, report, excluded_patterns=()):
     """Walk the project, returning every traceability tag found in a comment.
 
-    Documentation, prose and data files are skipped entirely, so a README
-    showing the tag format neither claims coverage nor reports as a dangling
-    tag. Every other file is read for comments and classified as source or
-    test, since a tag means different things in each.
+    DOC files and generated/vendored globs are skipped; every other file is
+    read for comments and classified as source or test.
     """
     skipped_directories = set(config["scan"]["skip_directories"])
     skipped_directories -= set(config["scan"]["scan_directories"])
     maximum_bytes = config["scan"]["max_file_bytes"]
+    unowned_patterns = (
+        list(excluded_patterns)
+        + config["layout"]["generated_globs"]
+        + config["layout"]["vendored_globs"]
+    )
     tags = []
     for directory_path, directory_names, file_names in os.walk(root):
         directory_names[:] = [
@@ -1370,7 +1001,8 @@ def collect_traceability_tags(root, config, report, excluded_patterns=()):
                 continue
             file_path = os.path.join(directory_path, file_name)
             relative_path = os.path.relpath(file_path, root)
-            if is_excluded_path(relative_path, excluded_patterns):
+            posix_path = relative_path.replace(os.sep, "/")
+            if is_matching_any_glob(posix_path, unowned_patterns):
                 continue
             role = get_file_role(relative_path, config)
             if role == ROLE_DOC:
@@ -1392,9 +1024,7 @@ def collect_traceability_tags(root, config, report, excluded_patterns=()):
 def get_file_role(relative_path, config):
     """Classify a scanned file as source, test, or never-scanned.
 
-    Every code file is source or test. ROLE_DOC covers everything that cannot
-    carry a claim at all -- documentation, prose and data formats -- and those
-    files are skipped before a tag is read. That keeps the report actionable: a
+    ROLE_DOC covers documentation, prose and data; those are never read, so a
     misplaced tag is always "the wrong kind of file", never "unclassifiable".
     """
     posix_path = relative_path.replace(os.sep, "/")
@@ -1409,11 +1039,7 @@ def get_file_role(relative_path, config):
 
 
 def is_test_path(posix_path, layout):
-    """True when a path names a test by directory, path fragment, or filename stem.
-
-    Matched on path COMPONENTS and filename STEMS, never on substrings, so
-    `src/contest/models.py` and `src/latest_prices.py` stay source.
-    """
+    """True when a path names a test by directory, path fragment, or filename stem."""
     directory_names = set(posix_path.split("/")[:-1])
     if directory_names & set(layout["test_directory_names"]):
         return True
@@ -1436,29 +1062,11 @@ def is_matching_any_glob(posix_path, patterns):
     )
 
 
-def is_excluded_path(relative_path, excluded_patterns):
-    """True when a path matches an --exclude glob, by full path or by name."""
-    posix_path = relative_path.replace(os.sep, "/")
-    for pattern in excluded_patterns:
-        if fnmatch.fnmatch(posix_path, pattern) or fnmatch.fnmatch(
-            os.path.basename(posix_path), pattern
-        ):
-            return True
-    return False
-
-
 def scan_code_fences(text):
     """Return (text with fences blanked, line number of an unclosed fence).
 
-    A fence closes only on the same character, at least as long as the opener,
-    and with no info string, so a fenced block may itself contain a shorter
-    fence. An unclosed fence blanks everything after it: in a document, a
-    missed example costs less than an invented tag.
-
-    The line number comes back so the caller can SAY so. Swallowing the rest of
-    the file in silence made every requirement below a typo'd fence stop
-    existing, and the tags pointing at them reported as dangling with nothing
-    to connect the two.
+    An unclosed fence blanks everything after it (a missed example costs less
+    than an invented tag); its line number is returned so the caller can warn.
     """
     lines = text.splitlines()
     open_marker = None
@@ -1483,10 +1091,15 @@ def scan_code_fences(text):
     return "\n".join(lines), open_line_number
 
 
+def get_heading_title(heading):
+    """Return a heading's text without its `#` marks, for comparison."""
+    return heading.lstrip("#").strip().lower()
+
+
 def get_declared_heading_match(text, extra_headings):
     """Return a match for the first project-declared heading found, or None."""
     for declared in extra_headings:
-        title = re.escape(declared.lstrip("#").strip())
+        title = re.escape(get_heading_title(declared))
         match = re.search(r"^#{2,4}\s+%s\s*$" % title, text, re.M | re.I)
         if match:
             return match
@@ -1496,9 +1109,7 @@ def get_declared_heading_match(text, extra_headings):
 def parse_traceability_tags(file_text, extension, config):
     """Return {kind: [(feature_key_or_None, id), ...]} for one file's tags.
 
-    Only comment text is read, and a header tag must OPEN its comment. Scanning
-    every line unanchored counted a string literal, a line of prose, and
-    `# This file does NOT IMPLEMENTS: KEY:REQ-001` as real coverage.
+    Only comment text is read, and a tag must OPEN its comment.
     """
     tags_by_kind = {"IMPLEMENTS": [], "COVERS": [], "@sdlc": []}
     for comment_text in get_comment_texts(file_text, extension, config):
@@ -1515,13 +1126,9 @@ def parse_traceability_tags(file_text, extension, config):
 def get_comment_texts(file_text, extension, config):
     """Return the comment text of every line, one entry per line that has one.
 
-    Not a lexer. A single left-to-right pass that skips string literals, so
-    `MSG = "IMPLEMENTS: KEY:REQ-001"` stops claiming coverage, while a tag in a
-    `/* ... */` block is still seen. Block state carries across lines.
-
-    A Python docstring is a string, not a comment, so a header written inside
-    one does not count. That is why ANNOTATION.md places the `#` header AFTER
-    the module docstring rather than in it.
+    Not a lexer: one left-to-right pass that skips string literals. Block state
+    carries across lines. A Python docstring is a string, so a header inside one
+    does not count (ANNOTATION.md puts it after the docstring).
     """
     line_leaders, block_pairs = get_comment_syntax(extension, config)
     comment_texts = []
@@ -1588,16 +1195,9 @@ def is_inside_string_literal(line, offset):
 def get_string_literal_spans(line):
     """Return (start, end) for every quoted span that opens AND closes on the line.
 
-    One left-to-right pass with a single active quote, so the apostrophe in
-    `"it's here"` belongs to that string rather than opening one of its own.
-    Counting each quote character independently, as this used to, made
-    `msg := "it's here" // IMPLEMENTS: KEY:REQ-001` look like an open string and
-    dropped the tag with no diagnostic -- the requirement then reported as
-    unimplemented while its header sat in plain sight.
-
-    A quote with no partner on the line opens nothing: Rust's `&'a str`, Lisp's
-    `'(a b)` and an apostrophe in a trailing note would otherwise swallow the
-    rest of the line and every comment on it.
+    One pass with a single active quote, so the apostrophe in `"it's here"`
+    belongs to that string. A quote with no partner on the line opens nothing,
+    so Rust's `&'a str` and Lisp's `'(a b)` keep their trailing comments.
     """
     spans = []
     index = 0
@@ -1633,9 +1233,7 @@ def get_closing_quote_index(line, start):
 def get_comment_syntax(extension, config):
     """Return (line_leaders, block_pairs) for a file extension.
 
-    An unknown extension falls back to a generous leader set rather than losing
-    its tags: an exotic language should still be able to claim coverage, and
-    prose fails the check anyway because it carries no leader at all.
+    An unknown extension falls back to a generous leader set.
     """
     declared = config["comments"].get(extension)
     if declared:
@@ -1660,7 +1258,7 @@ def get_valid_tag_targets(specs_by_slug):
 
 
 def check_tag_targets(tags, valid_targets, slug_by_key, report):
-    """Checks 4 and 5 — every tag is key-namespaced and resolves to a real ID."""
+    """dangling-tag, unkeyed-tag — every tag is key-namespaced and resolves to a real ID."""
     for feature_key, requirement_id, kind, relative_path, _ in tags:
         if feature_key is None:
             report.warn(
@@ -1689,17 +1287,11 @@ def check_tag_targets(tags, valid_targets, slug_by_key, report):
 
 
 def check_tag_roles(tags, report, is_enforced=True):
-    """Check 15 — IMPLEMENTS lives in source, COVERS lives in tests.
+    """tag-role — IMPLEMENTS lives in source, COVERS lives in tests.
 
-    Reported at the tag rather than at the requirement, which is nearer the
-    edit that caused it. The matching coverage error names this path too, so
-    the two findings read as one problem.
-
-    With the gate relaxed (`gate.enforce_tag_roles`), the same finding is a
-    WARNING and the tag still counts: a project arriving from the lenient
-    validator gets the full worklist without a red build on day one.
+    Reported at the tag, nearest the edit that caused it. With the gate relaxed
+    the finding is a WARNING and the tag still counts.
     """
-    expected_role_by_kind = {"IMPLEMENTS": ROLE_SOURCE, "COVERS": ROLE_TEST}
     remedy_by_kind = {
         "IMPLEMENTS": "Move it to the source file that implements the "
         "requirement, or list this path under layout.source_overrides",
@@ -1707,8 +1299,7 @@ def check_tag_roles(tags, report, is_enforced=True):
         "this path under layout.test_overrides",
     }
     for tag in tags:
-        expected_role = expected_role_by_kind.get(tag.kind)
-        if expected_role is None or tag.role == expected_role:
+        if not is_misplaced_tag(tag):
             continue
         announce = report.error if is_enforced else report.warn
         announce(
@@ -1732,36 +1323,24 @@ def check_tag_roles(tags, report, is_enforced=True):
 def check_requirement_coverage(
     root, specs_by_slug, spec_paths_by_slug, tags, report, is_enforcing_roles=True
 ):
-    """Checks 2, 3, 9 — every requirement is implemented, tested, and planned.
+    """trace-*, plan-* — every requirement is implemented, tested, and planned.
 
-    A tag counts only from the right kind of file: IMPLEMENTS from source,
-    COVERS from a test. `misplaced_paths_by_target` records the tags that fail
-    that rule so the coverage error can name where they actually sit. With the
-    gate relaxed a misplaced tag still counts -- and is still reported, as a
-    warning, so the work stays visible.
+    A misplaced tag counts only when the role gate is relaxed; either way its
+    path is recorded so the coverage error can name where it actually sits.
     """
-    implemented_targets = {
-        (tag.feature_key, tag.requirement_id)
-        for tag in tags
-        if tag.kind == "IMPLEMENTS"
-        and tag.feature_key
-        and (tag.role == ROLE_SOURCE or not is_enforcing_roles)
-    }
-    covered_targets = {
-        (tag.feature_key, tag.requirement_id)
-        for tag in tags
-        if tag.kind == "COVERS"
-        and tag.feature_key
-        and (tag.role == ROLE_TEST or not is_enforcing_roles)
-    }
+    counted_targets = {"IMPLEMENTS": set(), "COVERS": set()}
     misplaced_paths_by_target = {}
     for tag in tags:
-        if tag.kind not in ("IMPLEMENTS", "COVERS") or not tag.feature_key:
+        if tag.kind not in counted_targets or not tag.feature_key:
             continue
-        expected_role = ROLE_SOURCE if tag.kind == "IMPLEMENTS" else ROLE_TEST
-        if tag.role != expected_role:
-            key = (tag.feature_key, tag.requirement_id, tag.kind)
-            misplaced_paths_by_target.setdefault(key, []).append(tag.relative_path)
+        target = (tag.feature_key, tag.requirement_id)
+        if is_misplaced_tag(tag):
+            misplaced_paths_by_target.setdefault(target + (tag.kind,), []).append(
+                tag.relative_path
+            )
+            if is_enforcing_roles:
+                continue
+        counted_targets[tag.kind].add(target)
 
     for slug, spec in specs_by_slug.items():
         feature_key = spec["feature_key"]
@@ -1780,51 +1359,39 @@ def check_requirement_coverage(
                     location,
                 )
             if requirement_id in spec["outside_code_nfrs"]:
+                exemption = "validated outside code"
+            elif requirement_id in spec["outside_code_requirements"]:
+                exemption = "declared to have no in-code verification"
+            else:
+                exemption = None
+            if exemption:
                 report.info(
                     "outside-code",
-                    "%s:%s validated outside code — exempt from "
-                    "IMPLEMENTS/COVERS." % (feature_key, requirement_id),
+                    "%s:%s %s — exempt from IMPLEMENTS/COVERS."
+                    % (feature_key, requirement_id, exemption),
                     location,
                 )
                 continue
-            if requirement_id in spec["outside_code_requirements"]:
-                report.info(
-                    "outside-code",
-                    "%s:%s declared to have no in-code verification — exempt "
-                    "from IMPLEMENTS/COVERS." % (feature_key, requirement_id),
-                    location,
-                )
-                continue
-            if (feature_key, requirement_id) not in implemented_targets:
+            for kind, check, file_kind in (
+                ("IMPLEMENTS", "trace-code", "source"),
+                ("COVERS", "trace-test", "test"),
+            ):
+                if (feature_key, requirement_id) in counted_targets[kind]:
+                    continue
                 report.error(
-                    "trace-code",
-                    "%s:%s has no IMPLEMENTS: header in any source file.%s"
+                    check,
+                    "%s:%s has no %s: header in any %s file.%s"
                     % (
                         feature_key,
                         requirement_id,
+                        kind,
+                        file_kind,
                         get_misplaced_hint(
-                            misplaced_paths_by_target,
-                            feature_key,
-                            requirement_id,
-                            "IMPLEMENTS",
-                            "a source",
-                        ),
-                    ),
-                    location,
-                )
-            if (feature_key, requirement_id) not in covered_targets:
-                report.error(
-                    "trace-test",
-                    "%s:%s has no COVERS: header in any test file.%s"
-                    % (
-                        feature_key,
-                        requirement_id,
-                        get_misplaced_hint(
-                            misplaced_paths_by_target,
-                            feature_key,
-                            requirement_id,
-                            "COVERS",
-                            "a test",
+                            misplaced_paths_by_target.get(
+                                (feature_key, requirement_id, kind)
+                            ),
+                            kind,
+                            file_kind,
                         ),
                     ),
                     location,
@@ -1839,7 +1406,6 @@ def check_requirement_coverage(
                     test_plan_location,
                 )
 
-        # Check 18: a plan row that points at nothing real.
         for referenced_id in sorted(
             set(REQUIREMENT_ID_PATTERN.findall(test_plan_text))
         ):
@@ -1859,9 +1425,8 @@ def check_requirement_coverage(
                     test_plan_location,
                 )
 
-        # Check 13: the other direction — a planned test that nothing covers.
         for test_id in sorted(spec["test_ids"]):
-            if (feature_key, test_id) not in covered_targets:
+            if (feature_key, test_id) not in counted_targets["COVERS"]:
                 report.warn(
                     "plan-test-uncovered",
                     "%s is planned in the test plan but no test file "
@@ -1870,27 +1435,32 @@ def check_requirement_coverage(
                 )
 
 
-def get_misplaced_hint(
-    misplaced_paths_by_target, feature_key, requirement_id, kind, expected_description
-):
-    """Return a clause naming where a misplaced tag for this target actually sits."""
-    paths = misplaced_paths_by_target.get((feature_key, requirement_id, kind))
+def get_misplaced_hint(paths, kind, file_kind):
+    """Return a clause naming where a misplaced tag for a target actually sits."""
     if not paths:
         return ""
-    return " (a %s: tag for it exists in %s, which is not %s file)" % (
+    return " (a %s: tag for it exists in %s, which is not a %s file)" % (
         kind,
         ", ".join(sorted(set(paths))),
-        expected_description,
+        file_kind,
     )
 
 
-def check_ac_citations(root, specs_by_slug, spec_paths_by_slug, report):
-    """Check 12 — every `AC-*` a requirement cites exists in the problem brief.
+def is_misplaced_tag(tag):
+    """True when an IMPLEMENTS/COVERS tag sits in the wrong kind of file."""
+    expected_role = EXPECTED_ROLE_BY_KIND.get(tag.kind)
+    return expected_role is not None and tag.role != expected_role
 
-    Skipped when there is no brief: /sdlc-adopt documents code that predates one,
-    and an uncited requirement is a gap to fill, not an error. What this catches
-    is the break /sdlc-plan warns about — an AC renumbered or reworded upstream,
-    leaving specs citing an id that no longer exists.
+
+def check_ac_citations(
+    root, specs_by_slug, spec_paths_by_slug, report, is_whole_project=True
+):
+    """ac-citation, ac-uncited — requirements and the brief's ACs agree.
+
+    Every `AC-*` a requirement cites must exist in the brief (catches an AC
+    renumbered upstream). On a whole-project run, every AC no active
+    requirement cites is reported as INFO: usually unspecified backlog, so it
+    must not fail --strict. Skipped when there is no brief.
     """
     brief_path = find_first_existing_path(
         os.path.join(root, ".sdlc", "requirements", "problem-brief.md"),
@@ -1923,24 +1493,34 @@ def check_ac_citations(root, specs_by_slug, spec_paths_by_slug, report):
                     location,
                 )
 
+    if not is_whole_project:
+        return
+    cited_ac_ids = set()
+    for spec in specs_by_slug.values():
+        for ac_ids in spec["ac_citations"].values():
+            cited_ac_ids |= ac_ids
+    for ac_id in sorted(defined_ac_ids - cited_ac_ids):
+        report.info(
+            "ac-uncited",
+            "%s is cited by no active requirement — not yet specified, or "
+            "dropped from every spec." % ac_id,
+            brief_location,
+        )
+
 
 def is_matching_heading(heading, pattern, extra_headings):
     """True when a heading matches the built-in pattern or a project-declared one."""
-    if pattern.search(heading):
-        return True
-    stripped = heading.lstrip("#").strip().lower()
-    return any(
-        stripped == declared.lstrip("#").strip().lower() for declared in extra_headings
+    title = get_heading_title(heading)
+    return bool(pattern.search(heading)) or any(
+        title == get_heading_title(declared) for declared in extra_headings
     )
 
 
 def parse_spec(text, config=None):
     """Parse a spec.md into its feature key, requirement IDs, texts, and test plan.
 
-    Fenced blocks are blanked first, for the same reason the tag scanner blanks
-    them: a spec that SHOWS the REMOVED form inside a fence is documenting it,
-    and reading that example as a definition reported the real requirement as a
-    recycled id. Blanking preserves line count, so line numbers stay true.
+    Fenced blocks are blanked first (preserving line count), so an example of
+    the REMOVED form inside a fence is not read as a definition.
     """
     text, unclosed_fence_line = scan_code_fences(text)
     headings = (config or get_default_config())["headings"]
@@ -1984,9 +1564,7 @@ def parse_spec(text, config=None):
 
         if is_outside_code_section and requirement_id.startswith("NFR-"):
             outside_code_nfrs.add(requirement_id)
-        # A REQ-* under the NFR-only heading is the trap this check exists for:
-        # it used to be silently ignored, so the requirement looked exempt while
-        # still demanding IMPLEMENTS/COVERS somewhere else in the report.
+        # A REQ-* under the NFR-only heading is not exempt; warn about it.
         if is_outside_code_section and requirement_id.startswith("REQ-"):
             misplaced_exemptions.add(requirement_id)
         if is_functional_exemption_section:
@@ -1994,11 +1572,8 @@ def parse_spec(text, config=None):
             misplaced_exemptions.discard(requirement_id)
 
         if requirement_id in active_ids:
-            # An ID repeated under the SAME heading is a copy-paste mistake. The
-            # same ID under two headings is the documented pattern — an NFR
-            # listed in the table and repeated under the exemption heading — so
-            # scoping by section means a reworded heading costs an exemption
-            # rather than inventing a duplicate-definition error.
+            # Repeated under the SAME heading is a copy-paste mistake. Under two
+            # headings is the documented NFR-table-plus-exemption pattern.
             if headings_by_id.get(requirement_id) == current_heading:
                 duplicate_ids.append(requirement_id)
             elif (
@@ -2006,10 +1581,11 @@ def parse_spec(text, config=None):
                 and requirement_id not in outside_code_nfrs
             ):
                 relisted_nfrs.add(requirement_id)
-        else:
-            active_ids[requirement_id] = line_number
-            headings_by_id[requirement_id] = current_heading
-
+            # A repeat (e.g. under an exemption heading) never redefines the
+            # requirement's text or citation.
+            continue
+        active_ids[requirement_id] = line_number
+        headings_by_id[requirement_id] = current_heading
         if requirement_id.startswith("REQ-"):
             requirement_texts[requirement_id] = get_requirement_text(remainder)
             ac_citations[requirement_id] = set(
@@ -2040,9 +1616,7 @@ def parse_spec(text, config=None):
 def get_requirement_text(remainder):
     """Return the requirement prose that follows the ID and its optional citation.
 
-    Splitting on the first colon truncated a requirement at its own punctuation
-    -- `the system SHALL set Retry-After: 30` lost the `30` and gained a bogus
-    citation of everything before it.
+    Positional, not split on a colon: `SHALL set Retry-After: 30` keeps its 30.
     """
     return CITATION_PATTERN.sub("", remainder, count=1).lstrip(" \t:\u2014-").strip()
 
@@ -2050,9 +1624,7 @@ def get_requirement_text(remainder):
 def get_requirement_citation(remainder):
     """Return the `(AC-NNN)` citation that precedes the requirement prose, or ''.
 
-    Read positionally rather than by splitting on a colon, so a requirement
-    written without one still has its citation checked, and a colon inside the
-    requirement prose does not truncate it.
+    Read positionally, so a citation with no colon after it is still checked.
     """
     citation_match = CITATION_PATTERN.match(remainder)
     return citation_match.group(1) if citation_match else ""
@@ -2098,9 +1670,8 @@ def find_first_existing_path(*paths):
 def read_file_text(path, maximum_bytes=None, relative_path=None, report=None):
     """Return a file's text, or None when it is missing, binary, or oversized.
 
-    A scanner passes `report` so that a skip is announced: an oversized or
-    binary file is otherwise indistinguishable from one holding no tags, and
-    the requirement it covers reports as untraced with nothing to explain why.
+    A scanner passes `report` so a skip is announced rather than looking like a
+    file with no tags.
     """
     maximum_bytes = MAX_SCANNED_BYTES if maximum_bytes is None else maximum_bytes
     try:
