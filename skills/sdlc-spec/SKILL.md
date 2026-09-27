@@ -14,11 +14,11 @@ Produces **one file per feature**: `.sdlc/specs/<slug>/spec.md`, holding EARS re
 
 - **Conventions**: read `.sdlc/CONVENTIONS.md` — paths, EARS dialect, ID scheme, approval tiers.
 - **Template**: fill `.sdlc/templates/spec.md`. Missing `.sdlc/templates/`? Tell the user to run `/sdlc-init`.
-- **Argument → slug**: slugify the free text the user passed (lowercase; spaces/underscores → `-`; drop characters outside `[a-z0-9-]`; collapse repeats; trim). Tell the user the slug if it differs from their input. No argument? Ask "What's the feature name?". Slugs are **stable** — never rename once code references the directory.
-- **Feature Key**: every spec declares `**Feature Key:** <KEY>`, matching `[A-Z][A-Z0-9_-]*` and globally unique (the validator enforces both). Default to the uppercased slug; a shorter alias is fine (`user-authentication` → `AUTH`). A slug starting with a digit cannot become a key — `2fa` → `2FA` does not parse as a keyed tag — so pick one (`TWOFA`). List the keys already taken with `grep -h '^\*\*Feature Key:\*\*' .sdlc/specs/*/spec.md | sort`, then **create `.sdlc/keys/<KEY>` containing the slug before writing the spec** — that is what makes a collision with a parallel session on another branch a visible merge conflict instead of two features sharing a key (see `.sdlc/CONVENTIONS.md` § Parallel sessions).
+- **Argument → slug**: per `.sdlc/CONVENTIONS.md` § Feature slugs. No argument? Ask "What's the feature name?".
+- **Feature Key**: choose one per § ID & traceability scheme, then claim it — **create `.sdlc/keys/<KEY>` before writing the spec** (§ Parallel sessions).
 - **Single-writer files**: `problem-brief.md` and `entity-dictionary.md` belong to `/sdlc-plan`. This skill **reads** them; it does not append new `AC-*`/`NFR-*` to them. If the feature needs one that does not exist, say so and recommend `/sdlc-plan` — appending here is what makes parallel sessions collide.
 - **Required input**: no `.sdlc/requirements/problem-brief.md`? Recommend `/sdlc-plan` — without a brief there are no `AC-*` to cite. If the user would rather proceed (a project `/sdlc-adopt` documented from code, or a deliberately lightweight one), write the requirements without citations and say so; the validator checks citations only when a brief exists.
-- **ID stability**: `REQ-*`/`NFR-*` IDs are referenced by source headers, test headers, and inline tags. On a re-run, continue from the highest existing ID, never renumber, and retire a dropped requirement in place — its text **begins** `REMOVED ({date}) — {reason}`, directly after the `(AC-NNN)` citation if it has one: `` - `REQ-004` (AC-012): REMOVED (2026-03-01) — superseded by REQ-009.`` Anything else between the ID and `REMOVED` leaves the requirement active and demanding coverage.
+- **ID stability**: on a re-run, continue from the highest existing ID, never renumber, and retire a dropped requirement in place with the exact `REMOVED` form in § ID & traceability scheme — any other form leaves it active and demanding coverage.
 - **Legacy layout**: a feature with a separate `.sdlc/tests/<slug>/test-plan.md` predates the merge. Read it, fold it into the spec's `## Test Plan` section, and tell the user to run `/sdlc-adopt` for the rest of the project.
 
 ## Workflow
@@ -35,18 +35,7 @@ Pick or confirm the Feature Key now.
 
 ### Phase 2: EARS Requirements
 
-Use the canonical dialect, keywords in **uppercase**:
-
-| Pattern | Template | When |
-|---------|----------|------|
-| Ubiquitous | The `<system>` SHALL `<response>`. | Always-active invariant |
-| Event-driven | WHEN `<trigger>`, the `<system>` SHALL `<response>`. | A user action or system event |
-| State-driven | WHILE `<state>`, the `<system>` SHALL `<response>`. | Holds while in a state |
-| Optional feature | WHERE `<feature is included>`, the `<system>` SHALL `<response>`. | Tied to an optional/configured feature |
-| Unwanted behaviour | IF `<condition>`, THEN the `<system>` SHALL `<response>`. | Error, guard, exception |
-| Complex | WHILE `<state>`, WHEN `<trigger>`, the `<system>` SHALL `<response>`. | Multiple clauses |
-
-A flat numbered list — the keyword tells the reader the category, so no category headers. Every requirement cites the `AC-*` it derives from, and every cited `AC-*` must exist in the problem brief — the validator errors on one that does not. Keywords are uppercase; lowercase `when` or `shall` is prose and the validator warns.
+Use `.sdlc/CONVENTIONS.md` § Canonical EARS dialect, keywords in **uppercase**. A flat numbered list — the keyword tells the reader the category, so no category headers. Every requirement cites the `AC-*` it derives from, and every cited `AC-*` must exist in the problem brief.
 
 ### Phase 3: Design Properties (think, don't write)
 
@@ -66,8 +55,8 @@ No `N/A` rows in the output.
 
 Fill `.sdlc/templates/spec.md`. Notes on the sections that carry traps:
 
-- **Non-Functional Requirements**: cite `NFR-*` IDs from the brief; don't invent new ones. "Validated By" names the mechanism that performs validation — naming CI exempts nothing, because CI is where validation runs, not what performs it.
-- **NFRs Validated Outside Code**: only NFRs validated by infra or process. Listing an NFR here is the **only** way it becomes exempt from `IMPLEMENTS:`/`COVERS:` — what the table's "Validated By" cell says exempts nothing.
+- **Non-Functional Requirements**: cite `NFR-*` IDs from the brief; don't invent new ones. "Validated By" names the mechanism that performs validation.
+- **Exemption headings**: only per `.sdlc/CONVENTIONS.md` § Requirements validated outside code — the heading, never the "Validated By" wording, exempts.
 - **Entities**: reference the entity dictionary. If the feature needs a new field, either stop and ask the user to run `/sdlc-plan`, or — with explicit **Tier-1** opt-in — update the dictionary in this session, then continue.
 - **Test Plan**: a structural mapping of the requirements above it, in the same file. Every `REQ-*` appears in at least one row's `Req` column. Property-based tests only if `tech.md` or `test-strategy.md` names a tool — otherwise mark that subsection `N/A — no property-testing framework configured`. State the naming convention from `test-strategy.md` at the top.
 
@@ -96,7 +85,7 @@ Next — this session or a fresh one, your call:
                                   expected trace-code / trace-test errors
 ```
 
-The implementer reads `spec.md` from disk, not this chat, so `/sdlc-implement` does not need a fresh session. Carry on here if the context still fits. One consequence, not a blocker: if you *review* in the session that implemented, the verdict is capped at COMMENT — the freshness rule keys off the implementation, not the spec. A fresh session before `/sdlc-review` keeps the verdict uncapped (see `.sdlc/CONVENTIONS.md` § Review independence).
+The implementer reads `spec.md` from disk, so carry on here if the context still fits. Only the later `/sdlc-review` needs a session that did not implement (`.sdlc/CONVENTIONS.md` § Review independence).
 
 Add `/sdlc-spec <other-slug>` items only for features that already have a spec directory or appear in the problem brief as separate work — do not offer to specify something the brief does not describe. If other specs exist, say that both may be implemented in parallel under a worktree.
 

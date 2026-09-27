@@ -12,39 +12,16 @@ USAGE
     python3 evals/run.py --skill sdlc-spec --actual DIR
     python3 evals/run.py --case sdlc-spec/email-verification --actual DIR
 
-A case directory contains:
-    input.md     — the inputs the skill receives (interview answers, files it reads)
-    rubric.md    — human-readable PASS / FAIL / PARTIAL criteria
-    checks.json  — optional deterministic checks this runner grades
-    expected/    — optional reference output tree
-
-checks.json schema:
-    {
-      "case": "sdlc-spec/email-verification",
-      "checks": [
-        {"id": "SPEC-1", "description": "...", "type": "file_exists",
-         "target_file": ".sdlc/specs/email-verification/spec.md", "severity": "error"},
-        {"id": "SPEC-4", "description": "...", "type": "absent_regex",
-         "target_file": "...", "pattern": "ALWAYS\\s+SHALL", "severity": "error"},
-        {"id": "SPEC-7", "description": "...", "type": "min_matches",
-         "target_file": "...", "pattern": "REQ-\\d+", "min_count": 3, "severity": "error"}
-      ]
-    }
-
-check types:
-    file_exists    — target_file exists under --actual.
-    contains_regex — target_file exists AND `pattern` is found.
-    absent_regex   — target_file (if present) does NOT contain `pattern`.
-    min_matches    — target_file contains >= `min_count` matches of `pattern`.
-
-severity:
-    error (default) — a failed check makes the case FAIL.
-    warning         — a failed check makes the case PARTIAL.
+Case layout and the checks.json schema (check types, severities) are
+documented once, in evals/README.md.
 
 EXIT CODES
     0  all graded cases PASS (or lint clean)
     1  one or more cases FAIL, or a structural problem
 """
+
+# SPEC: .sdlc/specs/eval-runner/spec.md
+# IMPLEMENTS: EVAL:REQ-001, EVAL:REQ-002, EVAL:REQ-003, EVAL:REQ-004, EVAL:REQ-005, EVAL:REQ-006, EVAL:NFR-001
 
 import argparse
 import json
@@ -293,15 +270,13 @@ def grade_check(check, actual_directory):
             "found" if match else "pattern %r not found" % check["pattern"],
         )
 
+    match_count = len(re.findall(check["pattern"], text))
     if check_type == "min_matches":
-        match_count = len(re.findall(check["pattern"], text))
         return (
             match_count >= check["min_count"],
             "%d matches (need %d)" % (match_count, check["min_count"]),
         )
-
     if check_type == "max_matches":
-        match_count = len(re.findall(check["pattern"], text))
         return (
             match_count <= check["max_count"],
             "%d matches (allow %d)" % (match_count, check["max_count"]),

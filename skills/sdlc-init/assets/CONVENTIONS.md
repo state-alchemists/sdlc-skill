@@ -1,78 +1,66 @@
 # SDLC Conventions
 
-Single source of truth for paths, the EARS dialect, the ID/traceability scheme, and approval tiers. Every `sdlc-*` skill reads this file.
+Single source of truth for paths, the EARS dialect, the ID/traceability scheme, and approval tiers. Every `sdlc-*` skill reads this file; skills point here rather than restating a rule.
 
-## Artifact paths (canonical)
-| Artifact | Path |
-|----------|------|
-| Steering docs | `.sdlc/docs/` |
-| ADRs | `.sdlc/docs/adr/` |
-| Architecture | `.sdlc/docs/architecture.md` |
-| Requirements | `.sdlc/requirements/` |
-| Specs (requirements + design + test plan) | `.sdlc/specs/<slug>/spec.md` |
-| Reviews | `.sdlc/reviews/<slug>/report-{YYYY-MM-DDTHH-MM-SS}.md` |
-| Rules | `.sdlc/rules.md` |
-| Templates | `.sdlc/templates/` |
-| Validator | `.sdlc/tools/sdlc-validate.py` |
-| Machine-readable config | `.sdlc/config.json` |
-| Annotation reference | `.sdlc/ANNOTATION.md` |
-| Feature Key claims | `.sdlc/keys/<KEY>` |
+## Artifact paths
 
-**Legacy fallback**: older projects keep steering docs at `docs/`, ADRs at `docs/adr/`, requirements at `requirements/`, rules at `rules.md`, and a separate test plan at `.sdlc/tests/<slug>/test-plan.md`. Skills read legacy locations if the canonical one is absent, but never write a parallel tree. Run `/sdlc-adopt` to consolidate.
+| Artifact | Path | Template |
+|----------|------|----------|
+| Steering docs | `.sdlc/docs/{product,tech,test-strategy}.md` | `product.md`, `tech.md`, `test-strategy.md` |
+| AI assistant guide | `AGENTS.md` (repo root) | `agents.md` |
+| Architecture | `.sdlc/docs/architecture.md` | `architecture.md` |
+| ADRs | `.sdlc/docs/adr/ADR-{N}.md` | `adr.md` |
+| Rules (constitution) | `.sdlc/rules.md` | `rules.md` |
+| Problem brief | `.sdlc/requirements/problem-brief.md` | `problem-brief.md` |
+| Entity dictionary | `.sdlc/requirements/entity-dictionary.md` | `entity-dictionary.md` |
+| Spec (requirements + design + test plan) | `.sdlc/specs/<slug>/spec.md` | `spec.md` |
+| Quickfix delta | `.sdlc/specs/<slug>/quickfix-{ts}.md` (to `<slug>/archive/` once promoted) | `quickfix.md` |
+| Drift report | `.sdlc/specs/<slug>/drift-report-{ts}.md` | `drift-report.md` |
+| Review report | `.sdlc/reviews/<slug>/report-{ts}.md` | `review-report.md` |
+| Templates | `.sdlc/templates/` | — |
+| Validator | `.sdlc/tools/sdlc-validate.py` | — |
+| Config | `.sdlc/config.json` | — |
+| Annotation reference | `.sdlc/ANNOTATION.md` | — |
+| Feature Key claims | `.sdlc/keys/<KEY>` | — |
 
-**Which command finishes setup depends on where the artifacts are, not how old the project is.** A project whose files already sit at the canonical paths is **initialised**, however old it is: `/sdlc-init` runs its brownfield path and fills any gap, including a missing `.sdlc/rules.md`, and nothing needs relocating. A project whose markers are at the legacy paths is **not yet initialised**: `/sdlc-init` installs scaffolding and stops — writing `.sdlc/docs/product.md` beside `docs/product.md` would form a parallel tree — and `/sdlc-adopt` relocates the artifacts, then completes the setup by running `/sdlc-init`'s Phase 3b–5 on the relocated tree. Mixed projects take the second path; one legacy marker is enough. Setup steps are defined once, in `/sdlc-init`; `/sdlc-adopt` does not restate them.
+**Templates are project-owned.** Every document a skill writes is filled from `.sdlc/templates/`; edit a template to change what every later run produces. Missing `.sdlc/templates/` means the project is not initialised — run `/sdlc-init`, which installs them without touching existing documents.
 
-<!-- legacy-detection:start -->
-A project is on the **legacy SDLC layout** when either of these holds:
+## Legacy layout
 
-1. **A conclusive marker exists** — `docs/adr/ADR-*.md`; a root `rules.md` containing `RULE-`; `specs/<slug>/spec.md` (or `requirements.md` + `design.md`); `requirements/problem-brief.md` or `requirements/entity-dictionary.md`; or `docs/product.md`, `docs/tech.md` or `docs/test-strategy.md` — names this project writes and almost nothing else does.
-2. **A weak marker exists and its own text cross-references the scheme** — `docs/architecture.md` containing `.sdlc/`, `ADR-<n>`, `RULE-<n>`, `US-<n>`, `AC-<n>`, `NFR-<n>` or `Feature Key`.
+Older projects keep steering docs at `docs/`, ADRs at `docs/adr/`, requirements at `requirements/`, rules at `rules.md`, specs at `specs/`, and a separate test plan at `.sdlc/tests/<slug>/test-plan.md`. Skills **read** a legacy location when the canonical one is absent, but never write a parallel tree.
 
-**`docs/architecture.md` on its own is not evidence.** MkDocs, Docusaurus and Diátaxis all emit that filename by default; far more projects have one than have ever run `/sdlc-init`. Treating it as a marker made `/sdlc-init` refuse to write steering documents on projects that had never used these skills.
+A project is on the **legacy SDLC layout** when either holds:
 
-Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `architecture.md` is the one `/sdlc-init` writes. A near-miss is a miss — and the near-miss that bites is the lowercase collision, not the uppercase one.
-<!-- legacy-detection:end -->
+1. **A conclusive marker exists** — `docs/adr/ADR-*.md`; a root `rules.md` containing `RULE-`; `specs/<slug>/spec.md` (or `requirements.md` + `design.md`); `requirements/problem-brief.md` or `requirements/entity-dictionary.md`; `docs/product.md`, `docs/tech.md` or `docs/test-strategy.md`; or any `@sdlc`, `IMPLEMENTS:` or `COVERS:` tag in the code.
+2. **A weak marker cross-references the scheme** — `docs/architecture.md` whose text contains `.sdlc/`, `ADR-<n>`, `RULE-<n>`, `US-<n>`, `AC-<n>`, `NFR-<n>` or `Feature Key`. On its own it is not evidence: MkDocs, Docusaurus and Diátaxis all emit that filename.
 
-## Templates
-Every document a skill writes comes from a template in `.sdlc/templates/`. Edit those files to change the shape of what the skills produce — they are project-owned, and skills read them at generation time rather than carrying their own copies.
+Detect **by content, never by directory name** — most projects have a `docs/`. Matching is case-sensitive: `ARCHITECTURE.md` is the project's own document, `architecture.md` is the one `/sdlc-init` writes, and `docs/adr/0007-title.md` is not `ADR-0007-title.md`. A near-miss is a miss.
 
-| Template | Produces |
-|----------|----------|
-| `product.md` | `.sdlc/docs/product.md` |
-| `tech.md` | `.sdlc/docs/tech.md` |
-| `test-strategy.md` | `.sdlc/docs/test-strategy.md` |
-| `agents.md` | `AGENTS.md` (repo root) |
-| `rules.md` | `.sdlc/rules.md` |
-| `problem-brief.md` | `.sdlc/requirements/problem-brief.md` |
-| `entity-dictionary.md` | `.sdlc/requirements/entity-dictionary.md` |
-| `adr.md` | `.sdlc/docs/adr/ADR-{N}.md` |
-| `architecture.md` | `.sdlc/docs/architecture.md` |
-| `spec.md` | `.sdlc/specs/<slug>/spec.md` |
-| `quickfix.md` | `.sdlc/specs/<slug>/quickfix-{ts}.md` (archived to `<slug>/archive/` once promoted) |
-| `review-report.md` | `.sdlc/reviews/<slug>/report-{ts}.md` |
-| `drift-report.md` | `.sdlc/specs/<slug>/drift-report-{ts}.md` |
+**Which command finishes setup depends on where the artifacts are, not how old the project is.**
 
-If `.sdlc/templates/` is missing, the project has not been initialised (or predates templates) — run `/sdlc-init`, which installs them without touching existing documents.
+| Artifacts are… | Run | Why |
+|---|---|---|
+| Nowhere (no scaffolding) | `/sdlc-init` | Creates the structure and finishes setup |
+| Already under `.sdlc/` | `/sdlc-init` (brownfield path) | Fills gaps, e.g. a missing `.sdlc/rules.md`; nothing to relocate |
+| At a legacy path (one marker is enough) | `/sdlc-init`, then `/sdlc-adopt` | Init installs scaffolding and stops — writing `.sdlc/docs/product.md` beside `docs/product.md` would be a parallel tree. Adopt relocates, then runs init's Phase 3b–5 on the relocated tree. Adopt is the last command. |
 
 ## File roles and `.sdlc/config.json`
 
-The validator classifies every file it scans as **source**, **test**, or **documentation**, and a traceability tag only counts from the right one:
+The validator classifies every file as **source**, **test**, or **documentation**. A tag counts only:
 
-| Tag | Counts only from | Rationale |
-|-----|------------------|-----------|
+| Tag | From | Because |
+|-----|------|---------|
 | `IMPLEMENTS:` | a **source** file | a requirement is implemented by code |
 | `COVERS:` | a **test** file | a requirement is covered by a test that runs |
-| any tag | inside a **real comment** | a string literal, a line of prose, or a `.txt` file is not a claim |
+| any | inside a **real comment**, opening it | a string literal, prose, or `# does NOT IMPLEMENTS: X` is not a claim |
 
-Two kinds of file are never scanned at all. Documentation (`.md`, `.rst`, `.adoc`, ...) shows the tag format rather than claiming coverage — a README teaching it is not a claim. Prose and data (`.txt`, `.log`, `.csv`, `.tsv`, `.json`, ...) implement nothing, so a `#`-prefixed line in one is not a header either; `.jsonc`, `.json5` and `.yaml` are configuration that really does carry comments, and are scanned normally.
+**Never scanned**: documentation (`.md`, `.rst`, `.adoc`, …) — a README teaching the format is not a claim — and prose/data (`.txt`, `.log`, `.csv`, `.tsv`, `.json`, …). `.jsonc`, `.json5` and `.yaml` carry real comments and are scanned. A comment is what the file's own syntax says: a Python docstring is a string, so `.sdlc/ANNOTATION.md` puts the header *after* it.
 
-A **comment is what the file's own syntax says it is**, not anything that looks like one. A Python docstring is a string, which is why `.sdlc/ANNOTATION.md` puts the `#` header *after* the module docstring rather than inside it.
+**Test files** are recognised by path component and filename stem, never substring: a `tests`/`test`/`spec`/`__tests__`/`e2e`/`cypress` directory; a `src/test/`, `src/it/` or `src/integrationTest/` fragment; or a stem like `test_*`, `*_test`, `*_spec`, `*.test`, `*.spec`, `*.cy`, `*.tftest`, `*Test`, `*Tests`, `*IT`. That covers Python, Go's `*_test.go`, Maven and Failsafe, Jest, RSpec, Cypress, Playwright, .NET, Gradle, Terraform tests and monorepos, while `src/contest/models.py` stays source. `features/` is deliberately not a default (`src/features/` is usually components); declare it if yours is a Cucumber suite.
 
-**Test files are recognised by path components and filename stems, never by substring**: a `tests`/`test`/`spec`/`__tests__`/`e2e`/`cypress` directory, a `src/test/`, `src/it/` or `src/integrationTest/` path fragment, or a stem like `test_*`, `*_test`, `*_spec`, `*.test`, `*.spec`, `*.cy`, `*.tftest`, `*Test`, `*Tests`, `*IT`. That covers Python, Go's colocated `*_test.go`, Maven's `src/test/java` and Failsafe's `*IT.java`, Jest's `*.test.ts` and `__tests__/`, RSpec's `spec/`, Cypress's `cypress/e2e/*.cy.ts`, Playwright, .NET's `*Tests.cs`, Gradle's `src/integrationTest/`, Terraform's `*.tftest.hcl` and monorepo nesting — and it leaves `src/contest/models.py` and `src/latest_prices.py` as source, which substring matching would not. `features/` is deliberately *not* a default: `src/features/` is a component directory far more often than it is a Cucumber suite. Declare it in `test_directory_names` if yours is one.
+A check is a test when **CI fails on it**, whatever its format: a policy file that gates the merge (OPA/Conftest `.rego`, Checkov, tfsec, a schema) carries `COVERS:` once its path resolves as a test; an advisory scan does not. See `.sdlc/ANNOTATION.md` for IaC and SQL.
 
-A check is a test when **CI fails on it**, whatever its format. A policy file that gates the merge — OPA/Conftest `.rego`, a Checkov or tfsec rule set, a schema — carries `COVERS:` legitimately once its path resolves as a test; an advisory scan nobody fails on does not. See `.sdlc/ANNOTATION.md` for the IaC and SQL cases.
-
-Everything above is a **default**, not a requirement. `.sdlc/config.json` overrides it; the file is optional, and a project without one validates on the defaults. Every list **extends** the built-in list rather than replacing it, so the file stays short and keeps working when the defaults grow.
+Everything above is a default. `.sdlc/config.json` is optional; every list **extends** the built-in one:
 
 ```json
 {
@@ -81,7 +69,9 @@ Everything above is a **default**, not a requirement. `.sdlc/config.json` overri
     "test_stem_patterns": ["*Check"],
     "test_path_fragments": ["app/spec/"],
     "source_overrides": ["src/testing/*"],
-    "test_overrides": ["tools/smoke/*"]
+    "test_overrides": ["tools/smoke/*"],
+    "generated_globs": ["gen/*"],
+    "vendored_globs": ["third_party/*"]
   },
   "headings": {
     "test_plan": ["Rencana Pengujian"],
@@ -98,72 +88,64 @@ Everything above is a **default**, not a requirement. `.sdlc/config.json` overri
 }
 ```
 
-- `source_overrides` and `test_overrides` are globs, matched against the whole path or the basename, and win over every other rule. `source_overrides` wins over `test_overrides`.
-- `scan_directories` removes a name from the skip list — a project whose real code lives under `build/` needs it.
-- `headings` names a renamed or translated `## Test Plan` / `## NFRs Validated Outside Code` heading. The built-in match already accepts `Tests`, `Test Cases`, `Test Design`, `Testing` and common rewordings of the exemption heading; declare anything else here.
-- `headings.outside_code_functional` is a **separate** key from `outside_code`, because it exempts a different thing: `outside_code` covers `NFR-*` only, and a `REQ-*` listed under it is reported as a warning rather than exempted. The functional heading exempts `REQ-*`. Keep the two apart — a heading matching both patterns would mark one section as both kinds of exemption at once.
-- `comments` teaches the validator a file extension it does not know. An unknown extension falls back to a generous set of line-comment leaders rather than losing its tags.
-- `gate.enforce_tag_roles` is the **migration ramp**, and the only switch that weakens a check. Setting it to `false` — or passing `--relax-tag-roles` — makes a tag count wherever it sits and drops a misplaced one to a WARNING, which is how the validator behaved before this rule existed. Every run then reports `gate-relaxed` as a WARNING, so it is visible in the report and non-zero under `--strict`: it is a ramp for the first pass over an existing project, not a setting. The misplaced tags are still listed, so the worklist survives.
-- A malformed `config.json` is an **ERROR** naming the key. Silently ignoring a layout declaration would report a project's real tags as missing, and a `gate` value that is not `true`/`false` is an error rather than a silent "off".
+- **Globs** (`*_overrides`, `generated_globs`, `vendored_globs`) match the whole path or the basename. `source_overrides` beats `test_overrides`, and both beat every other rule. Files matching `generated_globs`/`vendored_globs` are never scanned and never annotated.
+- `scan_directories` removes a name from the skip list (for real code under `build/`).
+- `headings` declares a renamed or translated heading. Built-in matching already accepts `Tests`, `Test Cases`, `Test Design`, `Testing` and common rewordings of the exemption headings. `outside_code` (NFR exemption) and `outside_code_functional` (REQ exemption) are separate keys — see below.
+- `comments` teaches the validator an extension. An unknown extension falls back to `#`, `//`, `--`, `;`, `%`, `!`.
+- `gate.enforce_tag_roles: false` (or `--relax-tag-roles`) is the **migration ramp** and the only switch that weakens a check: a tag counts wherever it sits and a misplaced one is a WARNING. Every run then reports `gate-relaxed` as a WARNING, so `--strict` still fails. Misplaced tags are still listed.
+- A malformed config — including a `gate` value that is not `true`/`false` — is an **ERROR** naming the key, never a silent fallback. An unknown key is a WARNING.
 
 ## Requirements validated outside code
 
-Two headings in `spec.md` exempt a requirement from `IMPLEMENTS:`/`COVERS:`. They are separate because they make different claims.
+Two headings in `spec.md` exempt a requirement from `IMPLEMENTS:`/`COVERS:`. They are separate because they make different claims:
 
-| Heading | Exempts | Meaning |
+| Heading | Exempts | For |
 |---|---|---|
-| `## NFRs Validated Outside Code` | `NFR-*` only | a quality attribute checked by infra or process — a backup policy, an SLO |
-| `## Requirements With No In-Code Verification` | any ID, in practice `REQ-*` | a functional requirement no executable check can reach |
+| `## NFRs Validated Outside Code` | `NFR-*` only | a quality attribute checked by infra or process (backup policy, SLO) |
+| `## Requirements With No In-Code Verification` | `REQ-*` | a functional requirement no executable check can reach |
 
-Both work by the **presence of the heading**, never by the wording of the NFR table's "Validated By" cell. That was tried and removed: `process`, `manual` and `dashboard` are ordinary English words, and reading them as an exemption silently exempted work that was never verified at all.
-
-Two rules the validator enforces:
-
-- A `REQ-*` under the **NFR** heading is a **warning**, not an exemption. It used to be ignored in silence, which meant the requirement appeared exempt while still failing its coverage checks elsewhere in the report.
-- Every exempted requirement is still reported, as `outside-code`, on every run. The gap stays visible; it is exempted, not hidden.
-
-Prefer a real check. A policy file that gates the merge is a test, so most IaC requirements can carry `COVERS:` rather than an exemption — see `.sdlc/ANNOTATION.md`.
-
-`gate.enforce_tag_roles` / `--relax-tag-roles` is **orthogonal** to both headings. It loosens *where* a tag may sit; it never changes whether a requirement needs one, and it does not suppress the misplaced-heading warning.
+- **Only the heading exempts.** List the NFR once in the NFR table and repeat its ID under the heading. Wording in the "Validated By" cell exempts nothing (`process`, `manual` and `dashboard` are ordinary English), and neither does naming CI — CI is where validation runs, not what performs it.
+- A `REQ-*` under the **NFR** heading is a WARNING, not an exemption.
+- Every exempted requirement is reported as `outside-code` on every run: an exemption is a recorded gap, not a deletion.
+- `gate.enforce_tag_roles` is orthogonal: it loosens *where* a tag may sit, never *whether* one is required.
+- Prefer a real check. Most IaC requirements can carry `COVERS:` from a policy file that gates the merge.
 
 ## Feature slugs
-A feature directory name is the slug of the feature: lowercase; spaces/underscores to `-`; drop characters outside `[a-z0-9-]`; collapse repeated `-`; trim leading/trailing `-`. Slugs are stable — never rename once code references `.sdlc/specs/<slug>/`.
 
-A slug may start with a digit (`2fa`), but a **Feature Key may not** — so the uppercased slug is not always a usable key. When it is not, declare one explicitly (`2fa` → `**Feature Key:** TWOFA`). The validator errors rather than guessing, because `2FA:REQ-001` does not parse as a keyed tag and the feature could never satisfy traceability.
+Lowercase; spaces/underscores to `-`; drop characters outside `[a-z0-9-]`; collapse repeated `-`; trim leading/trailing `-`. Tell the user when the slug differs from their input. Slugs are stable — never rename once code references `.sdlc/specs/<slug>/`.
 
 ## Canonical EARS dialect
-| Pattern | Template |
-|---------|----------|
-| Ubiquitous | The `<system>` SHALL `<response>`. |
-| Event-driven | WHEN `<trigger>`, the `<system>` SHALL `<response>`. |
-| State-driven | WHILE `<state>`, the `<system>` SHALL `<response>`. |
-| Optional feature | WHERE `<feature is included>`, the `<system>` SHALL `<response>`. |
-| Unwanted behaviour | IF `<condition>`, THEN the `<system>` SHALL `<response>`. |
-| Complex | Combine, e.g. WHILE `<state>`, WHEN `<trigger>`, the `<system>` SHALL `<response>`. |
 
-This is canonical EARS (Mavin et al.). EARS keywords are written in uppercase — that is what makes them keywords, and the validator only treats uppercase occurrences as such. Deprecated dialect found in old specs migrates as: `ALWAYS SHALL` to ubiquitous (drop ALWAYS); `AS <c> THEN SHALL` to `IF <c>, THEN ... SHALL`; `UNLESS <b> THEN SHALL <d>` to `IF NOT <b>, THEN ... SHALL <d>`; old `WHERE <state>` (state-driven) to `WHILE <state>`.
+| Pattern | Template | Use for |
+|---------|----------|---------|
+| Ubiquitous | The `<system>` SHALL `<response>`. | an invariant on every path |
+| Event-driven | WHEN `<trigger>`, the `<system>` SHALL `<response>`. | a user action or system event |
+| State-driven | WHILE `<state>`, the `<system>` SHALL `<response>`. | behaviour that holds while in a state |
+| Optional feature | WHERE `<feature is included>`, the `<system>` SHALL `<response>`. | a flag or configured feature |
+| Unwanted behaviour | IF `<condition>`, THEN the `<system>` SHALL `<response>`. | an error, guard, or invalid input |
+| Complex | WHILE `<state>`, WHEN `<trigger>`, the `<system>` SHALL `<response>`. | several clauses |
+
+Canonical EARS (Mavin et al.). Keywords are **uppercase** — that is what makes them keywords; lowercase `when`/`shall` is prose and the validator warns. One requirement, one SHALL. No unverifiable words ("fast", "user-friendly") — state the threshold. Deprecated dialect migrates as: `ALWAYS SHALL` → ubiquitous; `AS <c> THEN SHALL` → `IF <c>, THEN … SHALL`; `UNLESS <b> THEN SHALL <d>` → `IF NOT <b>, THEN … SHALL <d>`; state-driven `WHERE <state>` → `WHILE <state>`.
 
 ## ID & traceability scheme
-- Each `spec.md` declares `**Feature Key:** <KEY>` — an uppercase token `[A-Z][A-Z0-9_-]*`, globally unique across all features. Default suggestion: the uppercased slug, when that is a valid key.
-- Requirement IDs are per-feature (`REQ-001`, `NFR-001`, `UT-001`, `IT-001`, `E2E-001`, `PBT-001`) and disambiguated globally by the key.
-- `US-*`, `AC-*` and `NFR-*` in `problem-brief.md` are **project-level**; a spec cites them. Because tags are key-namespaced, one brief-level `NFR-001` cited by two features becomes two targets (`AUTH:NFR-001`, `BILL:NFR-001`) and needs its own `IMPLEMENTS:`/`COVERS:` under each key. That is intended: each feature carries its own share of the NFR.
-- A requirement's `(AC-NNN)` citation is validated against `problem-brief.md` when one exists: citing an `AC-*` the brief does not define is an ERROR. This is the check that catches an AC renumbered upstream. Specs written by `/sdlc-adopt` before a brief exists carry no citation, and the check stays silent.
-- **Where a header goes, and in what syntax**: `.sdlc/ANNOTATION.md` — the per-language comment table, the placement rules (after a shebang, an encoding line, a licence block, a module docstring, `<?php`, an XML prolog), and the policy for files that cannot carry a comment or that are generated. Never guess a comment syntax.
-- Source header: `IMPLEMENTS: <KEY>:REQ-001, <KEY>:NFR-002`
-- Test header: `COVERS: <KEY>:REQ-002, <KEY>:UT-005, <KEY>:IT-001`
-- Inline tag: `@sdlc <KEY>:REQ-003, <KEY>:REQ-004`
-- IDs are immutable: never renumber or recycle. A removed requirement keeps its ID, and its text **begins** with `REMOVED ({date}) — {reason}`, after the `(AC-NNN)` citation if it has one — the validator only treats a requirement as retired when the text starts that way:
+
+- **Feature Key**: each `spec.md` declares `**Feature Key:** <KEY>` — `[A-Z][A-Z0-9_-]*`, globally unique. Default: the uppercased slug when valid; a shorter alias is fine (`user-authentication` → `AUTH`). A digit-led slug cannot become a key (`2fa` → `2FA:REQ-001` does not parse), so declare one (`TWOFA`); the validator errors rather than guessing.
+- **Per-feature IDs** (`REQ-`, `NFR-`, `UT-`, `IT-`, `E2E-`, `PBT-`) are disambiguated by the key: `AUTH:REQ-003`.
+- **Project-level IDs**: `US-*`, `AC-*`, `NFR-*` live in `problem-brief.md`; a spec cites them. A brief-level `NFR-001` cited by two features becomes two targets (`AUTH:NFR-001`, `BILL:NFR-001`), each needing its own tags — each feature carries its share.
+- **Citations**: a requirement's `(AC-NNN)` must exist in the brief (ERROR otherwise) — this catches an AC renumbered upstream. The reverse — a brief AC no active requirement cites — is reported as `ac-uncited` INFO on whole-project runs: normally unspecified backlog, so it never fails `--strict`. With no brief yet (specs `/sdlc-adopt` wrote from code), write no citation; the check stays silent. Never invent one.
+- **Tags** — header syntax and placement per language are in `.sdlc/ANNOTATION.md`; never guess a comment syntax:
+  - Source header: `IMPLEMENTS: <KEY>:REQ-001, <KEY>:NFR-002`
+  - Test header: `COVERS: <KEY>:REQ-002, <KEY>:UT-005, <KEY>:IT-001`
+  - Inline, above the unit that directly fulfils it: `@sdlc <KEY>:REQ-003, <KEY>:REQ-004`
+- Every active `REQ-*` and `NFR-*` needs at least one `IMPLEMENTS:` and one `COVERS:`, unless exempted above. Unkeyed legacy tags (`@sdlc REQ-003`) WARN and **do not count** until re-keyed (`/sdlc-adopt`).
+- **IDs are immutable**: continue from the highest existing ID; never renumber or recycle. Change a requirement by editing its text under the same ID. Retire it **in place** — its text must **begin** with `REMOVED ({date}) — {reason}`, directly after the citation; anything else between ID and `REMOVED` leaves it active:
 
   ```
   - `REQ-004` (AC-012): REMOVED (2026-03-01) — superseded by REQ-009.
   ```
 
-  Retiring a requirement also means removing its ID from any `IMPLEMENTS:` header and deleting its `@sdlc` tags; a tag pointing at a retired ID is a dangling-tag ERROR.
-- An NFR validated outside application code is listed once in the NFR table **and** repeated under "NFRs Validated Outside Code". The heading is the **only** thing that exempts it — wording in the "Validated By" cell exempts nothing, and neither does naming CI, because CI is where validation runs, not what performs it.
-- Unkeyed legacy tags (`@sdlc REQ-003`) are reported as WARNINGs and **do not satisfy coverage** — the requirement still reports as untraced until the tag is re-keyed. Run `/sdlc-adopt` to re-key.
-- Validate with `python3 .sdlc/tools/sdlc-validate.py [--feature <slug>] [--strict] [--exclude GLOB]` — exit 0 clean, 1 warnings (with `--strict`), 2 errors. `--feature` narrows the **findings**; every spec is still parsed, so other features' tags resolve. Fenced code blocks in Markdown are never read as tags, so documentation can show the format freely; `--exclude` covers anything else.
-
-  Wire it into CI as the gate it was built to be:
+  Retiring also means removing the ID from every `IMPLEMENTS:` header, deleting its `@sdlc` tags (a tag on a retired ID is a dangling-tag ERROR), and deleting its test-plan rows.
+- **Validate**: `python3 .sdlc/tools/sdlc-validate.py [--feature <slug>] [--strict] [--exclude GLOB]` — exit 0 clean, 1 warnings under `--strict`, 2 errors. `--feature` narrows the findings, not the parse. Fenced code blocks in Markdown are never read. Wire it into CI:
 
   ```yaml
   - name: SDLC traceability
@@ -172,51 +154,21 @@ This is canonical EARS (Mavin et al.). EARS keywords are written in uppercase �
 
 ## Parallel sessions
 
-Running several features at once is supported, but only some artifacts tolerate it.
+**Safe in parallel** — each belongs to one feature, so git merges cleanly: `.sdlc/specs/<slug>/**`, `.sdlc/keys/<KEY>`, and that feature's own source and test files. For parallel *implementation*, use a git worktree per feature.
 
-**Safe to write from a parallel session** — each belongs to exactly one feature, so git merges them cleanly:
-`.sdlc/specs/<slug>/**`, `.sdlc/keys/<KEY>`, and that feature's own source and test files.
+**Single-writer — one session at a time**: `.sdlc/requirements/*`, `.sdlc/rules.md`, `.sdlc/docs/**`, `.sdlc/CONVENTIONS.md`, `.sdlc/config.json`. `/sdlc-init` and `/sdlc-plan` own these. Two sessions appending "the next free `AC-*`" collide on IDs declared immutable — so never run two of either at once, and `/sdlc-spec` never extends the brief.
 
-**Single-writer — run these alone, in their own session**: `.sdlc/requirements/problem-brief.md`, `.sdlc/requirements/entity-dictionary.md`, `.sdlc/rules.md`, `.sdlc/docs/**`, `.sdlc/CONVENTIONS.md`, `.sdlc/config.json`. `/sdlc-init` and `/sdlc-plan` own these. Two sessions both appending "the next free `AC-*`" to the same brief will collide on exactly the IDs this scheme declares immutable — so do not run two of either at once, and do not let `/sdlc-spec` extend the brief.
-
-**Claiming a Feature Key.** List what is taken with one command rather than re-reading every spec:
+**Claiming a Feature Key**: list taken keys, then **create `.sdlc/keys/<KEY>` containing the slug before writing the spec**:
 
 ```bash
 grep -h '^\*\*Feature Key:\*\*' .sdlc/specs/*/spec.md | sort
 ```
 
-That grep cannot see a spec on another, unmerged branch. So when you choose a key, **create `.sdlc/keys/<KEY>` containing the slug, before writing the spec**. Two sessions choosing different keys create different files and always merge; two choosing the same key create the same path with different content, which git reports as an add/add conflict at merge time — loud, unmissable, and resolvable in seconds. `spec.md`'s `**Feature Key:**` stays authoritative; `.sdlc/keys/` is the allocation hint.
-
-For parallel *implementation*, use a git worktree per feature.
+The grep cannot see unmerged branches; the claim file turns a same-key collision into a git add/add conflict — loud and quick to resolve. `spec.md`'s `**Feature Key:**` stays authoritative.
 
 ## Session handoff
 
-Every skill that completes a phase ends with an **action block**: a paste-ready todo list of what the user can do next.
-
-The skills are stateless — each reads artifacts from disk, not chat history — so the transition message is the only place a user learns what comes next. Make it actionable rather than descriptive.
-
-**Fresh session: required or optional.** A transition message hands the user the next command; it does not mandate closing the chat. Freshness matters only where *independence* matters, and the only phase where that is true is the review:
-
-- **Required**: `/sdlc-review` must run in a session that did not write the implementation (see § Review independence). The blocks offering `/sdlc-review` after `/sdlc-implement` or `/sdlc-quickfix` state the fresh-session requirement and stay.
-- **Optional (context hygiene)**: everywhere else, a fresh session is the *healthier* default — smaller context, fewer decisions to re-check — but not a correctness gate. `/sdlc-spec` → `/sdlc-implement` may share a session: the implementer reads `spec.md` from disk, so the spec's authoring context is not a dependency.
-
-So a phrase like "Next, in a fresh session:" in an action block is a recommendation unless the phase it leads to is a review. When a block offers a non-review phase, its heading may say the same session is fine, and the only string that must stay load-bearing is the fresh-session note in front of `/sdlc-review`.
-
-**Three rules.**
-
-**Paste-ready, not illustrative.** Never write `/sdlc-implement <slug>` and leave the user to substitute. Write the literal command with the slug the skill already resolved:
-
-```
-/sdlc-implement user-auth
-```
-
-A placeholder forces the user to apply the kebab-case rule correctly, unverified, at the moment of highest friction. The skill computed the slug; it states it.
-
-**Only what the artifacts support.** List a command because the artifacts in front of you justify it, not because it exists. A `/sdlc-review` on a feature with no code yet is noise, and noise teaches the user to skip the block. If a spec directory is empty, review is not a next step.
-
-**Name the parallel opportunity.** When two or more specs exist, say so — `/sdlc-spec` can run in parallel for different features, and so can `/sdlc-implement` under a worktree. What must stay single-writer is listed above. This is the one thing a user cannot infer from the artifacts, so the block is where it belongs.
-
-**Shape.** One block, items justified by observed state:
+Skills are stateless — each reads artifacts from disk — so the transition message is the only place a user learns what comes next. Every skill ends with an **action block**:
 
 ```
 Next, in a fresh session — pick any order:
@@ -227,33 +179,33 @@ Next, in a fresh session — pick any order:
 Both may run at once: each writes only its own .sdlc/specs/<slug>/ and key.
 ```
 
-A single-item block is fine and common. Do not pad it to look substantial.
+- **Paste-ready**: write the literal command with the slug already resolved (`/sdlc-implement user-auth`), never `<slug>`.
+- **Only what the artifacts support**: no `/sdlc-review` for a feature with no code. Noise teaches users to skip the block. A single item is fine; do not pad.
+- **Name the parallel opportunity** when two or more specs exist — the one thing a user cannot infer from the artifacts.
+- **Fresh session is required only before `/sdlc-review`** (see § Review independence). Everywhere else it is context hygiene, not a gate: `/sdlc-spec` → `/sdlc-implement` may share a session, because the implementer reads `spec.md` from disk.
 
 ## Review independence
 
-A review verdict is only worth its independence: an APPROVE from a session that wrote the code it is checking is a false pass. This rule is defined here, once; every skill that offers or receives `/sdlc-review` references this section rather than restating it.
+An APPROVE from the session that wrote the code is a false pass. Defined here once; skills reference it.
 
-- `/sdlc-review` asks, before reading anything, whether this session wrote the implementation — via `/sdlc-implement <slug>`, `/sdlc-quickfix <slug>`, or `/sdlc-adopt` Mode C — or resumed one with `/save`/`/load`. If it did, or the user cannot rule it out, the review is **in-session**: the report records the contamination and the verdict is **capped at COMMENT**. A legitimate REQUEST CHANGES is still possible; only approval is impossible.
-- `/sdlc-quickfix`'s Phase 5 inline review is in-session by design and **never independent**. An independent verdict on a quickfix means `/sdlc-review <slug>` in a fresh session.
-- A session resumed with conversation persistence (`/save`/`/load`) counts as the session that wrote the code — its context carried over.
+- `/sdlc-review` first asks whether this session wrote the implementation — via `/sdlc-implement`, `/sdlc-quickfix`, or `/sdlc-adopt` Mode C — or resumed one with `/save`/`/load` (a resumed session carries the context over). If so, or the user cannot rule it out, the review is **in-session**: the report records it and the verdict is **capped at COMMENT**. REQUEST CHANGES stays reachable.
+- `/sdlc-quickfix`'s inline review is in-session by design and never independent. An independent verdict means `/sdlc-review <slug>` in a fresh session.
 
 ## Dates and timestamps
 
-Dates come from the system clock, never from memory and never from an example. Run the command once at the start of the phase that needs it and reuse the value:
+From the system clock, never memory or an example. Run once per phase and reuse:
 
 ```bash
 date +%Y-%m-%d               # 2026-09-22           -> {{TODAY}}
 date -u +%Y-%m-%dT%H-%M-%SZ  # 2026-09-22T14-03-09Z -> {{TIMESTAMP}}
 ```
 
-`{{TIMESTAMP}}` is UTC so files produced by parallel sessions on different machines sort in real order. Colons are hyphens for filesystem safety.
-
-Where an artifact records a fact about code, pair it with the commit: `git rev-parse --short HEAD`.
-
-If no shell is available, ask the user for today's date. **Never guess it, and never copy a date out of a template or another document** — a date like `2026-03-01` appears in this file and in `spec.md` as an *example*, not as a value.
+`{{TIMESTAMP}}` is UTC so parallel sessions sort correctly; colons are hyphens for filesystem safety. Pair a fact about code with `git rev-parse --short HEAD`. No shell? Ask the user. Dates in this file and in templates are examples, never values.
 
 ## Approval tiers
-- **Tier 1 — explicit per-item approval**: global / hard-to-reverse writes — `rules.md` rule modifications, ADR supersessions, entity-dictionary conflict resolutions, overwriting an existing spec, file moves.
-- **Tier 2 — one batched approval**: routine first-time generation (steering docs together; requirements together; spec together).
-- **Tier 3 — no approval**: read-only analysis, validator runs, and review reports (the report is the deliverable, not a source mutation).
-Anything other than an affirmative ("yes" / "ok" / "approved" / "go ahead") is a change request, at any tier. Silence or a vague reply is a change request.
+
+- **Tier 1 — per-item approval**: hard-to-reverse writes — modifying a rule, superseding an ADR, resolving an entity conflict, overwriting an existing spec, moving files.
+- **Tier 2 — one batched approval**: routine first-time generation (steering docs together; requirements together; a spec).
+- **Tier 3 — none**: read-only analysis, validator runs, review reports.
+
+Only an affirmative ("yes", "ok", "approved", "go ahead") approves, at any tier. Silence or a vague reply is a change request.

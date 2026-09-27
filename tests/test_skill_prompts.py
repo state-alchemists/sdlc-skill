@@ -13,9 +13,14 @@ which is the part a parser can hold onto. Run it directly:
 Exit 0 means every case passed; a failed assertion names the case.
 """
 
+# SPEC: .sdlc/specs/skill-prompts/spec.md
+# COVERS: SKILL:REQ-002, SKILL:REQ-003, SKILL:REQ-004, SKILL:REQ-005, SKILL:REQ-006, SKILL:REQ-007, SKILL:REQ-008, SKILL:REQ-009, SKILL:REQ-010, SKILL:REQ-011, SKILL:REQ-012, SKILL:REQ-013, SKILL:UT-001, SKILL:UT-002, SKILL:UT-003, SKILL:UT-004, SKILL:UT-005, SKILL:UT-006, SKILL:UT-007, SKILL:UT-008, SKILL:UT-009, SKILL:UT-010, SKILL:UT-011, SKILL:UT-012
+
 import os
 import re
 import sys
+
+from harness import run_cases
 
 REPOSITORY_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILLS_DIRECTORY = os.path.join(REPOSITORY_ROOT, "skills")
@@ -29,40 +34,6 @@ WRITING_SKILL_NAMES = ("sdlc-implement", "sdlc-quickfix", "sdlc-adopt")
 # Fenced blocks are illustrations; `.sdlc/...` paths are this tool's own.
 LAYOUT_PATH_PATTERN = re.compile(r"(?<![\w./`])(?:src|tests)/")
 CODE_FENCE_PATTERN = re.compile(r"^\s*```")
-LEGACY_BLOCK_PATTERN = re.compile(
-    r"<!-- legacy-detection:start -->.*?<!-- legacy-detection:end -->", re.S
-)
-
-
-def main():
-    """Run every case, printing one line each, and return an exit code."""
-    cases = [
-        case_no_skill_hardcodes_the_source_or_test_layout,
-        case_implement_forbids_editing_the_spec,
-        case_no_skill_still_says_generated_from_spec,
-        case_legacy_detection_rule_is_identical_everywhere,
-        case_every_skill_reads_the_conventions,
-        case_every_transition_is_an_action_block,
-        case_adopt_is_the_last_command_of_the_legacy_journey,
-        case_writing_skills_read_the_annotation_reference,
-        case_templates_ask_for_a_date_not_a_date_format,
-        case_shipped_config_is_valid_json,
-        case_annotation_covers_every_hazard_that_broke_a_file,
-        case_review_asks_for_independence_confirmation,
-        case_review_caps_verdict_without_fresh_context,
-        case_review_handoffs_reference_the_rule,
-    ]
-    failures = []
-    for case in cases:
-        try:
-            case()
-            print("PASS  %s" % case.__name__)
-        except Exception as error:  # a crash is a failed case, not a lost run
-            failures.append((case.__name__, error))
-            print("FAIL  %s — %s: %s" % (case.__name__, type(error).__name__, error))
-
-    print("\n%d case(s), %d failed" % (len(cases), len(failures)))
-    return 1 if failures else 0
 
 
 # --------------------------------------------------------------------------
@@ -149,26 +120,25 @@ def case_every_transition_is_an_action_block():
     assert not offenders, "; ".join(offenders)
 
 
-def case_legacy_detection_rule_is_identical_everywhere():
-    """One rule, three copies, and drift between them is what produced a
-    day-one false positive on any project with a docs/architecture.md."""
-    paths = [
-        get_skill_path("sdlc-init"),
-        get_skill_path("sdlc-adopt"),
-        os.path.join(ASSETS_DIRECTORY, "CONVENTIONS.md"),
-    ]
-    blocks = {}
-    for path in paths:
-        match = LEGACY_BLOCK_PATTERN.search(read_text(path))
-        assert match, "%s carries no legacy-detection block" % os.path.relpath(
-            path, REPOSITORY_ROOT
-        )
-        blocks[path] = match.group(0)
+def case_legacy_detection_rule_lives_in_one_place():
+    """Three hand-synced copies of this rule drifted once and produced a day-one
+    false positive on any project with a docs/architecture.md. One copy now,
+    in CONVENTIONS.md; the skills that act on it point there."""
+    conventions = read_text(os.path.join(ASSETS_DIRECTORY, "CONVENTIONS.md"))
+    assert re.search(
+        r"^## Legacy layout", conventions, re.M
+    ), "CONVENTIONS.md no longer defines the legacy-layout rule"
     assert (
-        len(set(blocks.values())) == 1
-    ), "the legacy-detection blocks have drifted apart: %s" % ", ".join(
-        os.path.relpath(path, REPOSITORY_ROOT) for path in paths
-    )
+        "On its own it is not evidence" in conventions
+    ), "CONVENTIONS.md dropped the docs/architecture.md false-positive guard"
+    for skill_name in ("sdlc-init", "sdlc-adopt"):
+        text = read_text(get_skill_path(skill_name))
+        assert "§ Legacy layout" in text, (
+            "%s acts on the legacy rule without pointing at it" % skill_name
+        )
+        assert "A conclusive marker exists" not in text, (
+            "%s restates the legacy rule instead of referencing it" % skill_name
+        )
 
 
 def case_adopt_is_the_last_command_of_the_legacy_journey():
@@ -352,16 +322,15 @@ def case_review_asks_for_independence_confirmation():
     the assertion is on the question and the contamination sources it names.
     """
     text = read_text(get_skill_path("sdlc-review"))
-    assert "independence gate" in text, (
-        "sdlc-review no longer runs an independence gate before reviewing"
-    )
-    assert "this session" in text, (
-        "sdlc-review's independence gate does not ask about this session"
-    )
+    assert (
+        "independence gate" in text
+    ), "sdlc-review no longer runs an independence gate before reviewing"
+    assert (
+        "this session" in text
+    ), "sdlc-review's independence gate does not ask about this session"
     for source in ("/sdlc-implement", "/sdlc-quickfix", "Mode C"):
         assert source in text, (
-            "sdlc-review's independence gate omits a contamination source: %s"
-            % source
+            "sdlc-review's independence gate omits a contamination source: %s" % source
         )
 
 
@@ -375,12 +344,10 @@ def case_review_caps_verdict_without_fresh_context():
     is a self-declared APPROVE again.
     """
     review_text = read_text(get_skill_path("sdlc-review"))
-    assert "cap the verdict at COMMENT" in review_text, (
-        "sdlc-review no longer caps an in-session verdict at COMMENT"
-    )
-    report_template = read_text(
-        os.path.join(TEMPLATES_DIRECTORY, "review-report.md")
-    )
+    assert (
+        "cap the verdict at COMMENT" in review_text
+    ), "sdlc-review no longer caps an in-session verdict at COMMENT"
+    report_template = read_text(os.path.join(TEMPLATES_DIRECTORY, "review-report.md"))
     assert "## Review Context" in report_template, (
         "the review report template does not record the context the verdict "
         "depends on"
@@ -409,6 +376,39 @@ def case_review_handoffs_reference_the_rule():
             "rule, so a user learns the fresh-session cost only from the report"
             % skill_name
         )
+
+
+def case_template_diagrams_parse_as_mermaid():
+    """`{{EntityA}} ||--o{ {{EntityB}}` shipped in the entity-dictionary
+    template: Mermaid reads `{` as a block opener, so the ERD failed to render
+    in every viewer. A render check that filled the placeholders first missed
+    it. Inside a Mermaid block a placeholder may only sit in a quoted label
+    or in the free text after a `:`."""
+    offenders = []
+    for file_name in sorted(os.listdir(TEMPLATES_DIRECTORY)):
+        text = read_text(os.path.join(TEMPLATES_DIRECTORY, file_name))
+        for block in re.findall(r"```mermaid\n(.*?)```", text, re.S):
+            for line in block.splitlines():
+                # Quoted labels and text after `:` (message and relation
+                # labels) are free text; anything else must be an identifier.
+                structural = re.sub(r'"[^"]*"', "", line).split(":", 1)[0]
+                if "{{" in structural:
+                    offenders.append("%s: %s" % (file_name, line.strip()))
+    assert not offenders, (
+        "a template diagram puts a {{placeholder}} outside a quoted label, "
+        "which Mermaid cannot parse: %s" % "; ".join(offenders)
+    )
+
+
+def case_init_never_overwrites_project_owned_files():
+    """Templates and config.json are the project's once installed; a re-run
+    that replaced them would silently discard a team's edits."""
+    text = read_text(get_skill_path("sdlc-init"))
+    for row in (
+        "| `templates/*.md` | **Never overwrite.**",
+        "| `config.json` | **Never overwrite.**",
+    ):
+        assert row in text, "sdlc-init's upgrade table lost: %s" % row
 
 
 # --------------------------------------------------------------------------
@@ -445,4 +445,4 @@ def read_text(path):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_cases(globals()))

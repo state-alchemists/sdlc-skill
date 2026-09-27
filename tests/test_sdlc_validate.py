@@ -9,12 +9,20 @@ a fix for one of them could plausibly break. Run it directly — no framework:
 Exit 0 means every case passed; a failed assertion names the case.
 """
 
+# SPEC: .sdlc/specs/validator/spec.md
+# COVERS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:NFR-001, VAL:UT-001, VAL:UT-002, VAL:UT-003, VAL:UT-004, VAL:UT-005, VAL:UT-006, VAL:UT-007, VAL:UT-008, VAL:UT-009, VAL:UT-010, VAL:UT-011, VAL:UT-012, VAL:UT-013, VAL:UT-014, VAL:UT-015, VAL:UT-016, VAL:UT-017, VAL:UT-018, VAL:UT-019, VAL:UT-020, VAL:UT-021
+
+import contextlib
+import functools
 import importlib.util
+import io
 import json
 import os
 import re
 import shutil
 import sys
+
+from harness import run_cases
 import tempfile
 
 REPOSITORY_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -33,100 +41,6 @@ def get_spec_header(feature_key):
         if feature_key is None
         else ("%s**Feature Key:** %s\n\n" % (title, feature_key))
     )
-
-
-def main():
-    """Run every case, printing one line each, and return an exit code."""
-    cases = [
-        case_requirement_mentioning_a_removed_thing_stays_active,
-        case_genuinely_removed_requirement_is_retired,
-        case_canonical_ears_is_not_flagged_as_deprecated,
-        case_deprecated_ears_is_still_flagged,
-        case_nfr_validated_by_a_test_in_ci_is_enforced,
-        case_nfr_validated_by_infra_is_exempt,
-        case_folded_test_plan_ids_are_valid_targets,
-        case_legacy_test_plan_ids_are_valid_targets,
-        case_missing_test_plan_warns,
-        case_unkeyed_tag_warns,
-        case_duplicate_feature_key_errors,
-        case_removed_requirement_keeping_its_citation_is_retired,
-        case_nfr_row_wording_alone_does_not_exempt,
-        case_lowercase_shall_is_flagged,
-        case_lowercase_ears_keyword_is_flagged,
-        case_feature_scope_leaves_other_features_alone,
-        case_slug_that_cannot_make_a_key_errors,
-        case_markdown_examples_are_not_tags,
-        case_excluded_file_is_not_scanned,
-        case_plain_docs_directory_is_not_legacy,
-        case_legacy_steering_documents_are_detected,
-        case_unknown_ac_citation_errors,
-        case_known_ac_citation_is_accepted,
-        case_planned_test_that_nothing_covers_warns,
-        case_unknown_feature_slug_errors,
-        case_a_file_cannot_implement_and_cover_itself,
-        case_covers_in_a_source_file_names_where_the_tag_actually_is,
-        case_implements_in_a_test_file_does_not_satisfy_code_coverage,
-        case_colocated_go_test_is_classified_as_a_test,
-        case_maven_layout_is_classified_correctly,
-        case_tag_in_a_string_literal_is_not_a_tag,
-        case_negated_mention_of_implements_is_not_a_tag,
-        case_tag_in_a_plain_text_file_is_not_a_tag,
-        case_unfenced_documentation_prose_is_not_a_tag,
-        case_tag_in_a_block_comment_is_a_tag,
-        case_missing_config_uses_built_in_defaults,
-        case_malformed_config_is_reported_not_ignored,
-        case_config_source_override_reclassifies_a_path,
-        case_oversized_file_skip_is_reported,
-        case_vague_requirement_term_is_flagged,
-        case_compound_requirement_is_flagged,
-        case_non_ears_leading_keyword_is_flagged,
-        case_requirement_without_a_subject_is_flagged,
-        case_canonical_composite_where_if_then_is_not_deprecated,
-        case_ears_keyword_inside_quoted_copy_is_not_deprecated,
-        case_fenced_example_in_a_spec_is_not_a_definition,
-        case_prose_mentioning_a_requirement_id_is_not_a_definition,
-        case_ac_citation_without_a_colon_is_checked,
-        case_prose_mentioning_an_ac_does_not_define_it,
-        case_test_plan_row_for_a_removed_requirement_errors,
-        case_nested_code_fence_does_not_flip_parity,
-        case_renamed_test_plan_heading_still_resolves,
-        case_reworded_outside_code_heading_still_exempts,
-        case_unbolded_feature_key_is_read,
-        case_localised_heading_declared_in_config_resolves,
-        case_ordinary_docs_architecture_is_not_legacy,
-        case_docs_architecture_citing_the_scheme_is_legacy,
-        case_apostrophe_inside_a_string_does_not_hide_the_comment,
-        case_unpaired_quote_does_not_hide_the_comment,
-        case_browser_suite_is_classified_as_a_test,
-        case_header_inside_a_python_docstring_does_not_count,
-        case_commented_tag_in_a_data_file_is_not_a_tag,
-        case_relaxed_gate_counts_a_misplaced_tag_and_says_so,
-        case_relaxed_gate_still_reports_where_the_tag_belongs,
-        case_bad_gate_value_is_reported,
-        case_unclosed_fence_in_a_spec_is_reported,
-        case_unclosed_fence_in_a_brief_is_reported,
-        case_terraform_native_test_is_classified_as_a_test,
-        case_dot_tf_and_sql_files_are_scanned_as_source,
-        case_functional_requirement_without_in_code_verification_is_exempt,
-        case_requirement_under_the_nfr_heading_warns_and_does_not_exempt,
-        case_functional_heading_does_not_exempt_an_nfr_that_has_a_tag,
-        case_functional_and_nfr_exemption_headings_are_disjoint,
-        case_declared_functional_heading_in_config_resolves,
-        case_the_warning_names_a_heading_that_actually_exempts,
-        case_the_exemption_is_independent_of_the_role_gate,
-        case_functional_exemption_holds_under_a_relaxed_gate,
-    ]
-    failures = []
-    for case in cases:
-        try:
-            case()
-            print("PASS  %s" % case.__name__)
-        except Exception as error:  # a crash is a failed case, not a lost run
-            failures.append((case.__name__, error))
-            print("FAIL  %s — %s: %s" % (case.__name__, type(error).__name__, error))
-
-    print("\n%d case(s), %d failed" % (len(cases), len(failures)))
-    return 1 if failures else 0
 
 
 # --------------------------------------------------------------------------
@@ -544,6 +458,101 @@ def case_known_ac_citation_is_accepted():
     ), "a valid AC citation was reported as unknown"
 
 
+def case_acceptance_criterion_no_requirement_cites_is_reported():
+    """The upstream half of the chain: an AC with no requirement was silent.
+
+    INFO, not WARNING -- after /sdlc-plan most ACs are unspecified backlog,
+    and a warning would fail every mid-project --strict gate. A retired
+    requirement's citation does not count, and a --feature run stays quiet,
+    since an AC belongs to the project rather than to the feature in scope.
+    """
+    brief = (
+        "- [ ] `AC-001` (US-001): A user can sign up.\n"
+        "- [ ] `AC-002` (US-001): A user can reset a password.\n"
+        "- [ ] `AC-003` (US-001): A user can delete the account.\n"
+    )
+    requirements = [
+        "- `REQ-001` (AC-001): The system SHALL sign up users.",
+        "- `REQ-002` (AC-003): REMOVED (2026-03-01) — out of scope.",
+    ]
+    tagged = dict(
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        problem_brief=brief,
+    )
+    findings = get_findings(requirements=requirements, **tagged)
+    assert has_finding(
+        findings, check="ac-uncited", message="AC-002"
+    ), "an AC no requirement cites was not reported"
+    assert has_finding(
+        findings, check="ac-uncited", message="AC-003"
+    ), "a citation from a REMOVED requirement still counted as coverage"
+    assert not has_finding(
+        findings, check="ac-uncited", message="AC-001"
+    ), "a cited AC was reported as uncited"
+    assert not has_severity(
+        findings, "WARNING", check="ac-uncited"
+    ), "uncited ACs must not fail --strict: they are normal backlog"
+    scoped = get_findings(requirements=requirements, only_feature="user-mgmt", **tagged)
+    assert not has_finding(
+        scoped, check="ac-uncited"
+    ), "a --feature run reported project-level ACs"
+
+
+def case_exit_code_reflects_the_worst_finding():
+    """CI reads only the exit code: 2 on an error, 1 on a warning under
+    --strict, 0 otherwise."""
+    validator = load_validator()
+    root = tempfile.mkdtemp()
+    try:
+        write_spec(
+            root,
+            "user-mgmt",
+            ["- `REQ-001` (AC-001): The system SHALL sign up users."],
+            None,
+            ("| UT-001 | REQ-001 |",),
+        )
+        arguments = ["--root", root]
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert validator.main(arguments) == 2, "an untraced requirement exited 0"
+            write_file(root, "src/users.py", "# IMPLEMENTS: USERMGMT:REQ-001\n")
+            write_file(root, "tests/test_users.py", "# COVERS: USERMGMT:REQ-001\n")
+            assert (
+                validator.main(arguments) == 0
+            ), "warnings alone failed a non-strict run"
+            assert (
+                validator.main(arguments + ["--strict"]) == 1
+            ), "a warning (UT-001 uncovered) did not fail --strict"
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def case_repeating_a_requirement_under_an_exemption_keeps_its_definition():
+    """Found by running the gate on this repository: the exemption note under
+    `## Requirements With No In-Code Verification` replaced the requirement's
+    text and citation, so the note was EARS-checked and the AC the real
+    definition cites was reported as uncited."""
+    spec_text = (
+        get_spec_header(DEFAULT_FEATURE_KEY) + "## Requirements\n\n"
+        "- `REQ-001` (AC-001): The system SHALL sign up users.\n\n"
+        "## Requirements With No In-Code Verification\n\n"
+        "- `REQ-001`: implemented in a process — reviewed quarterly.\n\n"
+        "## Test Plan\n\n| ID | Req |\n|----|-----|\n| UT-001 | REQ-001 |\n"
+    )
+    findings = get_spec_text_findings(
+        spec_text,
+        extra_files={
+            ".sdlc/requirements/problem-brief.md": "- `AC-001` (US-001): Sign up.\n"
+        },
+    )
+    assert not has_finding(
+        findings, check="ears"
+    ), "the exemption note was EARS-checked in place of the requirement"
+    assert not has_finding(
+        findings, check="ac-uncited", message="AC-001"
+    ), "the exemption note replaced the requirement's AC citation"
+
+
 def case_planned_test_that_nothing_covers_warns():
     """A test plan row with no test behind it is a gap the validator can see."""
     findings = get_findings(
@@ -782,6 +791,25 @@ def case_config_source_override_reclassifies_a_path():
     assert not has_finding(
         findings, check="tag-role"
     ), "an overridden path still reported a tag-role finding"
+
+
+def case_generated_and_vendored_globs_are_accepted_and_skipped():
+    """ANNOTATION.md tells projects to declare these globs; the validator used to
+    call them unknown keys, which failed the recommended `--strict` CI gate. A
+    tag in a generated file is wiped on regeneration, so it must not count."""
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source=None,
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        extra_files={"gen/users_pb.py": "# IMPLEMENTS: USERMGMT:REQ-001\n"},
+        config={"layout": {"generated_globs": ["gen/*"], "vendored_globs": []}},
+    )
+    assert not has_finding(
+        findings, check="config"
+    ), "layout.generated_globs / vendored_globs reported as unknown config keys"
+    assert has_finding(
+        findings, check="trace-code", message="USERMGMT:REQ-001"
+    ), "a tag inside a generated file satisfied code coverage"
 
 
 def case_oversized_file_skip_is_reported():
@@ -1504,7 +1532,9 @@ def get_ears_findings(requirement):
     )
 
 
-def get_spec_text_findings(spec_text, source=None, test=None, config=None):
+def get_spec_text_findings(
+    spec_text, source=None, test=None, config=None, extra_files=None
+):
     """Return the findings for a project whose spec.md is written out verbatim."""
     root = tempfile.mkdtemp()
     try:
@@ -1523,6 +1553,8 @@ def get_spec_text_findings(spec_text, source=None, test=None, config=None):
             os.path.join("tests", "test_users.py"),
             test or "# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
         )
+        for relative_path, content in sorted((extra_files or {}).items()):
+            write_file(root, relative_path, content)
         return run_validator(root)
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -1661,37 +1693,34 @@ def run_validator(root, only_feature=None, excluded_patterns=(), relax_tag_roles
     )
 
 
+def get_matching_findings(findings, severity=None, check=None, message=None):
+    """Return the findings matching every filter given."""
+    return [
+        finding
+        for finding in findings
+        if (severity is None or finding[0] == severity)
+        and (check is None or finding[1] == check)
+        and (message is None or message in finding[2])
+    ]
+
+
 def has_finding(findings, check=None, message=None):
-    """Return True when a finding matches the given check name and message fragment."""
-    for _, finding_check, finding_message, _ in findings:
-        if check and finding_check != check:
-            continue
-        if message and message not in finding_message:
-            continue
-        return True
-    return False
+    """Return True when a finding matches the check name and message fragment."""
+    return bool(get_matching_findings(findings, check=check, message=message))
 
 
 def has_severity(findings, severity, check=None):
     """Return True when a finding of this severity (and optionally check) exists."""
-    for finding_severity, finding_check, _, _ in findings:
-        if finding_severity != severity:
-            continue
-        if check and finding_check != check:
-            continue
-        return True
-    return False
+    return bool(get_matching_findings(findings, severity=severity, check=check))
 
 
 def get_finding_message(findings, check=None):
     """Return the first message for a check, or None when there is no finding."""
-    for _, finding_check, finding_message, _ in findings:
-        if check and finding_check != check:
-            continue
-        return finding_message
-    return None
+    matches = get_matching_findings(findings, check=check)
+    return matches[0][2] if matches else None
 
 
+@functools.lru_cache(maxsize=None)
 def load_validator():
     """Import the validator by path — its filename is not a valid module name."""
     module_spec = importlib.util.spec_from_file_location(
@@ -1703,4 +1732,4 @@ def load_validator():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_cases(globals()))
