@@ -21,9 +21,9 @@
 | Test Coverage | {{status}} | {{notes}} |
 
 ## Findings
-| Severity | File | Issue |
-|----------|------|-------|
-| {{S}} | {{F}} | {{I}} |
+| Severity | File | Issue | If you merge this | How you would find out |
+|----------|------|-------|-------------------|------------------------|
+| {{S}} | {{F}} | {{I}} | {{what fails, where}} | {{the test, the log line, the symptom}} |
 
 ## Verdict
 - **{{Verdict}}** (APPROVE / REQUEST CHANGES / COMMENT)

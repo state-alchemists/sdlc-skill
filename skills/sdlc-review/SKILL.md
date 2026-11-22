@@ -73,6 +73,10 @@ For each check return PASS / FAIL / PARTIAL with file:line evidence:
 - Rules Compliance — every RULE-* is respected (a violation needs an Override Log entry)
 - Test Coverage — the spec's Test Plan rows exist as tests and pass
 (Traceability and EARS are covered by the validator output above — confirm or dispute it, do not redo it.)
+
+For every finding, also state two things a severity cannot:
+- If you merge this — what fails, and where.
+- How you would find out — the test, the log line, the symptom.
 ```
 
 ### Phase 5: Audit the Findings
@@ -81,6 +85,7 @@ A sanity audit, not a re-run:
 - Confirm all five judgement checks were addressed; re-delegate if one is missing.
 - Spot-check 2–3 cited findings against the source to verify the agent did not hallucinate paths or lines.
 - Treat any PASS asserted without evidence as PARTIAL until verified.
+- Treat any finding with no consequence — nothing it breaks, no way to find out — as PARTIAL: a severity alone tells a tired person how worried to be, not what will break.
 
 ### Phase 6: Report
 
