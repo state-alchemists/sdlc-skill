@@ -15,6 +15,9 @@ step "Validator regression tests"
 step "Eval runner tests"
 "${PYTHON}" tests/test_eval_runner.py
 
+step "Map checker regression tests"
+"${PYTHON}" tests/test_map_checkers.py
+
 step "Prompt invariants"
 "${PYTHON}" tests/test_skill_prompts.py
 

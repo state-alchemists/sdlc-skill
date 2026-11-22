@@ -25,6 +25,22 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 
 **Templates are project-owned.** Every document a skill writes is filled from `.sdlc/templates/`; edit a template to change what every later run produces. Missing `.sdlc/templates/` means the project is not initialised — run `/sdlc-init`, which installs them without touching existing documents.
 
+## Map pages
+
+`.sdlc/` describes what will be built. A **map** describes what is running: `/sdlc-map` writes it, and it needs no `.sdlc/` at all.
+
+| Artifact | Path | Written by |
+|---|---|---|
+| Map page, story page | the pages folder — `_docs/` at the repository root by default, linked from `README.md` | `/sdlc-map` |
+| `MAP.md` | repository root | `/sdlc-map` — the contract for whoever changes the map |
+| `map.json` | repository root | `/sdlc-map` — where this project's pages, register and repositories are |
+| Checkers | `scripts/check_*.py`, `scripts/map_config.py`, `scripts/collect_unknowns.py` | `/sdlc-map` |
+| Unknowns register | `map.json` → `unknowns` | the generator, never by hand |
+
+**Which document wins.** `.sdlc/docs/architecture.md` owns **intent**: the decisions, and the shape that was agreed. A map page owns the **present**: the shape the code has, the hops a trail crosses, the invariants that hold, the deadfall. Where both exist, architecture.md wins on intent, and a map page says only what that document does not — it links the ADR rather than restating the decision. Two documents that both claim intent disagree within a month, and the map is the one that loses, because nothing checks a sentence.
+
+The map's own rules — the six sections, the page shapes, what the checkers can and cannot see — live in `MAP.md` at the project root. This file does not repeat them.
+
 ## Legacy layout
 
 Older projects keep steering docs at `docs/`, ADRs at `docs/adr/`, requirements at `requirements/`, rules at `rules.md`, specs at `specs/`, and a separate test plan at `.sdlc/tests/<slug>/test-plan.md`. Skills **read** a legacy location when the canonical one is absent, but never write a parallel tree.

@@ -1,6 +1,6 @@
 # SDLC AI Plugin
 
-Seven chat skills (`/sdlc-init`, `/sdlc-plan`, …) that guide an LLM through spec-driven development, plus a deterministic validator that fails the build when code and requirements stop tracing to each other.
+Nine chat skills — seven that guide an LLM through spec-driven development (`/sdlc-init`, `/sdlc-plan`, …), and two for code that already exists (`/sdlc-map`, `/sdlc-tend`) — plus a deterministic validator that fails the build when code and requirements stop tracing to each other.
 
 - **Primary target: zrb.** Also runs under Claude Code and the ~30 other tools that load `SKILL.md` files — the skills are runtime-neutral.
 - **Templates live in your project** at `.sdlc/templates/`. Edit them and every later run follows your shape — no forking.
@@ -36,6 +36,10 @@ Portable bash (macOS 3.2 included). It replaces prior copies, removes skills thi
 # As needed
 /sdlc-quickfix <feature>   # small change as a delta, promoted into the spec
 /sdlc-adopt                # brownfield: relocate, reverse-engineer specs, annotate
+
+# For code you did not write
+/sdlc-map                  # a map: one page per system, one story per entry point
+/sdlc-tend                 # later: re-run its checkers, settle what drifted
 ```
 
 `<feature>` becomes a slug (`User Auth` → `.sdlc/specs/user-auth/`).
@@ -49,6 +53,8 @@ Portable bash (macOS 3.2 included). It replaces prior copies, removes skills thi
 | `/sdlc-review` | Validator, then a fresh-context review sub-agent. Verdict mapped by rule: APPROVE / REQUEST CHANGES / COMMENT. | Code review + DoD |
 | `/sdlc-quickfix` | An `ADDED/MODIFIED/REMOVED` delta, implemented, reviewed inline, promoted into `spec.md`. | Hotfix lane |
 | `/sdlc-adopt` | Legacy artifacts relocated under `.sdlc/` (history kept), specs reverse-engineered from code, source annotated, setup completed. | Tech-debt onboarding |
+| `/sdlc-map` | A map of what is running: one page per system (shape, seams, trails, invariants, deadfall), one story per entry point, four checkers, `map.json` and `MAP.md`. Writes no page for a hop it has not opened. | Onboarding a system you inherited |
+| `/sdlc-tend` | Re-runs the map's checkers, fixes what the code proves, turns what it cannot prove into an open claim with the command that settles it. | Keeping the map true |
 
 Phases are artifact stages, not ceremonies; standups, estimation and timeboxing stay yours. The fine print — paths, EARS dialect, ID scheme, file roles, approval tiers, parallel sessions — is in [`CONVENTIONS.md`](skills/sdlc-init/assets/CONVENTIONS.md), installed at `.sdlc/CONVENTIONS.md`.
 
@@ -62,6 +68,7 @@ Each phase reads its inputs from disk, not chat history, so you may run consecut
 - **Spec drift:** code changed outside the pipeline → `/sdlc-adopt` (document mode) writes a drift report → absorb each finding into the spec or fix the code → `/sdlc-review`.
 - **Brownfield, never used these skills:** `/sdlc-init` (brownfield path) → `/sdlc-adopt` (document a subsystem) → `/sdlc-plan`.
 - **Project from an older version:** artifacts already under `.sdlc/` need only `/sdlc-init`. A legacy layout (`docs/adr/`, root `rules.md`, `specs/`) needs `/sdlc-init` → `/sdlc-adopt`, and adopt finishes setup.
+- **Code you did not write:** `/sdlc-map` on the one entry point that matters — a new joiner's reading order, an on-call symptom lookup, or a single trail before you change a file — then `/sdlc-tend` after a refactor, or on a schedule. It needs no `.sdlc/`, and where one exists the architecture document keeps ownership of intent (see [`CONVENTIONS.md`](skills/sdlc-init/assets/CONVENTIONS.md) § Map pages).
 
 ### Changing a requirement
 
@@ -145,6 +152,7 @@ Only these rows were checked against each tool's documentation; the other instal
 - **Tags are unversioned.** Reword a requirement and its tags still validate; re-checking meaning is `/sdlc-review`'s and the drift report's job.
 - **Specs are snapshots.** Re-sync is manual, as in every spec-driven tool.
 - **Evals grade deterministic checks only**, and a human still has to produce the output.
+- **A map page can be green and wrong.** The map's checkers prove that a cited path resolves and a quoted name is still in its file; they never prove the sentence true, and only a reader opening the code finds out.
 
 How this compares with Spec Kit, Kiro, OpenSpec and others: [product.md § Alternatives & Positioning](.sdlc/docs/product.md#alternatives--positioning).
 
@@ -158,7 +166,9 @@ Everything exists once. Only `sdlc-init` carries assets, which the installer cop
 | `skills/sdlc-init/assets/templates/*.md` | Templates, installed to `.sdlc/templates/` |
 | `skills/sdlc-init/assets/{CONVENTIONS,ANNOTATION}.md`, `config.json` | Installed to `.sdlc/` |
 | `skills/sdlc-init/assets/tools/sdlc-validate.py` | Validator, installed to `.sdlc/tools/` |
+| `skills/sdlc-map/assets/{scripts,MAP.md,map.json,templates}` | The map: four checkers and their one config loader, the contract, the project config, two page shapes — installed at the project root by `/sdlc-map` |
 | `tests/test_sdlc_validate.py` | Validator regression tests — one case per shipped bug |
+| `tests/test_map_checkers.py` | The map checkers, run against a project that is not this repository |
 | `tests/test_skill_prompts.py` | Static invariants over the prompts — one case per prompt bug |
 | `tests/test_eval_runner.py`, `tests/test_install.sh` | Eval-runner and installer tests |
 | `bin/test.sh` | Every check CI runs (also `zrb skill test`) |

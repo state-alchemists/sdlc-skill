@@ -266,10 +266,10 @@ def case_templates_ask_for_a_date_not_a_date_format():
     """`{{YYYY-MM-DD}}` is satisfied by any correctly shaped string, so a model
     invents one. `{{TODAY}}` reads as a value it has to go and obtain."""
     offenders = []
-    for file_name in sorted(os.listdir(TEMPLATES_DIRECTORY)):
-        text = read_text(os.path.join(TEMPLATES_DIRECTORY, file_name))
+    for name, path in get_template_paths():
+        text = read_text(path)
         if re.search(r"\{\{YYYY-MM-DD", text):
-            offenders.append(file_name)
+            offenders.append(name)
     assert not offenders, (
         "these templates ask for a date FORMAT rather than today's date: %s"
         % ", ".join(offenders)
@@ -385,15 +385,15 @@ def case_template_diagrams_parse_as_mermaid():
     it. Inside a Mermaid block a placeholder may only sit in a quoted label
     or in the free text after a `:`."""
     offenders = []
-    for file_name in sorted(os.listdir(TEMPLATES_DIRECTORY)):
-        text = read_text(os.path.join(TEMPLATES_DIRECTORY, file_name))
+    for name, path in get_template_paths():
+        text = read_text(path)
         for block in re.findall(r"```mermaid\n(.*?)```", text, re.S):
             for line in block.splitlines():
                 # Quoted labels and text after `:` (message and relation
                 # labels) are free text; anything else must be an identifier.
                 structural = re.sub(r'"[^"]*"', "", line).split(":", 1)[0]
                 if "{{" in structural:
-                    offenders.append("%s: %s" % (file_name, line.strip()))
+                    offenders.append("%s: %s" % (name, line.strip()))
     assert not offenders, (
         "a template diagram puts a {{placeholder}} outside a quoted label, "
         "which Mermaid cannot parse: %s" % "; ".join(offenders)
@@ -420,6 +420,23 @@ def get_skill_paths():
         path = os.path.join(SKILLS_DIRECTORY, skill_name, "SKILL.md")
         if os.path.exists(path):
             yield skill_name, path
+
+
+def get_template_paths():
+    """Yield (name, path) for every template any skill ships.
+
+    The date and Mermaid rules were written against `sdlc-init`'s set, and a
+    second skill that ships templates inherits neither. A placeholder Mermaid
+    cannot parse is a template that fails to render wherever it is installed,
+    so the rule follows the files rather than one folder.
+    """
+    for skill_name in sorted(os.listdir(SKILLS_DIRECTORY)):
+        directory = os.path.join(SKILLS_DIRECTORY, skill_name, "assets", "templates")
+        if not os.path.isdir(directory):
+            continue
+        for file_name in sorted(os.listdir(directory)):
+            if file_name.endswith(".md"):
+                yield "%s/%s" % (skill_name, file_name), os.path.join(directory, file_name)
 
 
 def get_skill_path(skill_name):
