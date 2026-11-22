@@ -7,7 +7,11 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # 3.8 is the floor the validator promises, and GitHub moved `ubuntu-latest`
+    # to an image with no 3.8 build: setup-python fails before the gate runs, so
+    # every push reads as a failure the change did not cause. Pin the newest
+    # image that still has the floor, and drop the pin when the floor moves.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
