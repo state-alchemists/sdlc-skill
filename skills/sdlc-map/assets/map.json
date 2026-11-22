@@ -1,0 +1,21 @@
+{
+  "pages": ["_docs"],
+  "unknowns": "_docs/unknowns",
+  "readme": "README.md",
+  "line_cap": 150,
+  "sections": [
+    "In one paragraph",
+    "How it works",
+    "Diagram",
+    "Where it lives",
+    "What breaks if you change it",
+    "Unverified"
+  ],
+  "shapeless": {},
+  "tiers": [],
+  "repositories": {"": "."},
+  "subroots": [],
+  "prefix_roots": {},
+  "workspace": null,
+  "exclude": [".git", "node_modules", ".venv", "vendor", "dist", "build", "__pycache__"]
+}
