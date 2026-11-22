@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — the maintain lane
+
+The seven skills describe what will be built. Two more now cover what is already running, because someone sent at a system nobody wrote down has to start with the code — and the code keeps moving after the page is written.
+
+### Added — a map, and a loop that keeps it true
+
+- **`/sdlc-map`** writes one page per system (shape, seams, trails, invariants, deadfall) and one story per entry point, each carrying the same six sections, and installs four checkers so that a page which drifts fails a build instead of misleading a reader. It needs no `.sdlc/` and no spec: it reads the source. A hop it has not opened never reaches a page — it becomes an `Unverified` claim with the command that would settle it, or it stays out.
+- **`/sdlc-tend`** is the loop: re-run the checkers, read every failure back to the code, fix only what the code proves (a moved path, a renamed symbol, a heading out of order), and turn anything else into an open claim rather than a deleted paragraph. It also answers the one question no checker can: which entry points the code has and the map does not.
+- **`map.json`** at the project root declares where the pages live, where the register goes, which sections a page carries, which repositories a claim may resolve inside, and which pages are exempt from the six sections and why. Every setting has a default; an unknown key stops the run instead of being ignored.
+
+### Fixed — the shipped checkers wore one repository's folders
+
+The four checkers were lifted from the map this tool was first written for, with its page root, its register path and its seven tier names in the code. Installed anywhere else they failed on the tree's shape before checking a single claim — a gate green in exactly one repository. They now read `map.json`, `tests/test_map_checkers.py` runs all four against a project that shares no folder name with this one, and a static case in that suite fails on the old copies for all six tokens they had baked in.
+
+### Changed — two documents, and only one of them owns intent
+
+- **`CONVENTIONS.md` § Map pages** states it once: `.sdlc/docs/architecture.md` owns intent, a map page owns the present, and a map page says only what the architecture document does not — linking the ADR rather than restating the decision. The `architecture.md` template points at the rule instead of carrying a copy.
+- **Findings carry their consequence.** `review-report.md`'s Findings table gains `If you merge this` and `How you would find out`, `/sdlc-review` asks the review agent for both, and a finding without them is audited as PARTIAL. A severity alone tells a tired person how worried to be, not what will break.
+- **The template invariants follow every skill.** The date and Mermaid rules were checked against `sdlc-init`'s templates only, so a second skill shipping templates inherited neither; both now scan every `assets/templates/`.
+
 ## Unreleased — the traceability gate enforces what it claimed
 
 Projects that passed `sdlc-validate.py` before may fail now. Previously a project with **one source file carrying both an `IMPLEMENTS:` and a `COVERS:` header and zero test files** validated clean and exited 0 — as did "coverage" that was only a string literal, a line of unfenced README prose, or a commented-out implementation that kept its header.
