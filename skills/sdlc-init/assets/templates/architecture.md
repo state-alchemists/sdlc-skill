@@ -1,5 +1,7 @@
 # Architecture: {{PROJECT_NAME}}
 
+*This document owns intent — the decisions and the shape that was agreed. What the code does today belongs in a map page; see `.sdlc/CONVENTIONS.md` § Map pages.*
+
 *Diagrams are Mermaid — they render on GitHub/GitLab and diff as text. Use `flowchart`, not the experimental `C4Context` syntax. Draw only what the tables below state; a diagram that says more than the text is a second source of truth. Inside a diagram, `{{...}}` appears only in quoted labels; bare names like `PART_A` are placeholders to rename — Mermaid cannot parse braces there.*
 
 ## System Context
