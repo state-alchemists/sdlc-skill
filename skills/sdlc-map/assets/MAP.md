@@ -37,6 +37,8 @@ python3 scripts/collect_unknowns.py   # rewrite the unknowns register from every
 
 `run_checkers.py` is the one to put in CI: it runs the four — the register with `--check`, so the build never edits the tree it is judging — then every script `map.json` → `checkers` names, in order. Exit `0` clean, `1` when a checker reported a problem, `2` when a listed checker is missing, which is drift in the list rather than a finding in the map. `run_checkers.py --self-test` runs the listed checkers alone, each with its plant.
 
+None of them writes into the project either. Each script turns off bytecode caching before it imports its siblings, so a run leaves no `__pycache__` beside the checkers — a gate that littered the tree it judges would put its own debris in the next commit.
+
 All four read **`map.json`** at the project root: where the pages live, where the register goes, which sections a page carries, which repositories a claim may resolve inside, and which pages are exempt from the six sections and why. Every setting is documented at the top of `scripts/map_config.py`, and every one has a default, so a project that moves nothing needs no file.
 
 `repositories` is the one setting worth reading twice. `{"": "."}` resolves a claim against this project. `"auto"` reads every git checkout one and two levels under `workspace`, which is how a map covering several repositories resolves `templates/deploy.yml` after naming that repository on the same line.

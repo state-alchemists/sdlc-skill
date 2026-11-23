@@ -283,13 +283,30 @@ def case_self_test_asks_only_the_checkers_a_tend_run_wrote():
     assert "1 checker(s), 0 failed" in output, output
 
 
+def case_running_the_checkers_leaves_no_bytecode_in_the_project():
+    """A gate that writes `__pycache__` beside itself has edited the tree it is
+    judging, and the edit arrives in the next person's commit."""
+    project = build_project()
+    assert run(project, GENERATOR)[0] == 0
+    for script in CHECKERS + ("run_checkers.py",):
+        run(project, script)
+    stray = sorted(
+        path.relative_to(project).as_posix() for path in project.rglob("__pycache__")
+    )
+    assert not stray, "the checkers left bytecode in the project: %s" % ", ".join(stray)
+
+
 # --------------------------------------------------------------------------
 # Fixtures
 # --------------------------------------------------------------------------
 def build_project(settings=None) -> Path:
     """A project that shares no folder name with this repository."""
     project = Path(tempfile.mkdtemp(prefix="sdlc-map-"))
-    shutil.copytree(str(SCRIPTS), str(project / "scripts"))
+    shutil.copytree(
+        str(SCRIPTS),
+        str(project / "scripts"),
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
     if settings is not None:
         (project / "map.json").write_text(json.dumps(settings), encoding="utf-8")
     (project / "README.md").write_text(FRONT, encoding="utf-8")
