@@ -52,18 +52,14 @@ git log -1 --format='%cs %s' -- <a page>
 
 ### Phase 2: The deterministic pass
 
-Run all four, from the project root, and keep the output:
+Run both, from the project root, and keep the output:
 
-1. `python3 scripts/collect_unknowns.py --check` — is the register what its generator makes today?
-2. `python3 scripts/check_references.py`
-3. `python3 scripts/check_symbols.py`
-4. `python3 scripts/check_structure.py`
+1. `python3 scripts/run_checkers.py` — the four, then every checker `map.json` → `checkers` names, in order — the ones earlier tends wrote.
+2. `python3 scripts/run_checkers.py --self-test` — each listed checker with its plant; it must report the plant caught.
 
-Then every script `map.json` → `checkers` names, in order — the ones earlier tends wrote. A listed file that no longer exists exits `2`: the list is a claim like any other, and a checker that has been deleted is drift, not a quiet pass.
+A checker listed in `map.json` with no file behind it makes the run exit `2`: the list is a claim like any other, and a checker that has been deleted is drift, not a quiet pass. Fix the list before editing a page. A checker exiting `2` on its own could not resolve anything — a workspace or config problem, not a map problem. Report it and stop rather than editing a page to please it.
 
-Then, for each of those, `python3 scripts/check_<invariant>.py --self-test`. It must report its plant caught. A checker whose self-test fails is worse than a missing one: it keeps printing clean on a tree it has stopped reading. Report it and stop editing pages until it is fixed.
-
-A checker exiting `2` means it could not resolve anything — a workspace or config problem, not a map problem. Report it and stop rather than editing a page to please it.
+A self-test that does not catch its plant is worse than a missing checker: it keeps printing clean on a tree it has stopped reading. Report it and stop editing pages until it is fixed.
 
 ### Phase 3: Triage one finding at a time
 
@@ -148,7 +144,7 @@ Next:
   [ ] /sdlc-map                              <the entry point with no page>
 ```
 
-When you wrote a checker, wiring it into CI becomes the action item that displaces the map one — a checker nothing runs is the paragraph it replaced. Name both halves: the plain run, and `--self-test` beside it, so CI proves the checker can still fail on the day the code under it has moved. Offer `[ ] settle <one claim> — <its command>` as the second item only when a claim you opened is worth closing now. Do not list the register.
+When you wrote a checker, wiring it into CI becomes the action item that displaces the map one — a checker nothing runs is the paragraph it replaced. The line to add is `python3 scripts/run_checkers.py`, which reaches the four and every checker `map.json` lists; `python3 scripts/run_checkers.py --self-test` beside it proves each can still fail on the day the code under it has moved. Offer `[ ] settle <one claim> — <its command>` as the second item only when a claim you opened is worth closing now. Do not list the register.
 
 After delivering this message, end your turn.
 
