@@ -1,0 +1,51 @@
+{
+  "case": "sdlc-tend/stale-citation",
+  "checks": [
+    {
+      "id": "TEND-1",
+      "description": "the moved path is the one the page now names",
+      "type": "contains_regex",
+      "target_file": "_docs/systems/loader.md",
+      "pattern": "src/config/loader\\.py",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-2",
+      "description": "the old path is gone from the page",
+      "type": "absent_regex",
+      "target_file": "_docs/systems/loader.md",
+      "pattern": "(^|[^/\\w])src/loader\\.py",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-3",
+      "description": "the page was not deleted",
+      "type": "file_exists",
+      "target_file": "_docs/systems/loader.md",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-4",
+      "description": "the unproven claim is still there, with its Settle command",
+      "type": "contains_regex",
+      "target_file": "_docs/systems/loader.md",
+      "pattern": "read-only mount[\\s\\S]{0,200}Settle:",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-5",
+      "description": "the register was regenerated",
+      "type": "file_exists",
+      "target_file": "_docs/unknowns/systems.md",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-6",
+      "description": "map.json still names the pages folder — the config was not bent to silence a finding",
+      "type": "contains_regex",
+      "target_file": "map.json",
+      "pattern": "\"_docs\"",
+      "severity": "error"
+    }
+  ]
+}

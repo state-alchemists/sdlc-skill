@@ -121,7 +121,7 @@ Source and tests stay wherever your project keeps them.
 
 ## Evals
 
-`evals/golden/` holds five golden cases (one each for init, spec, implement, quickfix, adopt), and `evals/run.py` grades their deterministic `checks.json` assertions against a skill's output — no LLM needed. Rubric items stay human-graded. See [`evals/README.md`](evals/README.md).
+`evals/golden/` holds seven golden cases (init, spec, implement, quickfix, adopt, and two for tend), and `evals/run.py` grades their deterministic `checks.json` assertions against a skill's output — no LLM needed. Rubric items stay human-graded. See [`evals/README.md`](evals/README.md).
 
 ```bash
 python3 evals/run.py --list                   # list cases

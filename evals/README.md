@@ -25,6 +25,8 @@ evals/
     sdlc-implement/go-layout-no-src/          # colocated Go tests, no src/ + tests/ assumption
     sdlc-quickfix/login-error-message/        # small delta, promote-by-default
     sdlc-adopt/legacy-layout-migration/       # relocation + setup completion
+    sdlc-tend/stale-citation/                 # a moved path fixed from the code, claim kept
+    sdlc-tend/unenforced-invariant/           # a bog row becomes a checker that keeps its plant
 ```
 
 All graded paths use the canonical layout: artifacts under `.sdlc/` (steering docs `.sdlc/docs/`, requirements `.sdlc/requirements/`, specs `.sdlc/specs/<slug>/spec.md` (test plan included as its `## Test Plan` section), rules `.sdlc/rules.md`, templates `.sdlc/templates/`, validator `.sdlc/tools/sdlc-validate.py`), with `AGENTS.md` at the repo root.
