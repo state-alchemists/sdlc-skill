@@ -29,6 +29,7 @@
 - `REQ-021` (AC-001): IF a scanned file is skipped, or a spec or brief has an unclosed code fence, THEN the validator SHALL report `skipped-file` or `unclosed-fence`.
 - `REQ-022` (AC-007): WHERE `.sdlc/config.json` declares `layout.docs_root`, the validator SHALL treat that directory as the canonical home of the steering documents and their ADRs.
 - `REQ-023` (AC-007): IF a declared `layout.docs_root` is absolute, contains `..`, or names no directory, THEN the validator SHALL report a `config` ERROR.
+- `REQ-024` (AC-001): IF a test file carries a `COVERS:` header and switches a test off, THEN the validator SHALL report a `skipped-cover` warning naming the marker without withdrawing the coverage.
 
 ## Non-Functional Requirements
 
@@ -88,6 +89,7 @@ See `.sdlc/requirements/entity-dictionary.md` — Feature (slug, feature_key), R
 | UT-020 | REQ-020 | `case_missing_test_plan_warns`, `case_planned_test_that_nothing_covers_warns`, `case_test_plan_row_for_a_removed_requirement_errors` | plan gaps | matching `plan-*` finding |
 | UT-021 | REQ-021 | `case_oversized_file_skip_is_reported`, `case_unclosed_fence_in_a_spec_is_reported` | oversized file; unclosed fence | `skipped-file`; `unclosed-fence` |
 | UT-022 | REQ-022, REQ-023 | `case_declared_docs_root_is_the_canonical_target`, `case_docs_root_outside_the_project_is_rejected` | `layout.docs_root` set to `_docs`, then to `../outside`, `/abs/docs`, `docs/../elsewhere` and blanks | no `legacy-layout` for documents already at `_docs`; `config` ERROR for each refused root |
+| UT-023 | REQ-024 | `case_a_skipped_test_still_carries_its_covers_and_says_so`, `case_a_deliberate_skip_can_say_so_on_its_own_line` | a test file with a module-level `pytestmark` skip; the same line carrying the escape | `skipped-cover` naming line 3 and REQ-001, coverage still counted; no finding with the escape |
 
 ### Integration Tests
 N/A — the validator is a single file; every case above runs it end to end over a temporary project tree.

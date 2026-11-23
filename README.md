@@ -148,7 +148,7 @@ Only these rows were checked against each tool's documentation; the other instal
 ## Limitations
 
 - **Approval tiers are instructions, not enforcement** — no runtime gates the writes.
-- **The validator is structural, not semantic.** It checks IDs, tags and EARS shape, never whether code does what a requirement says, and never runs your tests: a `COVERS:` on a skipped test counts.
+- **The validator is structural, not semantic.** It checks IDs, tags and EARS shape, never whether code does what a requirement says, and never runs your tests: a `COVERS:` on a skipped test still counts, though it is now reported as a `skipped-cover` warning rather than passing silently.
 - **Tags are unversioned.** Reword a requirement and its tags still validate; re-checking meaning is `/sdlc-review`'s and the drift report's job.
 - **Specs are snapshots.** Re-sync is manual, as in every spec-driven tool.
 - **Evals grade deterministic checks only**, and a human still has to produce the output.

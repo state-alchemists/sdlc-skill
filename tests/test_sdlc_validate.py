@@ -10,7 +10,7 @@ Exit 0 means every case passed; a failed assertion names the case.
 """
 
 # SPEC: .sdlc/specs/validator/spec.md
-# COVERS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:REQ-022, VAL:REQ-023, VAL:NFR-001, VAL:UT-001, VAL:UT-002, VAL:UT-003, VAL:UT-004, VAL:UT-005, VAL:UT-006, VAL:UT-007, VAL:UT-008, VAL:UT-009, VAL:UT-010, VAL:UT-011, VAL:UT-012, VAL:UT-013, VAL:UT-014, VAL:UT-015, VAL:UT-016, VAL:UT-017, VAL:UT-018, VAL:UT-019, VAL:UT-020, VAL:UT-021, VAL:UT-022
+# COVERS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:REQ-022, VAL:REQ-023, VAL:REQ-024, VAL:NFR-001, VAL:UT-001, VAL:UT-002, VAL:UT-003, VAL:UT-004, VAL:UT-005, VAL:UT-006, VAL:UT-007, VAL:UT-008, VAL:UT-009, VAL:UT-010, VAL:UT-011, VAL:UT-012, VAL:UT-013, VAL:UT-014, VAL:UT-015, VAL:UT-016, VAL:UT-017, VAL:UT-018, VAL:UT-019, VAL:UT-020, VAL:UT-021, VAL:UT-022, VAL:UT-023
 
 import contextlib
 import functools
@@ -46,6 +46,49 @@ def get_spec_header(feature_key):
 # --------------------------------------------------------------------------
 # Cases
 # --------------------------------------------------------------------------
+def case_a_skipped_test_still_carries_its_covers_and_says_so():
+    """A COVERS: header on a skipped test is a requirement tagged, not tested.
+
+    The gate counts headers, so a module switched off wholesale still satisfies
+    coverage. A WARNING rather than an ERROR: a file may skip one case and run
+    nine, and the header cannot say which. The tag keeps counting, so the
+    finding adds information without inventing a new failure.
+    """
+    findings = get_findings(
+        requirements=[
+            "- `REQ-001` (AC-001): WHEN an admin deletes an account, the system "
+            "SHALL revoke all sessions."
+        ],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.skip(reason='later')\n",  # skipped-cover-ok
+    )
+    assert has_finding(findings, check="skipped-cover", message="line 3"), findings
+    assert has_finding(findings, check="skipped-cover", message="REQ-001"), (
+        "the skipped-cover finding does not name the requirement the file covers"
+    )
+    assert not has_finding(findings, check="trace-test"), (
+        "a skipped test stopped counting as coverage — the finding is a warning, "
+        "and turning it into a second failed build is not what was asked for"
+    )
+
+
+def case_a_deliberate_skip_can_say_so_on_its_own_line():
+    """The per-line escape, for a file that skips one case and runs the rest."""
+    findings = get_findings(
+        requirements=[
+            "- `REQ-001` (AC-001): WHEN an admin deletes an account, the system "
+            "SHALL revoke all sessions."
+        ],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.skip(reason='later')  # skipped-cover-ok\n",  # skipped-cover-ok
+    )
+    assert not has_finding(findings, check="skipped-cover"), findings
+
+
 def case_requirement_mentioning_a_removed_thing_stays_active():
     """A requirement whose prose contains "removed" is not a retired requirement."""
     findings = get_findings(
