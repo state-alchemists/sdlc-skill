@@ -27,9 +27,9 @@ Produces **one file per feature**: `.sdlc/specs/<slug>/spec.md`, holding EARS re
 
 Read, in parallel:
 - `.sdlc/rules.md` — requirements must encode rule compliance; refuse to write a requirement that forces a rule violation
-- `.sdlc/docs/product.md`, `tech.md`, `architecture.md`, `adr/*.md`
+- the docs root (CONVENTIONS § Artifact paths): `product.md`, `tech.md`, `architecture.md`, `adr/*.md`
 - `.sdlc/requirements/problem-brief.md`, `entity-dictionary.md`
-- `.sdlc/docs/test-strategy.md` — test naming convention and property-testing tooling
+- the docs root's `test-strategy.md` — test naming convention and property-testing tooling
 
 Pick or confirm the Feature Key now.
 

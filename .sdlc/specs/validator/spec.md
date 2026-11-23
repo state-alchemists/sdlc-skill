@@ -27,6 +27,8 @@
 - `REQ-019` (AC-009): IF a requirement is not canonical uppercase EARS or contains an unverifiable term, THEN the validator SHALL report an `ears` WARNING.
 - `REQ-020` (AC-001): IF a spec has no test plan, a plan row cites a removed or undefined ID, or a planned test id is covered by no test file, THEN the validator SHALL report the matching `missing-test-plan`, `plan-stale-row`, `plan-unknown-row` or `plan-test-uncovered` finding.
 - `REQ-021` (AC-001): IF a scanned file is skipped, or a spec or brief has an unclosed code fence, THEN the validator SHALL report `skipped-file` or `unclosed-fence`.
+- `REQ-022` (AC-007): WHERE `.sdlc/config.json` declares `layout.docs_root`, the validator SHALL treat that directory as the canonical home of the steering documents and their ADRs.
+- `REQ-023` (AC-007): IF a declared `layout.docs_root` is absolute, contains `..`, or names no directory, THEN the validator SHALL report a `config` ERROR.
 
 ## Non-Functional Requirements
 
@@ -85,6 +87,7 @@ See `.sdlc/requirements/entity-dictionary.md` — Feature (slug, feature_key), R
 | UT-019 | REQ-019 | `case_lowercase_shall_is_flagged`, `case_vague_requirement_term_is_flagged`, `case_compound_requirement_is_flagged`, `case_canonical_ears_is_not_flagged_as_deprecated` | EARS variants | `ears` WARNING only for non-canonical |
 | UT-020 | REQ-020 | `case_missing_test_plan_warns`, `case_planned_test_that_nothing_covers_warns`, `case_test_plan_row_for_a_removed_requirement_errors` | plan gaps | matching `plan-*` finding |
 | UT-021 | REQ-021 | `case_oversized_file_skip_is_reported`, `case_unclosed_fence_in_a_spec_is_reported` | oversized file; unclosed fence | `skipped-file`; `unclosed-fence` |
+| UT-022 | REQ-022, REQ-023 | `case_declared_docs_root_is_the_canonical_target`, `case_docs_root_outside_the_project_is_rejected` | `layout.docs_root` set to `_docs`, then to `../outside`, `/abs/docs`, `docs/../elsewhere` and blanks | no `legacy-layout` for documents already at `_docs`; `config` ERROR for each refused root |
 
 ### Integration Tests
 N/A — the validator is a single file; every case above runs it end to end over a temporary project tree.

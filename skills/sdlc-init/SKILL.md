@@ -28,7 +28,7 @@ Installs the `.sdlc/` scaffolding every other skill depends on, then writes the 
 - Choose the branch:
   - **Legacy layout confirmed** → Phase 2 only, then the Legacy Transition below. **Name the markers that triggered it**, so the user can say "that one is ours" and you can continue on the brownfield path instead. Install the scaffolding (it is additive and `/sdlc-adopt` needs it), write no steering documents — they would form a parallel tree beside the legacy ones — and route the user to `/sdlc-adopt`, which relocates the artifacts and then completes the setup this branch left undone.
   - **Artifacts already under `.sdlc/`** → **not this branch**, however old the project is: there is nothing to relocate. Treat it as **Brownfield** and run every phase — Phase 5 fills a missing `.sdlc/rules.md`, the usual gap on a project set up before the constitution existed. Do not route it to `/sdlc-adopt`.
-  - **Weak marker, no scheme reference** → say in one line what you found and continue on the brownfield path. `.sdlc/docs/architecture.md` beside the project's own `docs/architecture.md` is two documents, not a parallel tree.
+  - **Weak marker, no scheme reference** → say in one line what you found and continue on the brownfield path. A steering document at the docs root beside the project's own `docs/architecture.md` is two documents, not a parallel tree.
   - **Greenfield** (no source beyond scaffolding, no meaningful README) → Phase 3a.
   - **Brownfield** (existing source, real README, manifests with real deps) → Phase 3b.
 
@@ -100,7 +100,16 @@ Present the full draft even where you are confident — the user approves every 
 
 ### Phase 4: Steering Documents
 
-Fill `.sdlc/templates/product.md`, `tech.md`, `test-strategy.md`, and `agents.md` with the facts gathered. **Which copy**: read each template from `.sdlc/templates/` when it is already there (a re-run, or a user-edited template — theirs wins), otherwise from this skill's `assets/templates/`, since Phase 2 has not written yet on a first run. `AGENTS.md` goes at the **repo root**; the other three go under `.sdlc/docs/`. Present all four plus the Phase 2 scaffolding as **one Tier-2 batch**.
+**Choose the docs root.** `.sdlc/docs/` is the default and needs no key; record `layout.docs_root` in `.sdlc/config.json` only when the project wants its documents somewhere else:
+
+| Project | `docs_root` | Why |
+|---|---|---|
+| Anything new | leave it unset | `.sdlc/docs/` is the default — one folder, and the prose stays out of the repo root's way |
+| Keeps documents in a folder of its own, e.g. `_docs` beside the map pages | set it | the escape hatch; steering documents and map pages then share one tree |
+
+Do not point it at a directory holding documents you did not write: a project whose own `docs/` carries the SDLC documents is on the **legacy** path, and `/sdlc-adopt` relocates those before this skill writes beside them. If the repository already keeps documents in `_docs/`, say so once and offer to set the key — otherwise this skill creates the second tree the key exists to avoid.
+
+Fill `.sdlc/templates/product.md`, `tech.md`, `test-strategy.md`, and `agents.md` with the facts gathered. **Which copy**: read each template from `.sdlc/templates/` when it is already there (a re-run, or a user-edited template — theirs wins), otherwise from this skill's `assets/templates/`, since Phase 2 has not written yet on a first run. `AGENTS.md` goes at the **repo root**; the other three go under the docs root. Present all four plus the Phase 2 scaffolding as **one Tier-2 batch**.
 
 ### Phase 5: Project Constitution
 
@@ -144,7 +153,7 @@ Fixing the tags is the goal; the ramp only decides whether the build blocks whil
 
 ## Phase Transition
 
-> Project setup is complete: `.sdlc/docs/`, `AGENTS.md`, `.sdlc/rules.md`, `.sdlc/CONVENTIONS.md`, templates in `.sdlc/templates/`, and the validator at `.sdlc/tools/sdlc-validate.py`. Edit anything in `.sdlc/templates/` to change the shape of what later skills generate.
+> Project setup is complete: the docs root (`.sdlc/docs/`, or the `layout.docs_root` the project declared), `AGENTS.md`, `.sdlc/rules.md`, `.sdlc/CONVENTIONS.md`, templates in `.sdlc/templates/`, and the validator at `.sdlc/tools/sdlc-validate.py`. Edit anything in `.sdlc/templates/` to change the shape of what later skills generate.
 
 Then deliver the action block (see CONVENTIONS.md § Session handoff):
 
@@ -160,15 +169,15 @@ After delivering this message, end your turn.
 
 ## Error Recovery
 
-Interrupted mid-phase: start a new chat, list `.sdlc/`, `.sdlc/docs/`, `.sdlc/templates/`, `.sdlc/tools/`, and the repo root to see what was written, then resume from the first missing artifact.
+Interrupted mid-phase: start a new chat, list `.sdlc/`, the docs root, `.sdlc/templates/`, `.sdlc/tools/`, and the repo root to see what was written, then resume from the first missing artifact.
 
 ## Artefact Trail
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `product.md` | `.sdlc/docs/` | Product vision, users, success criteria |
-| `tech.md` | `.sdlc/docs/` | Stack, constraints, property-testing tooling |
-| `test-strategy.md` | `.sdlc/docs/` | Testing levels, naming convention, CI gates |
+| `product.md` | the docs root | Product vision, users, success criteria |
+| `tech.md` | the docs root | Stack, constraints, property-testing tooling |
+| `test-strategy.md` | the docs root | Testing levels, naming convention, CI gates |
 | `AGENTS.md` | repo root | AI assistant guide |
 | `rules.md` | `.sdlc/` | Immutable project invariants |
 | `CONVENTIONS.md` | `.sdlc/` | Paths, EARS dialect, ID scheme, approval tiers |

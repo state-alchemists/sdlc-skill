@@ -31,7 +31,9 @@ TAGS (see .sdlc/CONVENTIONS.md)
     DOC files (.md, .rst, .txt, .json, ...) are never scanned. A file is TEST
     by path component or filename stem (`tests/`, `*_test.go`, `src/test/`),
     never by substring; everything else is SOURCE. `.sdlc/config.json`
-    overrides all of it.
+    overrides all of it. `layout.docs_root` (default `.sdlc/docs`) says where
+    the steering documents live, and it is what `legacy-layout` treats as the
+    canonical target.
 
 FINDINGS (check id — severity)
     config ............... ERROR unusable config / WARNING unknown key
@@ -66,7 +68,7 @@ FINDINGS (check id — severity)
 """
 
 # SPEC: .sdlc/specs/validator/spec.md
-# IMPLEMENTS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:NFR-001
+# IMPLEMENTS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:REQ-022, VAL:REQ-023, VAL:NFR-001
 
 import argparse
 import collections
@@ -175,6 +177,10 @@ BLOCK_COMMENT_PAIRS_BY_EXTENSION = get_inverted_extension_table(
 )
 
 CONFIG_RELATIVE_PATH = os.path.join(".sdlc", "config.json")
+# Where the steering documents live. `.sdlc/docs` is the historical default, so
+# a project that declares nothing keeps the path it already has.
+DEFAULT_DOCS_ROOT = os.path.join(".sdlc", "docs")
+DOCS_ROOT_NAME = "layout.docs_root"
 CONFIG_LIST_FIELDS = {
     "layout": (
         "test_directory_names",
@@ -393,7 +399,7 @@ def validate_project(
             "to true in %s." % CONFIG_RELATIVE_PATH,
         )
 
-    check_legacy_layout(root, report)
+    check_legacy_layout(root, report, config)
 
     spec_paths_by_slug = get_spec_paths_by_slug(root)
     if not spec_paths_by_slug:
@@ -496,6 +502,7 @@ def get_default_config():
     """Return a fresh copy of the built-in defaults, safe for the caller to edit."""
     return {
         "layout": {
+            "docs_root": DEFAULT_DOCS_ROOT,
             "test_directory_names": list(DEFAULT_TEST_DIRECTORY_NAMES),
             "test_stem_patterns": list(DEFAULT_TEST_STEM_PATTERNS),
             "test_path_fragments": list(DEFAULT_TEST_PATH_FRAGMENTS),
@@ -535,6 +542,16 @@ def merge_config_section(config, section_name, section, report):
                 continue
             current = config[section_name][key]
             current.extend(item for item in value if item not in current)
+        elif name == DOCS_ROOT_NAME:
+            docs_root = parse_docs_root(value)
+            if docs_root is None:
+                report_config(
+                    report,
+                    "%s must be a relative directory path inside the project, "
+                    "such as `_docs` or `.sdlc/docs`." % name,
+                )
+                continue
+            config["layout"]["docs_root"] = docs_root
         elif name == "gate.enforce_tag_roles":
             if isinstance(value, bool):
                 config["gate"]["enforce_tag_roles"] = value
@@ -547,6 +564,21 @@ def merge_config_section(config, section_name, section, report):
                 report_config(report, "%s must be a positive integer." % name)
         else:
             report_config(report, "Unknown key '%s'." % name, report.warn)
+
+
+def parse_docs_root(value):
+    """Return `value` as a project-relative directory path, or None if unusable.
+
+    A root outside the project would point a reader at a tree this repository
+    does not own, and `..` would make the canonical target of a legacy artifact
+    ambiguous. Backslashes are normalised so a Windows-authored config works.
+    """
+    if not isinstance(value, str) or os.path.isabs(value):
+        return None
+    parts = value.replace("\\", "/").strip().strip("/").split("/")
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        return None
+    return os.path.join(*parts)
 
 
 def merge_comment_declaration(config, extension, declaration, report):
@@ -599,9 +631,9 @@ def is_list_of_pairs(value):
     )
 
 
-def check_legacy_layout(root, report):
+def check_legacy_layout(root, report, config):
     """legacy-layout — report SDLC artifacts still sitting at pre-`.sdlc/` paths."""
-    for label, legacy_path, canonical_path in get_legacy_artifacts(root):
+    for label, legacy_path, canonical_path in get_legacy_artifacts(root, config):
         if os.path.exists(os.path.join(root, canonical_path)):
             continue
         report.info(
@@ -612,20 +644,23 @@ def check_legacy_layout(root, report):
         )
 
 
-def get_legacy_artifacts(root):
+def get_legacy_artifacts(root, config):
     """Yield (label, legacy_path, canonical_path) per legacy artifact found.
 
-    Matched on the exact file names /sdlc-init writes.
+    Matched on the exact file names /sdlc-init writes. The canonical target of a
+    steering document is this project's `layout.docs_root`, so a project that
+    keeps its documents at `_docs` is not told to consolidate them.
     """
+    docs_root = config["layout"]["docs_root"]
     if has_legacy_steering_documents(root):
-        yield "steering docs", "docs", os.path.join(".sdlc", "docs")
+        yield "steering docs", "docs", docs_root
 
     adr_directory = os.path.join("docs", "adr")
     if any(
         name.startswith("ADR-") and name.endswith(".md")
         for name in get_entry_names(root, adr_directory)
     ):
-        yield "ADRs", adr_directory, os.path.join(".sdlc", "docs", "adr")
+        yield "ADRs", adr_directory, os.path.join(docs_root, "adr")
 
     if LEGACY_REQUIREMENT_NAMES & set(get_entry_names(root, "requirements")):
         yield "requirements", "requirements", os.path.join(".sdlc", "requirements")

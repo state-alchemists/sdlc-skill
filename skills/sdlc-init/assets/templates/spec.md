@@ -58,7 +58,7 @@ See `.sdlc/requirements/entity-dictionary.md` — {{EntityA}} ({{key fields}}), 
 
 ## Test Plan
 
-*Test naming convention: {{convention from .sdlc/docs/test-strategy.md}}*
+*Test naming convention: {{convention from test-strategy.md at the docs root}}*
 
 ### Unit Tests
 | ID | Req | Test Name | Input | Expected |

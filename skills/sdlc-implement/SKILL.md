@@ -19,7 +19,7 @@ Drives implementation from `spec.md` with a **single delegation**. The sub-agent
 - **Required input**: no `.sdlc/specs/<slug>/spec.md`, or a spec with no `## Test Plan` section? Stop and tell the user to run `/sdlc-spec <slug>`.
 - **Approval**: get an affirmative on the delegation **before** running it (Tier-2 — one approval covers the feature). No second approval unless retrying.
 - **Retry cap**: at most **2 re-delegations** (3 attempts total), each with the specific failure context. After the third failure, stop and report the blocker. Do not loop.
-- **Verification commands**: read test and lint commands from `AGENTS.md`, then `.sdlc/docs/test-strategy.md`. If neither names a runnable command, ask — never guess.
+- **Verification commands**: read test and lint commands from `AGENTS.md`, then `test-strategy.md` under the docs root (`layout.docs_root` in `.sdlc/config.json`). If neither names a runnable command, ask — never guess.
 - **Legacy layout**: a separate `.sdlc/tests/<slug>/test-plan.md` still works as an input; tell the user to run `/sdlc-adopt` to fold it into the spec.
 
 ## Workflow
@@ -29,21 +29,21 @@ Drives implementation from `spec.md` with a **single delegation**. The sub-agent
 Read only enough to write a correct delegation and to inline the rules:
 - `.sdlc/rules.md` — **inline verbatim** in the delegation (small, load-bearing)
 - `.sdlc/specs/<slug>/spec.md` — confirm it exists; read the Feature Key, requirements, and test plan
-- `AGENTS.md`, `.sdlc/docs/test-strategy.md` — test and lint commands
+- `AGENTS.md`, `test-strategy.md` under the docs root — test and lint commands
 
 The sub-agent reads the architecture, ADRs, and entity dictionary itself. You do not need to inline them.
 
 ### Phase 2: Single Delegation
 
-Show the user the task. Once approved, delegate the **entire feature** to one coding agent. The block below is a prompt template — fill the placeholders.
+Show the user the task. Once approved, delegate the **entire feature** to one coding agent. The block below is a prompt template — fill the placeholders, including `{docs root}`, the `layout.docs_root` read from `.sdlc/config.json`.
 
 ```
 Implement the feature "{slug}" (Feature Key: {KEY}) following spec-driven development.
 
 READ THESE FILES FIRST — they are your source of truth (read on demand; do not assume their contents):
 - .sdlc/specs/{slug}/spec.md               ← requirements (canonical EARS), design, and the test plan you must satisfy
-- .sdlc/docs/tech.md                       ← stack and constraints
-- .sdlc/docs/architecture.md and .sdlc/docs/adr/*.md   ← architecture decisions to honor
+- {docs root}/tech.md                      ← stack and constraints
+- {docs root}/architecture.md and {docs root}/adr/*.md  ← architecture decisions to honor
 - .sdlc/requirements/entity-dictionary.md  ← field names, types, constraints
 - .sdlc/ANNOTATION.md                      ← comment syntax and WHERE the header goes, per language. Read it before writing the first header.
 - .sdlc/config.json                        ← this project's source and test roots
@@ -58,7 +58,7 @@ INSTRUCTIONS:
    (Go's *_test.go, Jest's *.test.ts) follow that. Do NOT create a new top-level src/ or tests/
    directory — if you think one is needed, stop and say so in your report.
 2. Follow the spec's "## Test Plan" section — every test in it must exist and pass.
-3. Run the test suite after implementation (commands from AGENTS.md / .sdlc/docs/test-strategy.md).
+3. Run the test suite after implementation (commands from AGENTS.md / {docs root}/test-strategy.md).
 4. Do NOT modify .sdlc/specs/{slug}/spec.md, or anything else under .sdlc/. The spec is the
    contract you are being measured against; editing it is how a failing implementation passes.
    If a requirement looks unimplementable, say so in your report and leave it failing.

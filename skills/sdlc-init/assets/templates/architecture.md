@@ -65,7 +65,7 @@ sequenceDiagram
 ```
 
 ## Deployment
-*Include only the environments that actually exist (per `.sdlc/docs/test-strategy.md`). Do not invent Staging / Canary.*
+*Include only the environments that actually exist (per `test-strategy.md` at the docs root). Do not invent Staging / Canary.*
 
 | Environment | Infrastructure | Strategy |
 |-------------|---------------|----------|
