@@ -20,6 +20,7 @@ The seven `skills/sdlc-*/SKILL.md` files, and the conventions and templates they
 - `REQ-012` (AC-004): The skills that write code SHALL read `.sdlc/ANNOTATION.md`, which covers every placement hazard that broke a file.
 - `REQ-013` (AC-004): The skills SHALL use `SPEC:` as the only spec header token.
 - `REQ-014` (AC-004): WHERE `/sdlc-tend` writes a checker, the skill SHALL require it to be seen failing first, at most one per run, and listed in `map.json` → `checkers`.
+- `REQ-015` (AC-004): WHERE `/sdlc-tend` writes a checker, the skill SHALL keep the planted violation in the file and expose it as `--self-test`, which passes only when the plant is caught.
 
 ## Requirements With No In-Code Verification
 *These requirements are implemented in Markdown, which the validator never scans (ADR-004), so no file can carry their `IMPLEMENTS:` tag — the framework has no way yet to trace a requirement into a prompt. All but REQ-001 are still verified: `tests/test_skill_prompts.py` carries `COVERS:` for them, and the Test Plan below maps each one. REQ-001 depends on the host model following instructions and has no executable check at all.*
@@ -38,6 +39,7 @@ The seven `skills/sdlc-*/SKILL.md` files, and the conventions and templates they
 - `REQ-012`: annotation reference — in Markdown; verified by UT-011.
 - `REQ-013`: one header token — in Markdown; verified by UT-012.
 - `REQ-014`: a written checker is proved, capped and listed — in Markdown; verified by UT-013.
+- `REQ-015`: the plant is kept and re-caught by `--self-test` — in Markdown; verified by UT-014.
 
 ## API Surface
 
@@ -80,6 +82,7 @@ See `.sdlc/requirements/entity-dictionary.md` — the skills create every entity
 | UT-011 | REQ-012 | `case_writing_skills_read_the_annotation_reference`, `case_annotation_covers_every_hazard_that_broke_a_file` | writing skills; ANNOTATION.md | reference and hazards present |
 | UT-012 | REQ-013 | `case_no_skill_still_says_generated_from_spec` | every skill | old token absent |
 | UT-013 | REQ-014 | `case_a_written_checker_is_proved_by_making_it_fail` | `sdlc-tend` | proof by failure, the cap, and the `checkers` listing all present |
+| UT-014 | REQ-015 | `case_a_generated_checker_carries_its_own_plant` | `sdlc-tend` | the plant is kept, `--self-test` is specified, and every run re-runs it |
 
 ### Integration Tests
 N/A — behaviour is graded by the golden evals in `evals/golden/`, not by CI.

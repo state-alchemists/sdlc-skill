@@ -40,7 +40,7 @@ All four read **`map.json`** at the project root: where the pages live, where th
 
 **The four scripts carry no traceability tags.** They are installed into projects that know nothing of this repository's feature keys, and a tag naming an unknown key is an error in the validator that reads them. That is also why they live in their own `scripts/` folder with no header: they are infrastructure, not a requirement of yours.
 
-**A fifth may exist.** `/sdlc-tend` can write one — at most once a run — for an invariant a page's bog table says nothing enforces. Those are listed in `map.json` → `checkers` and run after the four, in the order given. They belong to this project rather than to this contract, but one rule carries over: a checker that has never been seen failing is a sentence with an exit code, so it is proved by planting the violation first and watching it go red.
+**A fifth may exist.** `/sdlc-tend` can write one — at most once a run — for an invariant a page's bog table says nothing enforces. Those are listed in `map.json` → `checkers` and run after the four, in the order given. They belong to this project rather than to this contract, but one rule carries over: a checker that has never been seen failing is a sentence with an exit code. So each keeps its plant in the file and catches it again on `--self-test`, which is what makes the proof survive the next commit.
 
 ## Where the checkers are blind
 
