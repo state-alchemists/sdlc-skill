@@ -41,6 +41,17 @@ SOURCE = """def load_config(path):
     return path
 """
 
+# A project's own checker: it reads the tree, keeps a plant, and passes.
+PASSING_CHECKER = '''#!/usr/bin/env python3
+import sys
+
+if "--self-test" in sys.argv[1:]:
+    print("self-test: plant caught")
+    sys.exit(0)
+print("0 problems")
+sys.exit(0)
+'''
+
 PAGE = """# Thing
 
 ## In one paragraph
@@ -185,7 +196,7 @@ def case_the_checkers_name_no_folder_of_this_repository():
     made the gate wrong for a project that does not have that folder."""
     forbidden = ("lcicd", "soda/", "bsim", "delivery-atlas", "reference/unknowns", "platform-ci")
     offenders = []
-    for checker in CHECKERS + ("map_config.py",):
+    for checker in CHECKERS + ("map_config.py", "run_checkers.py"):
         text = (SCRIPTS / checker).read_text(encoding="utf-8")
         for token in forbidden:
             if token in text:
@@ -196,6 +207,80 @@ def case_the_checkers_name_no_folder_of_this_repository():
         assert "map_config" in text, (
             "%s reads project facts somewhere other than map_config.py" % checker
         )
+
+
+# --------------------------------------------------------------------------
+# The runner: one command CI can run for every checker the map has
+# --------------------------------------------------------------------------
+def case_one_command_reaches_the_four_and_every_listed_checker():
+    """CI wires one line, and that line cannot drift from `map.json`."""
+    project = build_project(
+        settings={
+            "pages": ["_docs"],
+            "unknowns": "_docs/unknowns",
+            "checkers": ["scripts/check_demo.py"],
+        }
+    )
+    assert run(project, GENERATOR)[0] == 0
+    (project / "scripts" / "check_demo.py").write_text(PASSING_CHECKER, encoding="utf-8")
+    code, output = run(project, "run_checkers.py")
+    assert code == 0, output
+    for name in ("collect_unknowns.py", "check_references.py", "check_symbols.py",
+                 "check_structure.py", "check_demo.py"):
+        assert name in output, "%s never ran:\n%s" % (name, output)
+    assert "5 checker(s), 0 failed" in output, output
+
+
+def case_a_listed_checker_that_is_gone_stops_the_run():
+    """A name in the list with no file behind it is drift, not a quiet pass."""
+    project = build_project(
+        settings={
+            "pages": ["_docs"],
+            "unknowns": "_docs/unknowns",
+            "checkers": ["scripts/check_deleted.py"],
+        }
+    )
+    assert run(project, GENERATOR)[0] == 0
+    code, output = run(project, "run_checkers.py")
+    assert code == 2, output
+    assert "MISSING check_deleted.py" in output, output
+
+
+def case_a_listed_checker_that_fails_fails_the_run():
+    """The runner reports the finding and carries its exit code, not its own."""
+    project = build_project(
+        settings={
+            "pages": ["_docs"],
+            "unknowns": "_docs/unknowns",
+            "checkers": ["scripts/check_fails.py"],
+        }
+    )
+    assert run(project, GENERATOR)[0] == 0
+    (project / "scripts" / "check_fails.py").write_text(
+        '#!/usr/bin/env python3\nimport sys\nprint("VIOLATION src/app.py")\nsys.exit(1)\n',
+        encoding="utf-8",
+    )
+    code, output = run(project, "run_checkers.py")
+    assert code == 1, output
+    assert "VIOLATION src/app.py" in output, output
+
+
+def case_self_test_asks_only_the_checkers_a_tend_run_wrote():
+    """The four ship without a plant; asking them for one asks nothing."""
+    project = build_project(
+        settings={
+            "pages": ["_docs"],
+            "unknowns": "_docs/unknowns",
+            "checkers": ["scripts/check_demo.py"],
+        }
+    )
+    assert run(project, GENERATOR)[0] == 0
+    (project / "scripts" / "check_demo.py").write_text(PASSING_CHECKER, encoding="utf-8")
+    code, output = run(project, "run_checkers.py", "--self-test")
+    assert code == 0, output
+    assert "check_demo.py --self-test" in output, output
+    assert "check_references.py" not in output, output
+    assert "1 checker(s), 0 failed" in output, output
 
 
 # --------------------------------------------------------------------------

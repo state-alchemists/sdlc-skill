@@ -35,7 +35,7 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 | Map page, story page | the pages folder — `_docs/` at the repository root by default, linked from `README.md` | `/sdlc-map` |
 | `MAP.md` | repository root | `/sdlc-map` — the contract for whoever changes the map |
 | `map.json` | repository root | `/sdlc-map` — where this project's pages, register and repositories are |
-| Checkers | `scripts/check_*.py`, `scripts/map_config.py`, `scripts/collect_unknowns.py` | `/sdlc-map` |
+| Checkers | `scripts/check_*.py`, `scripts/map_config.py`, `scripts/collect_unknowns.py`, `scripts/run_checkers.py` | `/sdlc-map` |
 | Generated checkers | `scripts/check_<invariant>.py`, listed in `map.json` → `checkers` | `/sdlc-tend` — at most one a run, for an invariant nothing enforced, keeping the plant its own `--self-test` catches |
 | Unknowns register | `map.json` → `unknowns` | the generator, never by hand |
 

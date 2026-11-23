@@ -28,11 +28,14 @@ Both carry the same six sections, in the same order, because a reader who has ne
 ## The checkers
 
 ```
+python3 scripts/run_checkers.py           # every checker this map has, in one command — what CI should run
 python3 scripts/check_references.py   # every backticked path resolves; no citation carries a line number
 python3 scripts/check_symbols.py      # every code-shaped name on a line naming a real file is still in that file
 python3 scripts/check_structure.py    # links resolve, pages reachable, the line cap, the six sections, no numbered names, no host paths, register current
 python3 scripts/collect_unknowns.py   # rewrite the unknowns register from every Unverified section
 ```
+
+`run_checkers.py` is the one to put in CI: it runs the four — the register with `--check`, so the build never edits the tree it is judging — then every script `map.json` → `checkers` names, in order. Exit `0` clean, `1` when a checker reported a problem, `2` when a listed checker is missing, which is drift in the list rather than a finding in the map. `run_checkers.py --self-test` runs the listed checkers alone, each with its plant.
 
 All four read **`map.json`** at the project root: where the pages live, where the register goes, which sections a page carries, which repositories a claim may resolve inside, and which pages are exempt from the six sections and why. Every setting is documented at the top of `scripts/map_config.py`, and every one has a default, so a project that moves nothing needs no file.
 

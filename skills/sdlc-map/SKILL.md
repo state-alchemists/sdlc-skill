@@ -56,7 +56,7 @@ Copy into the project, **never overwriting a file that exists** — ask instead,
 
 | Asset | Destination | Purpose |
 |---|---|---|
-| `assets/scripts/` | `scripts/` | the four checkers and `map_config.py`, unmodified, so they behave as they were tested |
+| `assets/scripts/` | `scripts/` | the four checkers, `map_config.py` and `run_checkers.py`, unmodified, so they behave as they were tested |
 | `assets/map.json` | `map.json` at the project root | where this project's pages, register and repositories are |
 | `assets/MAP.md` | `MAP.md` at the project root | the contract for whoever changes the map next |
 | `assets/templates/*.md` | a `templates/` folder beside the pages | the two page shapes |
