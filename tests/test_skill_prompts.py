@@ -14,7 +14,7 @@ Exit 0 means every case passed; a failed assertion names the case.
 """
 
 # SPEC: .sdlc/specs/skill-prompts/spec.md
-# COVERS: SKILL:REQ-002, SKILL:REQ-003, SKILL:REQ-004, SKILL:REQ-005, SKILL:REQ-006, SKILL:REQ-007, SKILL:REQ-008, SKILL:REQ-009, SKILL:REQ-010, SKILL:REQ-011, SKILL:REQ-012, SKILL:REQ-013, SKILL:UT-001, SKILL:UT-002, SKILL:UT-003, SKILL:UT-004, SKILL:UT-005, SKILL:UT-006, SKILL:UT-007, SKILL:UT-008, SKILL:UT-009, SKILL:UT-010, SKILL:UT-011, SKILL:UT-012
+# COVERS: SKILL:REQ-002, SKILL:REQ-003, SKILL:REQ-004, SKILL:REQ-005, SKILL:REQ-006, SKILL:REQ-007, SKILL:REQ-008, SKILL:REQ-009, SKILL:REQ-010, SKILL:REQ-011, SKILL:REQ-012, SKILL:REQ-013, SKILL:REQ-014, SKILL:UT-001, SKILL:UT-002, SKILL:UT-003, SKILL:UT-004, SKILL:UT-005, SKILL:UT-006, SKILL:UT-007, SKILL:UT-008, SKILL:UT-009, SKILL:UT-010, SKILL:UT-011, SKILL:UT-012, SKILL:UT-013
 
 import os
 import re
@@ -242,6 +242,35 @@ def case_adopt_is_the_last_command_of_the_legacy_journey():
         "sdlc-init has no branch for a project whose artifacts are already at "
         "the canonical paths, so such a project is stopped and sent to "
         "/sdlc-adopt for a relocation it does not need"
+    )
+
+
+def case_a_written_checker_is_proved_by_making_it_fail():
+    """A checker `/sdlc-tend` writes is evidence only once it has been seen red.
+
+    The skill may now add one for an invariant the map says nothing enforces.
+    That is the only edit in the map lane that adds a gate, and a gate written
+    to pass on the day it ships may be reading nothing at all. The three rules
+    that keep it honest are cheap to drop from prose and invisible afterwards:
+    proof by failure, the one-a-run cap, and the listing that makes the next
+    run reach it.
+    """
+    text = read_text(get_skill_path("sdlc-tend"))
+    assert "never been seen failing" in text, (
+        "sdlc-tend dropped the rule that a checker must be seen failing before "
+        "it is trusted"
+    )
+    assert "Plant the violation" in text, (
+        "sdlc-tend no longer says to plant the violation the checker exists to "
+        "catch, so nothing proves the checker can fail at all"
+    )
+    assert "One per run" in text, (
+        "sdlc-tend dropped the cap on how many checkers one run writes, so the "
+        "gate can grow faster than anyone maintains it"
+    )
+    assert "`checkers`" in text and "map.json" in text, (
+        "sdlc-tend does not list the new checker in map.json, so the next run "
+        "never reaches it and it becomes the paragraph it replaced"
     )
 
 

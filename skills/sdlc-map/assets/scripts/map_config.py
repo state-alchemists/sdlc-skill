@@ -20,6 +20,7 @@ somewhere else, groups them into tiers, or cites checkouts beside it, says so:
       "readme": "README.md",
       "line_cap": 150,
       "sections": ["In one paragraph", "…", "Unverified"],
+      "checkers": [],
       "shapeless": {"_docs/index.md": "an index, not a page"},
       "tiers": ["systems", "stories"],
       "repositories": {"": "."},
@@ -42,6 +43,10 @@ naming a repository that keeps that package one level down.
 `shapeless` exempts a page from the six sections — a map, an index, a look-up
 table answers its own question with its own shape — and its value is why, so
 that an exemption is argued for rather than merely left out.
+
+`checkers` lists extra scripts a tend run wrote for this project. They run
+after the four, in the order given. Listed rather than discovered, so a checker
+added once is still run later; a name here with no file behind it is drift.
 
 Stdlib only; Python 3.8+.
 """
@@ -70,6 +75,7 @@ DEFAULTS = {
     "readme": "README.md",
     "line_cap": 150,
     "sections": list(SECTIONS),
+    "checkers": [],
     "shapeless": {},
     "tiers": [],
     "repositories": {"": "."},
@@ -141,6 +147,16 @@ def missing_roots() -> list[Path]:
 def get_readme() -> Path:
     """The page every other page must be reachable from."""
     return ROOT / SETTINGS["readme"]
+
+
+def get_checkers() -> list[str]:
+    """Extra checker scripts this project wrote, run after the four.
+
+    Listed rather than discovered, so a checker one tend run wrote is still run
+    by the next. A name here with no file behind it is drift, and the run stops
+    on it rather than passing quietly over a gate that no longer exists.
+    """
+    return list(SETTINGS["checkers"])
 
 
 def is_excluded(path: Path) -> bool:

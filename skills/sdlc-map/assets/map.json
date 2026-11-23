@@ -11,6 +11,7 @@
     "What breaks if you change it",
     "Unverified"
   ],
+  "checkers": [],
   "shapeless": {},
   "tiers": [],
   "repositories": {"": "."},
