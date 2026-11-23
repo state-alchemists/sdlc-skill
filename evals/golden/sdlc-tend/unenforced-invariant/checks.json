@@ -1,0 +1,60 @@
+{
+  "case": "sdlc-tend/unenforced-invariant",
+  "checks": [
+    {
+      "id": "TEND-1",
+      "description": "the checker a tend run wrote exists, at the project's naming convention",
+      "type": "file_exists",
+      "target_file": "scripts/check_no_direct_sqlite.py",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-2",
+      "description": "the checker keeps its plant instead of deleting it after one run",
+      "type": "contains_regex",
+      "target_file": "scripts/check_no_direct_sqlite.py",
+      "pattern": "PLANT",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-3",
+      "description": "the plant is re-caught on demand",
+      "type": "contains_regex",
+      "target_file": "scripts/check_no_direct_sqlite.py",
+      "pattern": "--self-test",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-4",
+      "description": "the scan reads this project's settings instead of hard-coded paths",
+      "type": "contains_regex",
+      "target_file": "scripts/check_no_direct_sqlite.py",
+      "pattern": "map_config",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-5",
+      "description": "map.json lists it, so the next run and CI reach it",
+      "type": "contains_regex",
+      "target_file": "map.json",
+      "pattern": "check_no_direct_sqlite\\.py",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-6",
+      "description": "the bog row no longer says nothing enforces it",
+      "type": "absent_regex",
+      "target_file": "_docs/systems/storage.md",
+      "pattern": "nothing enforces it",
+      "severity": "error"
+    },
+    {
+      "id": "TEND-7",
+      "description": "the row now names the script that enforces it",
+      "type": "contains_regex",
+      "target_file": "_docs/systems/storage.md",
+      "pattern": "scripts/check_no_direct_sqlite\\.py",
+      "severity": "error"
+    }
+  ]
+}
