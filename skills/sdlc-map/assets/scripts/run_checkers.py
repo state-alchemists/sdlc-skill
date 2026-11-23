@@ -30,6 +30,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# A gate must not write into the tree it judges. Importing the sibling modules
+# would leave a `__pycache__` beside the checkers, which is an edit to someone
+# else's project and lands in their next commit.
+sys.dont_write_bytecode = True
+
 import map_config
 
 ROOT = map_config.ROOT
