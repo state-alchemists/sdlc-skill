@@ -61,6 +61,7 @@ FINDINGS (check id — severity)
     plan-stale-row ....... ERROR    plan row cites a REMOVED ID
     plan-unknown-row ..... ERROR    plan row cites an undefined ID
     plan-test-uncovered .. WARNING  planned test id nothing COVERS
+    skipped-cover ........ WARNING  COVERS: in a file whose tests are switched off
     ac-citation .......... ERROR    requirement cites an AC the brief lacks
     ac-uncited ........... INFO     brief AC no active requirement cites
                                     (whole-project runs only)
@@ -68,7 +69,7 @@ FINDINGS (check id — severity)
 """
 
 # SPEC: .sdlc/specs/validator/spec.md
-# IMPLEMENTS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:REQ-022, VAL:REQ-023, VAL:NFR-001
+# IMPLEMENTS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:REQ-022, VAL:REQ-023, VAL:REQ-024, VAL:NFR-001
 
 import argparse
 import collections
@@ -229,6 +230,49 @@ ANCHORED_TAG_PATTERNS_BY_KIND = {
     "COVERS": re.compile(r"^COVERS:\s*(.+)"),
     "@sdlc": re.compile(r"^@sdlc\s+(.+)"),
 }
+# A test that never runs still carries its COVERS: header, and a header was all
+# the gate ever asked for. Name the marker so the finding can print it.
+SKIP_MARKER_GROUPS = (
+    (
+        ".py",
+        (
+            ("pytest.mark.skip", r"pytest\.mark\.skip\b"),
+            ("pytest.mark.xfail", r"pytest\.mark\.xfail\b"),
+            ("pytest.mark.skipif", r"pytest\.mark\.skipif\b"),
+            ("unittest skip", r"@(?:[A-Za-z_][A-Za-z0-9_.]*\.)?skip(?:If|Unless)?\b"),
+            ("pytestmark", r"^[ \t]*pytestmark[ \t]*="),
+        ),
+    ),
+    (
+        ".js .jsx .mjs .cjs .ts .tsx .vue .svelte",
+        (
+            ("describe.skip", r"\b(?:describe|context|suite|it|test|specify)\.(?:skip|todo|failing)\b"),
+            ("describe.skipIf", r"\b(?:describe|it|test)\.(?:skipIf|runIf)\b"),
+            ("xit", r"\b(?:xit|xdescribe|xtest|xspecify)[ \t]*\("),
+        ),
+    ),
+    (".go", (("t.Skip", r"\bt\.Skip(?:f|Now)?\("), ("testing.Short", r"\btesting\.Short\(\)"))),
+    (".java .kt .kts .scala", (("@Disabled", r"@(?:Disabled|Ignore)\b"),)),
+    (".cs", (("[Ignore]", r"\[[ \t]*Ignore\b"),)),
+    (
+        ".rb",
+        (
+            ("xit/pending", r"^[ \t]*(?:xit|pending|skip)\b"),
+            ("skip: true", r"\bskip:[ \t]*true\b"),
+        ),
+    ),
+    (".rs", (("#[ignore]", r"#\[[ \t]*ignore\b"),)),
+    (".php", (("markTestSkipped", r"\bmarkTest(?:Skipped|Incomplete)\("),)),
+)
+SKIP_MARKERS_BY_EXTENSION = {
+    extension: tuple((name, re.compile(pattern, re.M)) for name, pattern in markers)
+    for extensions, markers in SKIP_MARKER_GROUPS
+    for extension in extensions.split()
+}
+# The same per-line escape the prompt invariants use: a line that builds a skip
+# on purpose (a fixture, a test of this check) says so, and is not counted.
+SKIP_MARKER_ESCAPE = "skipped-cover-ok"
+
 # Headings are matched by meaning, since templates are project-owned. Anything
 # else goes in `headings.*` in .sdlc/config.json.
 TEST_PLAN_HEADING_PATTERN = re.compile(
@@ -440,6 +484,7 @@ def validate_project(
         ]
     check_tag_targets(tags, valid_targets, slug_by_key, report)
     check_tag_roles(tags, report, is_enforcing_roles)
+    check_skipped_covers(root, tags, report)
 
     reported_specs = {
         slug: spec for slug, spec in specs_by_slug.items() if slug in reported_slugs
@@ -1352,6 +1397,68 @@ def check_tag_roles(tags, report, is_enforced=True):
                 CONFIG_RELATIVE_PATH,
             ),
             tag.relative_path,
+        )
+
+
+def get_skip_markers(file_text, extension):
+    """Return [(line_number, marker_name)] for every marker that switches a test off.
+
+    A line carrying `skipped-cover-ok` is building that marker on purpose and is
+    not counted — the escape the prompt invariants use for the same reason.
+    """
+    markers_by_name = SKIP_MARKERS_BY_EXTENSION.get(extension, ())
+    markers = []
+    for name, pattern in markers_by_name:
+        for match in pattern.finditer(file_text):
+            line_start = file_text.rfind("\n", 0, match.start()) + 1
+            line_end = file_text.find("\n", match.start())
+            line = file_text[line_start : line_end if line_end != -1 else None]
+            if SKIP_MARKER_ESCAPE in line:
+                continue
+            markers.append((file_text.count("\n", 0, match.start()) + 1, name))
+    return sorted(markers)
+
+
+def check_skipped_covers(root, tags, report):
+    """skipped-cover — a COVERS: header in a file whose tests are switched off.
+
+    The gate counts a header, and a header on a skipped test is a requirement
+    that is tagged rather than tested. A WARNING, not an ERROR: a file may skip
+    one case and run nine, and skip shapes differ by framework and by scope, so
+    the finding prints what it saw and lets the reader judge. One finding per
+    file, naming the first marker and the ids that file covers.
+    """
+    covered_ids_by_path = {}
+    for tag in tags:
+        if tag.kind != "COVERS" or not tag.feature_key or tag.role != ROLE_TEST:
+            continue
+        covered_ids_by_path.setdefault(tag.relative_path, set()).add(
+            tag.requirement_id
+        )
+
+    for relative_path, covered_ids in sorted(covered_ids_by_path.items()):
+        file_text = read_file_text(os.path.join(root, relative_path))
+        if file_text is None:
+            continue
+        extension = os.path.splitext(relative_path)[1].lower()
+        markers = get_skip_markers(file_text, extension)
+        if not markers:
+            continue
+        line_number, marker = markers[0]
+        report.warn(
+            "skipped-cover",
+            "%s carries a COVERS: header and switches a test off at line %d "
+            "(%s). A requirement covered only by a skipped test is tagged, not "
+            "tested: check that another file covers %s, or run it. Mark the "
+            "line %s when the skip is deliberate and the other tests still run."
+            % (
+                relative_path,
+                line_number,
+                marker,
+                ", ".join(sorted(covered_ids)),
+                SKIP_MARKER_ESCAPE,
+            ),
+            relative_path,
         )
 
 
