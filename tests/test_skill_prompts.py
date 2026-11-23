@@ -14,7 +14,7 @@ Exit 0 means every case passed; a failed assertion names the case.
 """
 
 # SPEC: .sdlc/specs/skill-prompts/spec.md
-# COVERS: SKILL:REQ-002, SKILL:REQ-003, SKILL:REQ-004, SKILL:REQ-005, SKILL:REQ-006, SKILL:REQ-007, SKILL:REQ-008, SKILL:REQ-009, SKILL:REQ-010, SKILL:REQ-011, SKILL:REQ-012, SKILL:REQ-013, SKILL:REQ-014, SKILL:UT-001, SKILL:UT-002, SKILL:UT-003, SKILL:UT-004, SKILL:UT-005, SKILL:UT-006, SKILL:UT-007, SKILL:UT-008, SKILL:UT-009, SKILL:UT-010, SKILL:UT-011, SKILL:UT-012, SKILL:UT-013
+# COVERS: SKILL:REQ-002, SKILL:REQ-003, SKILL:REQ-004, SKILL:REQ-005, SKILL:REQ-006, SKILL:REQ-007, SKILL:REQ-008, SKILL:REQ-009, SKILL:REQ-010, SKILL:REQ-011, SKILL:REQ-012, SKILL:REQ-013, SKILL:REQ-014, SKILL:REQ-015, SKILL:UT-001, SKILL:UT-002, SKILL:UT-003, SKILL:UT-004, SKILL:UT-005, SKILL:UT-006, SKILL:UT-007, SKILL:UT-008, SKILL:UT-009, SKILL:UT-010, SKILL:UT-011, SKILL:UT-012, SKILL:UT-013, SKILL:UT-014
 
 import os
 import re
@@ -271,6 +271,37 @@ def case_a_written_checker_is_proved_by_making_it_fail():
     assert "`checkers`" in text and "map.json" in text, (
         "sdlc-tend does not list the new checker in map.json, so the next run "
         "never reaches it and it becomes the paragraph it replaced"
+    )
+
+
+def case_a_generated_checker_carries_its_own_plant():
+    """The plant that proves a generated checker is kept, not thrown away.
+
+    A tend run writes one checker for an invariant nothing enforced, and the
+    rule was to plant the violation, watch it go red, and delete the plant.
+    That proves the invariant once. The code moves under the checker, the
+    pattern stops matching, and the gate reports clean forever — the same
+    failure as a check with no regression case, one layer out. Keeping the
+    plant in the file makes `--self-test` a regression case the checker
+    carries with it, so it is cheap to drop from the prose and invisible
+    after that.
+    """
+    text = read_text(get_skill_path("sdlc-tend"))
+    assert "PLANT" in text, (
+        "sdlc-tend no longer keeps the planted violation in the checker file, "
+        "so the proof of failure dies with the run that made it"
+    )
+    assert "--self-test" in text, (
+        "sdlc-tend does not expose the retained plant as --self-test, so "
+        "nothing re-proves the checker after it ships"
+    )
+    assert "def violations(root" in text, (
+        "sdlc-tend does not shape the scan to take a root, so the self-test has "
+        "nothing to point at a tree it built"
+    )
+    assert "Prove both directions" in text, (
+        "sdlc-tend no longer requires the clean run beside the planted one, so "
+        "a checker that fires on untouched code can ship"
     )
 
 
