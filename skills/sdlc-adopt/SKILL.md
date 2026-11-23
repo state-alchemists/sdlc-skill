@@ -61,8 +61,8 @@ Do not "helpfully" treat a project's own `ARCHITECTURE.md` or `DESIGN.md` as a m
 | Source files with no spec covering them | Mode B, then C |
 | Spec exists, but its code carries no `IMPLEMENTS:`/`COVERS:` | Mode C |
 | ADRs exist, but no code cites them | Mode C (optional — ask) |
-| `.sdlc/rules.md` absent, or `.sdlc/docs/{product,tech,test-strategy}.md` or root `AGENTS.md` absent, **and** legacy artifacts still to relocate | Mode A, then its tail |
-| Only `.sdlc/rules.md`, `.sdlc/docs/*` or `AGENTS.md` missing — **nothing left to relocate** | Nothing for this skill. Report the gap and hand the user `/sdlc-init`, which is already on its brownfield path and fills exactly this in Phase 5. Do not run Mode A to reach the tail. |
+| `.sdlc/rules.md` absent, or the docs root's `{product,tech,test-strategy}.md` or root `AGENTS.md` absent, **and** legacy artifacts still to relocate | Mode A, then its tail |
+| Only `.sdlc/rules.md`, the docs root's documents or `AGENTS.md` missing — **nothing left to relocate** | Nothing for this skill. Report the gap and hand the user `/sdlc-init`, which is already on its brownfield path and fills exactly this in Phase 5. Do not run Mode A to reach the tail. |
 | Everything already under `.sdlc/`, test plans complete (folded into `spec.md`, or standalone where `CONVENTIONS.md` says so), tags keyed and complete, steering documents and `rules.md` present | Nothing — report and stop |
 
 ### 1c. Measure the starting point
@@ -81,10 +81,12 @@ A table with one row per file or group, and an **Effect** column stating what br
 
 *(example — the paths below are illustrative; yours come from the project's own layout)*
 
+**The destination is the docs root** — `layout.docs_root` in `.sdlc/config.json`, `.sdlc/docs` when the project declares none. If the project already keeps documents in `_docs`, set that key before relocating, so the move ends the split rather than creating one.
+
 ```
 MODE A — Layout                                          Risk
-  docs/product.md        → .sdlc/docs/product.md         low    git mv, history preserved
-  docs/adr/ADR-*.md (7)  → .sdlc/docs/adr/               low    git mv, history preserved
+  docs/product.md        → <docs root>/product.md        low    git mv, history preserved
+  docs/adr/ADR-*.md (7)  → <docs root>/adr/              low    git mv, history preserved
   rules.md               → .sdlc/rules.md                low    git mv
   README.md              4 links repointed               low    links resolve after move
   AGENTS.md              directory map + validator row   MEDIUM if AGENTS.md documents paths as owned, it now disagrees with itself until updated
@@ -141,9 +143,9 @@ Every scripted edit asserts its anchor before writing — a blind `str.replace` 
 
 Run this at the end of Mode A, **before** Mode B or C, and only when step 7 finds a gap.
 
-Relocation puts the artifacts where the skills expect them; it does not finish the setup. `.sdlc/rules.md`, `.sdlc/docs/{product,tech,test-strategy}.md` and root `AGENTS.md` are what every later skill reads, and on a legacy project `/sdlc-init` could not write them — it would have put them beside the user's own documents, a parallel tree. **With the documents relocated, that objection is gone.**
+Relocation puts the artifacts where the skills expect them; it does not finish the setup. `.sdlc/rules.md`, the docs root's `{product,tech,test-strategy}.md` and root `AGENTS.md` are what every later skill reads, and on a legacy project `/sdlc-init` could not write them — it would have put them beside the user's own documents, a parallel tree. **With the documents relocated, that objection is gone.**
 
-7. **Detect the gap.** For each of `.sdlc/rules.md`, `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`, `.sdlc/docs/test-strategy.md` and `AGENTS.md`: present or absent. A relocated document counts as present and needs no more than a gap-fill. If all five are present, say so and skip to Mode B.
+7. **Detect the gap.** For each of `.sdlc/rules.md`, `product.md`, `tech.md` and `test-strategy.md` under the docs root, and `AGENTS.md`: present or absent. A relocated document counts as present and needs no more than a gap-fill. If all five are present, say so and skip to Mode B.
 
    Most projects that ran a pre-`.sdlc/` version of these skills have `docs/product.md` and friends but **no `rules.md`** — constitution was a later addition, so this is the common gap.
 

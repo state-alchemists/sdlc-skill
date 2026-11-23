@@ -50,7 +50,7 @@ Say this out loud on any page that leans on them:
 
 ## The document that wins on intent
 
-If this project also carries `.sdlc/`, then `.sdlc/docs/architecture.md` owns intent — the decisions, and the shape that was agreed — and a map page owns the present: the shape the code has, the hops a trail crosses, the invariants that hold, the deadfall. Where both exist, architecture.md wins on intent; a map page says only what that document does not, and links the ADR instead of restating it. See `.sdlc/CONVENTIONS.md` § Map pages.
+If this project also carries `.sdlc/`, then `architecture.md` at the docs root (`layout.docs_root`, `.sdlc/docs` when unset) owns intent — the decisions, and the shape that was agreed — and a map page owns the present: the shape the code has, the hops a trail crosses, the invariants that hold, the deadfall. Where both exist, architecture.md wins on intent; a map page says only what that document does not, and links the ADR instead of restating it. See `.sdlc/CONVENTIONS.md` § Map pages.
 
 ## What comes next
 

@@ -6,10 +6,11 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 
 | Artifact | Path | Template |
 |----------|------|----------|
-| Steering docs | `.sdlc/docs/{product,tech,test-strategy}.md` | `product.md`, `tech.md`, `test-strategy.md` |
+| **Docs root** | `.sdlc/docs/` by default — `layout.docs_root` in `.sdlc/config.json` sets it | — |
+| Steering docs | `{docs_root}/{product,tech,test-strategy}.md` | `product.md`, `tech.md`, `test-strategy.md` |
 | AI assistant guide | `AGENTS.md` (repo root) | `agents.md` |
-| Architecture | `.sdlc/docs/architecture.md` | `architecture.md` |
-| ADRs | `.sdlc/docs/adr/ADR-{N}.md` | `adr.md` |
+| Architecture | `{docs_root}/architecture.md` | `architecture.md` |
+| ADRs | `{docs_root}/adr/ADR-{N}.md` | `adr.md` |
 | Rules (constitution) | `.sdlc/rules.md` | `rules.md` |
 | Problem brief | `.sdlc/requirements/problem-brief.md` | `problem-brief.md` |
 | Entity dictionary | `.sdlc/requirements/entity-dictionary.md` | `entity-dictionary.md` |
@@ -27,7 +28,7 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 
 ## Map pages
 
-`.sdlc/` describes what will be built. A **map** describes what is running: `/sdlc-map` writes it, and it needs no `.sdlc/` at all.
+`.sdlc/` describes what will be built. A **map** describes what is running: `/sdlc-map` writes it, and it needs no `.sdlc/` at all. When `layout.docs_root` is `_docs`, both families share that one directory — what separates them is what they claim (intent against present), not where they sit.
 
 | Artifact | Path | Written by |
 |---|---|---|
@@ -37,7 +38,7 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 | Checkers | `scripts/check_*.py`, `scripts/map_config.py`, `scripts/collect_unknowns.py` | `/sdlc-map` |
 | Unknowns register | `map.json` → `unknowns` | the generator, never by hand |
 
-**Which document wins.** `.sdlc/docs/architecture.md` owns **intent**: the decisions, and the shape that was agreed. A map page owns the **present**: the shape the code has, the hops a trail crosses, the invariants that hold, the deadfall. Where both exist, architecture.md wins on intent, and a map page says only what that document does not — it links the ADR rather than restating the decision. Two documents that both claim intent disagree within a month, and the map is the one that loses, because nothing checks a sentence.
+**Which document wins.** `{docs_root}/architecture.md` owns **intent**: the decisions, and the shape that was agreed. A map page owns the **present**: the shape the code has, the hops a trail crosses, the invariants that hold, the deadfall. Where both exist, architecture.md wins on intent, and a map page says only what that document does not — it links the ADR rather than restating the decision. Two documents that both claim intent disagree within a month, and the map is the one that loses, because nothing checks a sentence.
 
 The map's own rules — the six sections, the page shapes, what the checkers can and cannot see — live in `MAP.md` at the project root. This file does not repeat them.
 
@@ -58,7 +59,7 @@ Detect **by content, never by directory name** — most projects have a `docs/`.
 |---|---|---|
 | Nowhere (no scaffolding) | `/sdlc-init` | Creates the structure and finishes setup |
 | Already under `.sdlc/` | `/sdlc-init` (brownfield path) | Fills gaps, e.g. a missing `.sdlc/rules.md`; nothing to relocate |
-| At a legacy path (one marker is enough) | `/sdlc-init`, then `/sdlc-adopt` | Init installs scaffolding and stops — writing `.sdlc/docs/product.md` beside `docs/product.md` would be a parallel tree. Adopt relocates, then runs init's Phase 3b–5 on the relocated tree. Adopt is the last command. |
+| At a legacy path (one marker is enough) | `/sdlc-init`, then `/sdlc-adopt` | Init installs scaffolding and stops — writing a steering document at the docs root beside `docs/product.md` would be a parallel tree. Adopt relocates, then runs init's Phase 3b–5 on the relocated tree. Adopt is the last command. |
 
 ## File roles and `.sdlc/config.json`
 
@@ -81,6 +82,7 @@ Everything above is a default. `.sdlc/config.json` is optional; every list **ext
 ```json
 {
   "layout": {
+    "docs_root": "_docs",
     "test_directory_names": ["it"],
     "test_stem_patterns": ["*Check"],
     "test_path_fragments": ["app/spec/"],
@@ -105,6 +107,7 @@ Everything above is a default. `.sdlc/config.json` is optional; every list **ext
 ```
 
 - **Globs** (`*_overrides`, `generated_globs`, `vendored_globs`) match the whole path or the basename. `source_overrides` beats `test_overrides`, and both beat every other rule. Files matching `generated_globs`/`vendored_globs` are never scanned and never annotated.
+- `layout.docs_root` names the single directory holding the steering documents, architecture and ADRs. Absent, it is `.sdlc/docs`, so an older project keeps the path it already has and nothing relocates. The key is an escape hatch, not a choice every project makes: a project that keeps its documents in `_docs` beside the map pages sets it, and gets one tree. It must be a relative path inside the repository; one that escapes, or holds `..`, is an ERROR, because it would point a reader at a tree this project does not own.
 - `scan_directories` removes a name from the skip list (for real code under `build/`).
 - `headings` declares a renamed or translated heading. Built-in matching already accepts `Tests`, `Test Cases`, `Test Design`, `Testing` and common rewordings of the exemption headings. `outside_code` (NFR exemption) and `outside_code_functional` (REQ exemption) are separate keys — see below.
 - `comments` teaches the validator an extension. An unknown extension falls back to `#`, `//`, `--`, `;`, `%`, `!`.
@@ -172,7 +175,7 @@ Canonical EARS (Mavin et al.). Keywords are **uppercase** — that is what makes
 
 **Safe in parallel** — each belongs to one feature, so git merges cleanly: `.sdlc/specs/<slug>/**`, `.sdlc/keys/<KEY>`, and that feature's own source and test files. For parallel *implementation*, use a git worktree per feature.
 
-**Single-writer — one session at a time**: `.sdlc/requirements/*`, `.sdlc/rules.md`, `.sdlc/docs/**`, `.sdlc/CONVENTIONS.md`, `.sdlc/config.json`. `/sdlc-init` and `/sdlc-plan` own these. Two sessions appending "the next free `AC-*`" collide on IDs declared immutable — so never run two of either at once, and `/sdlc-spec` never extends the brief.
+**Single-writer — one session at a time**: `.sdlc/requirements/*`, `.sdlc/rules.md`, `{docs_root}/**`, `.sdlc/CONVENTIONS.md`, `.sdlc/config.json`. `/sdlc-init` and `/sdlc-plan` own these. Two sessions appending "the next free `AC-*`" collide on IDs declared immutable — so never run two of either at once, and `/sdlc-spec` never extends the brief.
 
 **Claiming a Feature Key**: list taken keys, then **create `.sdlc/keys/<KEY>` containing the slug before writing the spec**:
 

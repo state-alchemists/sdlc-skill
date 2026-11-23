@@ -28,7 +28,7 @@ Two layers: a **deterministic** pass (the validator covers traceability, EARS, a
 
 If it did, or the user cannot rule it out, this is an **in-session review**: record it for the report and cap the verdict at COMMENT.
 
-Read `.sdlc/rules.md` (every violation is a FAIL unless the Override Log records an exception), `.sdlc/CONVENTIONS.md`, `.sdlc/specs/<slug>/spec.md` (source of truth — read the Feature Key and the `## Test Plan` section), `.sdlc/requirements/entity-dictionary.md`, `.sdlc/docs/architecture.md`, and `.sdlc/docs/adr/*.md`.
+Read `.sdlc/rules.md` (every violation is a FAIL unless the Override Log records an exception), `.sdlc/CONVENTIONS.md`, `.sdlc/specs/<slug>/spec.md` (source of truth — read the Feature Key and the `## Test Plan` section), `.sdlc/requirements/entity-dictionary.md`, and `architecture.md` and `adr/*.md` under the docs root.
 
 ### Phase 2: Deterministic Pass
 
@@ -55,7 +55,7 @@ Review the implementation of feature "{slug}" (Feature Key: {KEY}) against its s
 READ THESE (your source of truth):
 - .sdlc/specs/{slug}/spec.md          ← requirements, design, and the test plan
 - .sdlc/requirements/entity-dictionary.md
-- .sdlc/docs/architecture.md, .sdlc/docs/adr/*.md
+- {docs root}/architecture.md, {docs root}/adr/*.md
 
 PROJECT RULES (.sdlc/rules.md — inlined; any violation is a FAIL unless the Override Log covers it):
 [Inline rules.md, or "No rules file present."]

@@ -24,9 +24,9 @@ Turns the product vision into the two things every feature spec cites: **require
 
 Read, in parallel:
 - `.sdlc/rules.md` — ADRs must cite the `RULE-*` they implement and must never propose a decision that violates one.
-- `.sdlc/docs/product.md`, `.sdlc/docs/tech.md`
+- the docs root's `product.md` and `tech.md` (CONVENTIONS § Artifact paths)
 - `.sdlc/requirements/problem-brief.md`, `.sdlc/requirements/entity-dictionary.md` (if present — this run **merges**, it does not overwrite)
-- Existing `.sdlc/docs/adr/ADR-*.md` — for the next free number
+- Existing `adr/ADR-*.md` under the docs root — for the next free number
 
 ### Phase 2: Problem Brief
 
@@ -54,7 +54,7 @@ Each ADR cites the `RULE-*` it implements and states how adherence is verified.
 
 ### Phase 5: Architecture Document
 
-Fill `.sdlc/templates/architecture.md` into `.sdlc/docs/architecture.md`. Its Key Decisions table indexes the ADRs from Phase 4. Pick the Structure view from the project's shape in `tech.md` using the template's table (C4 containers only for separately running programs), and name the view you chose when presenting. Diagrams are Mermaid, drawn only from what the tables state; add a Key Flows sequence diagram only for a flow across parts that a reader could get wrong. Include only environments that actually exist per `test-strategy.md`.
+Fill `.sdlc/templates/architecture.md` into `architecture.md` under the docs root. Its Key Decisions table indexes the ADRs from Phase 4. Pick the Structure view from the project's shape in `tech.md` using the template's table (C4 containers only for separately running programs), and name the view you chose when presenting. Diagrams are Mermaid, drawn only from what the tables state; add a Key Flows sequence diagram only for a flow across parts that a reader could get wrong. Include only environments that actually exist per `test-strategy.md`.
 
 ### Phase 6: Validation
 
@@ -70,7 +70,7 @@ Present all four documents as **one Tier-2 batch**. Resolve Tier-1 conflicts (AC
 
 ## Phase Transition
 
-> Planning is complete: `.sdlc/requirements/problem-brief.md`, `.sdlc/requirements/entity-dictionary.md`, `.sdlc/docs/adr/ADR-*.md`, and `.sdlc/docs/architecture.md`.
+> Planning is complete: `.sdlc/requirements/problem-brief.md`, `.sdlc/requirements/entity-dictionary.md`, `adr/ADR-*.md`, and `architecture.md` under the docs root.
 
 Then deliver the action block (see CONVENTIONS.md § Session handoff). Derive the feature list from the brief you just wrote — one row per coherent feature, using the user story names. Do not invent features that are not in it.
 
@@ -94,7 +94,7 @@ After delivering this message, end your turn.
 
 ## Error Recovery
 
-Interrupted mid-phase: list `.sdlc/requirements/` and `.sdlc/docs/adr/` to see what was written, then resume from the first missing artifact.
+Interrupted mid-phase: list `.sdlc/requirements/` and the docs root's `adr/` to see what was written, then resume from the first missing artifact.
 
 ## Artefact Trail
 
@@ -102,5 +102,5 @@ Interrupted mid-phase: list `.sdlc/requirements/` and `.sdlc/docs/adr/` to see w
 |------|----------|---------|
 | `problem-brief.md` | `.sdlc/requirements/` | PRD: user stories, `AC-*`, `NFR-*` sources |
 | `entity-dictionary.md` | `.sdlc/requirements/` | Domain entities, fields, constraints |
-| `ADR-*.md` | `.sdlc/docs/adr/` | Architecture Decision Records |
-| `architecture.md` | `.sdlc/docs/` | System context, a structure view fitted to the project, key-flow sequences, deployment |
+| `ADR-*.md` | the docs root's `adr/` | Architecture Decision Records |
+| `architecture.md` | the docs root | System context, a structure view fitted to the project, key-flow sequences, deployment |

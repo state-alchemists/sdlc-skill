@@ -10,7 +10,7 @@ Exit 0 means every case passed; a failed assertion names the case.
 """
 
 # SPEC: .sdlc/specs/validator/spec.md
-# COVERS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:NFR-001, VAL:UT-001, VAL:UT-002, VAL:UT-003, VAL:UT-004, VAL:UT-005, VAL:UT-006, VAL:UT-007, VAL:UT-008, VAL:UT-009, VAL:UT-010, VAL:UT-011, VAL:UT-012, VAL:UT-013, VAL:UT-014, VAL:UT-015, VAL:UT-016, VAL:UT-017, VAL:UT-018, VAL:UT-019, VAL:UT-020, VAL:UT-021
+# COVERS: VAL:REQ-001, VAL:REQ-002, VAL:REQ-003, VAL:REQ-004, VAL:REQ-005, VAL:REQ-006, VAL:REQ-007, VAL:REQ-008, VAL:REQ-009, VAL:REQ-010, VAL:REQ-011, VAL:REQ-012, VAL:REQ-013, VAL:REQ-014, VAL:REQ-015, VAL:REQ-016, VAL:REQ-017, VAL:REQ-018, VAL:REQ-019, VAL:REQ-020, VAL:REQ-021, VAL:REQ-022, VAL:REQ-023, VAL:NFR-001, VAL:UT-001, VAL:UT-002, VAL:UT-003, VAL:UT-004, VAL:UT-005, VAL:UT-006, VAL:UT-007, VAL:UT-008, VAL:UT-009, VAL:UT-010, VAL:UT-011, VAL:UT-012, VAL:UT-013, VAL:UT-014, VAL:UT-015, VAL:UT-016, VAL:UT-017, VAL:UT-018, VAL:UT-019, VAL:UT-020, VAL:UT-021, VAL:UT-022
 
 import contextlib
 import functools
@@ -430,6 +430,46 @@ def case_legacy_steering_documents_are_detected():
     assert has_finding(
         findings, check="legacy-layout", message="steering docs"
     ), "legacy steering documents were not reported"
+
+
+def case_declared_docs_root_is_the_canonical_target():
+    """A project that keeps its documents at `_docs` is not told to relocate them.
+
+    Without this, the key would fix nothing: `docs_root` would say where the
+    documents belong while `legacy-layout` still compared them against
+    `.sdlc/docs` and reported a migration with nowhere to go.
+    """
+    findings = get_findings(
+        requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+        source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+        test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+        config={"layout": {"docs_root": "_docs"}},
+        extra_files={
+            os.path.join("docs", "product.md"): "# Product\n",
+            os.path.join("_docs", "product.md"): "# Product\n",
+        },
+    )
+    assert not has_finding(
+        findings, check="legacy-layout", message="steering docs"
+    ), "documents already at the declared docs root were reported as a legacy layout"
+
+
+def case_docs_root_outside_the_project_is_rejected():
+    """A root that escapes the repository points a reader at a tree it does not own.
+
+    `..` also makes the canonical target of a legacy artifact ambiguous, so both
+    are refused rather than normalised into something plausible.
+    """
+    for declared in ("../outside", "/abs/docs", "docs/../elsewhere", "   "):
+        findings = get_findings(
+            requirements=["- `REQ-001` (AC-001): The system SHALL sign up users."],
+            source="# IMPLEMENTS: USERMGMT:REQ-001\n",
+            test="# COVERS: USERMGMT:REQ-001, USERMGMT:UT-001\n",
+            config={"layout": {"docs_root": declared}},
+        )
+        assert has_finding(
+            findings, check="config", message="docs_root"
+        ), "layout.docs_root accepted %r" % (declared,)
 
 
 def case_unknown_ac_citation_errors():
