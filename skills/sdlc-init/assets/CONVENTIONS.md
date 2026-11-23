@@ -36,6 +36,7 @@ Single source of truth for paths, the EARS dialect, the ID/traceability scheme, 
 | `MAP.md` | repository root | `/sdlc-map` — the contract for whoever changes the map |
 | `map.json` | repository root | `/sdlc-map` — where this project's pages, register and repositories are |
 | Checkers | `scripts/check_*.py`, `scripts/map_config.py`, `scripts/collect_unknowns.py` | `/sdlc-map` |
+| Generated checkers | `scripts/check_<invariant>.py`, listed in `map.json` → `checkers` | `/sdlc-tend` — at most one a run, for an invariant nothing enforced, and proved by making it fail |
 | Unknowns register | `map.json` → `unknowns` | the generator, never by hand |
 
 **Which document wins.** `{docs_root}/architecture.md` owns **intent**: the decisions, and the shape that was agreed. A map page owns the **present**: the shape the code has, the hops a trail crosses, the invariants that hold, the deadfall. Where both exist, architecture.md wins on intent, and a map page says only what that document does not — it links the ADR rather than restating the decision. Two documents that both claim intent disagree within a month, and the map is the one that loses, because nothing checks a sentence.
